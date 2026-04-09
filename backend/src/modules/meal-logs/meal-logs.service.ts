@@ -12,7 +12,7 @@ import { UploadImageDto } from './dto/upload-image.dto';
 import { Food } from '../foods/entities/food.entity';
 import { MEAL_LOGS_REPOSITORY } from './meal-logs.constants';
 import type { IMealLogsRepository } from './repositories/meal-logs.repository.interface';
-import { LocalUploadService } from '../local-upload/local-upload.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class MealLogsService {
@@ -21,7 +21,7 @@ export class MealLogsService {
     private readonly repository: IMealLogsRepository,
     @InjectRepository(Food)
     private readonly foodRepository: Repository<Food>,
-    private readonly localUploadService: LocalUploadService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async create(userId: string, dto: CreateMealLogDto): Promise<MealLog> {
@@ -62,7 +62,7 @@ export class MealLogsService {
   async deleteLog(userId: string, id: string): Promise<void> {
     const log = await this.findOne(userId, id);
     if (log.image_public_id) {
-      await this.localUploadService.deleteFile(log.image_public_id);
+      await this.cloudinaryService.deleteFile(log.image_public_id);
     }
     return this.repository.deleteLog(id);
   }
@@ -74,9 +74,9 @@ export class MealLogsService {
   ): Promise<MealLog> {
     const log = await this.findOne(userId, id);
     if (log.image_public_id) {
-      await this.localUploadService.deleteFile(log.image_public_id);
+      await this.cloudinaryService.deleteFile(log.image_public_id);
     }
-    const { url, publicId } = await this.localUploadService.uploadBuffer(file.buffer, 'meal-logs');
+    const { url, publicId } = await this.cloudinaryService.uploadFile(file, 'meal-logs');
     return this.repository.updateImage(id, url, publicId);
   }
 
@@ -87,9 +87,9 @@ export class MealLogsService {
   ): Promise<MealLog> {
     const log = await this.findOne(userId, id);
     if (log.image_public_id) {
-      await this.localUploadService.deleteFile(log.image_public_id);
+      await this.cloudinaryService.deleteFile(log.image_public_id);
     }
-    const { url, publicId } = await this.localUploadService.uploadBase64(dto.imageData, 'meal-logs');
+    const { url, publicId } = await this.cloudinaryService.uploadBase64(dto.imageData, 'meal-logs');
     return this.repository.updateImage(id, url, publicId);
   }
 

@@ -18,7 +18,7 @@ import {
 import { BodyMetricsModule } from '../body-metrics/body-metrics.module';
 import { StreaksModule } from '../streaks/streaks.module';
 import { UsersModule } from '../users/users.module';
-import { LocalUploadModule } from '../local-upload/local-upload.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -26,7 +26,7 @@ import { LocalUploadModule } from '../local-upload/local-upload.module';
     BodyMetricsModule,
     StreaksModule,
     UsersModule,
-    LocalUploadModule,
+    CloudinaryModule,
   ],
   controllers: [TrainingController],
   providers: [

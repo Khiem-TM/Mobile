@@ -5,7 +5,7 @@ import { Food } from './entities/food.entity';
 import { FoodBarcode } from './entities/food-barcode.entity';
 import { FoodUserFavorite } from './entities/food-user-favorite.entity';
 import { CreateFoodDto } from './dto/create-food.dto';
-import { LocalUploadService } from '../local-upload/local-upload.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class FoodsService {
@@ -16,7 +16,7 @@ export class FoodsService {
     private readonly barcodeRepository: Repository<FoodBarcode>,
     @InjectRepository(FoodUserFavorite)
     private readonly favoriteRepository: Repository<FoodUserFavorite>,
-    private readonly localUploadService: LocalUploadService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async findAll(query: string = '', page: number = 1, limit: number = 20) {
@@ -82,7 +82,7 @@ export class FoodsService {
 
   async uploadImage(foodId: string, file: Express.Multer.File): Promise<Food> {
     const food = await this.findOne(foodId);
-    const { url, publicId } = await this.localUploadService.uploadBuffer(file.buffer, 'foods');
+    const { url, publicId } = await this.cloudinaryService.uploadFile(file, 'foods');
     food.image_urls = [...(food.image_urls ?? []), url];
     food.image_public_ids = [...(food.image_public_ids ?? []), publicId];
     return this.foodRepository.save(food);
@@ -92,7 +92,7 @@ export class FoodsService {
     const food = await this.findOne(foodId);
     const idx = (food.image_public_ids ?? []).indexOf(publicId);
     if (idx === -1) throw new NotFoundException('Image not found on this food');
-    await this.localUploadService.deleteFile(publicId);
+    await this.cloudinaryService.deleteFile(publicId);
     food.image_public_ids = (food.image_public_ids ?? []).filter((_, i) => i !== idx);
     food.image_urls = (food.image_urls ?? []).filter((_, i) => i !== idx);
     return this.foodRepository.save(food);

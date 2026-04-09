@@ -11,7 +11,7 @@ import { BodyMetricQueryDto } from '../dto/body-metric-query.dto';
 import { UsersService } from '../../users/users.service';
 import { BMIUtil } from '../../../common/utils/bmi.util';
 import { TDEEUtil } from '../../../common/utils/tdee.util';
-import { LocalUploadService } from '../../local-upload/local-upload.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 interface MetricCalculated extends UpsertBodyMetricDto {
   bmi?: number;
@@ -25,7 +25,7 @@ export class BodyMetricsService {
     @Inject(BODY_METRICS_REPOSITORY)
     private readonly repository: IBodyMetricsRepository,
     private readonly usersService: UsersService,
-    private readonly localUploadService: LocalUploadService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async upsert(userId: string, dto: UpsertBodyMetricDto) {
@@ -40,9 +40,16 @@ export class BodyMetricsService {
         metric.bmi = BMIUtil.calculate(dto.weightKg, profile.heightCm);
 
         if (profile.birthDate && profile.gender && profile.activityLevel) {
-          const age =
-            new Date().getFullYear() -
-            new Date(profile.birthDate).getFullYear();
+          const birth = new Date(profile.birthDate);
+          const today = new Date();
+          let age = today.getFullYear() - birth.getFullYear();
+          if (
+            today.getMonth() < birth.getMonth() ||
+            (today.getMonth() === birth.getMonth() &&
+              today.getDate() < birth.getDate())
+          ) {
+            age--;
+          }
           metric.bmr = TDEEUtil.calculateBMR(
             dto.weightKg,
             profile.heightCm,
@@ -118,8 +125,8 @@ export class BodyMetricsService {
     photoType: string,
     bodyMetricId?: string,
   ) {
-    const { url, publicId } = await this.localUploadService.uploadBuffer(
-      file.buffer,
+    const { url, publicId } = await this.cloudinaryService.uploadFile(
+      file,
       'progress-photos',
     );
     return this.repository.savePhoto({
@@ -140,7 +147,7 @@ export class BodyMetricsService {
       throw new ForbiddenException('You can only delete your own photos');
     }
     if (photo.photoPublicId) {
-      await this.localUploadService.deleteFile(photo.photoPublicId);
+      await this.cloudinaryService.deleteFile(photo.photoPublicId);
     }
     await this.repository.deletePhoto(photoId);
   }

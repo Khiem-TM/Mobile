@@ -130,6 +130,18 @@ export class DashboardService {
       this.trainingService.getWorkoutHistory(userId, 200),
     ]);
 
+    const dailyNutrition: Record<string, any> = {};
+    for (let i = 1; i <= lastDay; i++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+      dailyNutrition[dateStr] = await this.mealLogsService.getDailySummary(userId, dateStr);
+    }
+    const monthTotalCalories = Object.values(dailyNutrition).reduce(
+      (sum: number, d: any) => sum + (d.total_calories || 0), 0,
+    );
+    const daysLogged = Object.values(dailyNutrition).filter(
+      (d: any) => d.logs?.length > 0,
+    ).length;
+
     const monthWorkouts = workouts.filter(
       (w) => w.sessionDate >= fromDate && w.sessionDate <= toDate,
     );
@@ -155,6 +167,12 @@ export class DashboardService {
 
     return {
       period: { from: fromDate, to: toDate, year, month },
+      nutrition: {
+        total_calories: Math.round(monthTotalCalories),
+        avg_daily_calories: daysLogged > 0 ? Math.round(monthTotalCalories / daysLogged) : 0,
+        days_logged: daysLogged,
+        daily_breakdown: dailyNutrition,
+      },
       activity: {
         total_steps: totalSteps,
         avg_daily_steps: activityRange.length

@@ -7,10 +7,10 @@ import { MealLogItem } from './entities/meal-log-item.entity';
 import { Food } from '../foods/entities/food.entity';
 import { MealLogsRepository } from './repositories/meal-logs.repository';
 import { MEAL_LOGS_REPOSITORY } from './meal-logs.constants';
-import { LocalUploadModule } from '../local-upload/local-upload.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MealLog, MealLogItem, Food]), LocalUploadModule],
+  imports: [TypeOrmModule.forFeature([MealLog, MealLogItem, Food]), CloudinaryModule],
   controllers: [MealLogsController],
   providers: [
     MealLogsService,

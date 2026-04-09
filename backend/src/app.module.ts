@@ -41,6 +41,8 @@ import { AdminModule } from './modules/admin/admin.module';
 
         console.log(`Connecting to ${dbUser}@${dbHost}:${dbPort}/${dbName}`);
 
+        const isSsl = configService.get<string>('DB_SSL', 'false') === 'true';
+
         return {
           type: 'postgres' as const,
           host: dbHost,
@@ -50,6 +52,7 @@ import { AdminModule } from './modules/admin/admin.module';
           database: dbName,
           autoLoadEntities: true,
           synchronize: true,
+          ...(isSsl && { ssl: { rejectUnauthorized: false } }),
         };
       },
     }),

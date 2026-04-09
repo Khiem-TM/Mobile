@@ -10,13 +10,13 @@ import {
   BODY_PHOTOS_REPOSITORY,
 } from './body-metrics.constants';
 import { UsersModule } from '../users/users.module';
-import { LocalUploadModule } from '../local-upload/local-upload.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([BodyMetric, BodyProgressPhoto]),
     UsersModule,
-    LocalUploadModule,
+    CloudinaryModule,
   ],
   controllers: [BodyMetricsController],
   providers: [
