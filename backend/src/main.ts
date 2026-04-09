@@ -8,14 +8,12 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // CORS open --> Cho phép mobile app truy cập API
   app.enableCors({
     origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // validate req body
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -24,27 +22,28 @@ async function bootstrap() {
     }),
   );
 
-  // format response
   const reflector = app.get(Reflector);
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(reflector),
     new ResponseInterceptor(),
   );
 
-  // swagger setup
   const config = new DocumentBuilder()
-    .setTitle('Calorie Tracker API')
+    .setTitle('Calories Tracker API')
+    .setDescription('Calories & Fitness Tracker API for Mobile and Web')
     .setVersion('1.0')
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'access-token',
     )
     .build();
-
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Server is running on port ${process.env.PORT ?? 3000}`);
+
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
+  console.log(`Server running on port ${port}`);
+  console.log(`Swagger docs: http://localhost:${port}/api/docs`);
 }
 
 void bootstrap();
