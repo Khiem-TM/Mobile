@@ -103,9 +103,43 @@ export class FoodsService {
       where: { barcode },
       relations: ['food'],
     });
-    if (!record || !record.food) {
-      throw new NotFoundException(`Food with barcode ${barcode} not found`);
+    if (record?.food) return record.food;
+
+    // Fallback: Open Food Facts API
+    try {
+      const res = await fetch(
+        `https://world.openfoodfacts.org/api/v3/product/${barcode}.json`,
+      );
+      const data = await res.json() as any;
+      if (data.status === 'success' && data.product) {
+        const p = data.product;
+        const n = p.nutriments ?? {};
+        const food = this.foodRepository.create({
+          name: p.product_name || p.abbreviated_product_name || barcode,
+          name_en: p.product_name_en || null,
+          brand: p.brands || null,
+          category: p.categories_tags?.[0]?.replace('en:', '') || null,
+          food_type: 'product',
+          serving_size_g: parseFloat(p.serving_quantity) || 100,
+          calories_per_100g: n['energy-kcal_100g'] ?? 0,
+          protein_per_100g: n['proteins_100g'] ?? 0,
+          fat_per_100g: n['fat_100g'] ?? 0,
+          carbs_per_100g: n['carbohydrates_100g'] ?? 0,
+          fiber_per_100g: n['fiber_100g'] ?? 0,
+          sugar_per_100g: n['sugars_100g'] ?? 0,
+          sodium_per_100g: n['sodium_100g'] ? n['sodium_100g'] * 1000 : 0,
+          is_verified: false,
+          is_active: true,
+          is_custom: false,
+        });
+        const saved = await this.foodRepository.save(food);
+        await this.barcodeRepository.save({ food_id: saved.id, barcode });
+        return saved;
+      }
+    } catch {
+      // ignore external API errors
     }
-    return record.food;
+
+    throw new NotFoundException(`Food with barcode ${barcode} not found`);
   }
 }

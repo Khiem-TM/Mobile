@@ -9,6 +9,8 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { EmailVerification } from './entities/email-verification.entity';
 import { PasswordReset } from './entities/password-reset.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { MailerModule } from '../mailer/mailer.module';
+import { StreaksModule } from '../streaks/streaks.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       PasswordReset,
     ]),
     PassportModule,
+    MailerModule,
+    StreaksModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'khiemhehe',
       signOptions: { expiresIn: '15m' },

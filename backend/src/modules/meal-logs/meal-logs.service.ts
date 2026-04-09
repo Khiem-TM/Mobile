@@ -13,6 +13,8 @@ import { Food } from '../foods/entities/food.entity';
 import { MEAL_LOGS_REPOSITORY } from './meal-logs.constants';
 import type { IMealLogsRepository } from './repositories/meal-logs.repository.interface';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { StreaksService } from '../streaks/streaks.service';
+import { StreakType } from '../../common/enums/streak-type.enum';
 
 @Injectable()
 export class MealLogsService {
@@ -22,6 +24,7 @@ export class MealLogsService {
     @InjectRepository(Food)
     private readonly foodRepository: Repository<Food>,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly streaksService: StreaksService,
   ) {}
 
   async create(userId: string, dto: CreateMealLogDto): Promise<MealLog> {
@@ -37,6 +40,8 @@ export class MealLogsService {
         await this.addItemToLog(userId, log.id, itemDto);
       }
     }
+
+    await this.streaksService.updateActivity(userId, StreakType.CALORIE_GOAL, logDate);
 
     return this.repository.findById(log.id) as Promise<MealLog>;
   }

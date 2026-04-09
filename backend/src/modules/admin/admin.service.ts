@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/co
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { User } from '../users/entities/user.entity';
 import { Food } from '../foods/entities/food.entity';
 import { Exercise } from '../training/entities/exercise.entity';
@@ -28,12 +29,15 @@ export class AdminService {
     @InjectRepository(Blog)
     private readonly blogRepo: Repository<Blog>,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ─── Admin Auth ────────────────────────────────────────────────────────────
 
   async adminLogin(email: string, password: string): Promise<{ access_token: string }> {
-    if (email !== 'admin@gmail.com' || password !== 'admin') {
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin@gmail.com');
+    const adminPassword = this.configService.get<string>('ADMIN_PASSWORD', 'admin');
+    if (email !== adminEmail || password !== adminPassword) {
       throw new UnauthorizedException('Invalid admin credentials');
     }
     const access_token = this.jwtService.sign(
@@ -226,6 +230,12 @@ export class AdminService {
       take: limit,
     });
     return { blogs, total, page, limit };
+  }
+
+  async getOneBlog(id: string): Promise<Blog> {
+    const blog = await this.blogRepo.findOne({ where: { id } });
+    if (!blog) throw new NotFoundException('Blog not found');
+    return blog;
   }
 
   async createBlog(dto: CreateBlogDto): Promise<Blog> {

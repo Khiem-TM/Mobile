@@ -3,7 +3,7 @@ import {
   BadRequestException,
   UnauthorizedException,
   NotFoundException,
-  Logger,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -17,11 +17,12 @@ import { PasswordReset } from './entities/password-reset.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { AuthResponseDto } from './dto/auth-response.dto';
+import { MailerService } from '../mailer/mailer.service';
+import { StreaksService } from '../streaks/streaks.service';
+import { StreakType } from '../../common/enums/streak-type.enum';
 
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
-
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -32,6 +33,8 @@ export class AuthService {
     @InjectRepository(PasswordReset)
     private readonly passwordResetRepository: Repository<PasswordReset>,
     private readonly jwtService: JwtService,
+    private readonly mailerService: MailerService,
+    private readonly streaksService: StreaksService,
   ) {}
 
   //  Tạo token truy cập
@@ -107,6 +110,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.is_verified) {
+      throw new ForbiddenException(
+        'Please verify your email before logging in. Check your inbox or request a new verification email.',
+      );
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    await this.streaksService.updateActivity(user.id, StreakType.LOGIN, today);
+
     return this.generateAuthResponse(user);
   }
 
@@ -168,9 +180,7 @@ export class AuthService {
 
     await this.emailVerificationRepository.save({ userId, token, expiresAt });
 
-    this.logger.log(
-      `[DEV] Email verification token for ${user.email}: ${token}`,
-    );
+    await this.mailerService.sendEmailVerification(user.email, token);
 
     return { message: 'Verification email sent. Check your inbox.' };
   }
@@ -213,7 +223,7 @@ export class AuthService {
       expiresAt,
     });
 
-    this.logger.log(`[DEV] Password reset token for ${email}: ${token}`);
+    await this.mailerService.sendPasswordReset(email, token);
 
     return { message: 'If that email exists, a reset link has been sent.' };
   }

@@ -3,6 +3,10 @@ import { STREAKS_REPOSITORY } from './streaks.constants';
 import type { IStreaksRepository } from './repositories/streaks.repository.interface';
 import { Streak } from './entities/streak.entity';
 import { StreakType } from '../../common/enums/streak-type.enum';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
+
+const STREAK_MILESTONES = [3, 7, 14, 30];
 
 @Injectable()
 export class StreaksService {
@@ -11,6 +15,7 @@ export class StreaksService {
   constructor(
     @Inject(STREAKS_REPOSITORY)
     private readonly repository: IStreaksRepository,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getStreaks(userId: string): Promise<Streak[]> {
@@ -39,7 +44,18 @@ export class StreaksService {
 
     const newLongest = Math.max(streak.longest_streak, newCurrent);
 
-    return this.repository.updateStreak(streak.id, newCurrent, newLongest, today);
+    const updated = await this.repository.updateStreak(streak.id, newCurrent, newLongest, today);
+
+    if (STREAK_MILESTONES.includes(newCurrent)) {
+      await this.notificationsService.create(
+        userId,
+        NotificationType.STREAK,
+        `Streak ${newCurrent} ngay! 🔥`,
+        `Ban da duy tri streak ${type} lien tuc ${newCurrent} ngay. Tuyet voi!`,
+      );
+    }
+
+    return updated;
   }
 
   async resetExpiredStreaks() {

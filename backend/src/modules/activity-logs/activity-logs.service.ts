@@ -4,12 +4,17 @@ import type { IActivityLogsRepository } from './repositories/activity-logs.repos
 import { LogStepsDto } from './dto/log-steps.dto';
 import { LogCaloriesBurnedDto } from './dto/log-calories-burned.dto';
 import { LogWaterDto } from './dto/log-water.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ActivityLogsService {
   constructor(
     @Inject(ACTIVITY_LOGS_REPOSITORY)
     private readonly repository: IActivityLogsRepository,
+    private readonly notificationsService: NotificationsService,
+    private readonly usersService: UsersService,
   ) {}
 
   async logSteps(userId: string, dto: LogStepsDto) {
@@ -27,7 +32,20 @@ export class ActivityLogsService {
   }
 
   async logWater(userId: string, dto: LogWaterDto) {
-    return this.repository.upsertWater(userId, dto.logDate, dto.waterMl);
+    const log = await this.repository.upsertWater(userId, dto.logDate, dto.waterMl);
+
+    const profile = await this.usersService.getHealthProfile(userId);
+    const goalMl = profile?.waterGoalMl ?? 2000;
+    if (log.waterMl >= goalMl) {
+      await this.notificationsService.create(
+        userId,
+        NotificationType.GOAL_PROGRESS,
+        'Da dat muc tieu nuoc uong! 💧',
+        `Ban da uong ${log.waterMl}ml — dat muc tieu ${goalMl}ml hom nay!`,
+      );
+    }
+
+    return log;
   }
 
   // Hàm trả về thông tin log user theo ngày

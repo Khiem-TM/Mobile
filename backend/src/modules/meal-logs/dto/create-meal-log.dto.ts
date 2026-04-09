@@ -9,7 +9,7 @@ import {
   Min,
   IsEnum,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class CreateMealLogItemDto {
   @IsUUID()
@@ -37,7 +37,7 @@ export class CreateMealLogDto {
   @IsDateString()
   log_date?: string;
 
-  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
   @IsEnum(MealType)
   meal_type!: MealType;
 

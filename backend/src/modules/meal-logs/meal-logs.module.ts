@@ -8,9 +8,10 @@ import { Food } from '../foods/entities/food.entity';
 import { MealLogsRepository } from './repositories/meal-logs.repository';
 import { MEAL_LOGS_REPOSITORY } from './meal-logs.constants';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { StreaksModule } from '../streaks/streaks.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MealLog, MealLogItem, Food]), CloudinaryModule],
+  imports: [TypeOrmModule.forFeature([MealLog, MealLogItem, Food]), CloudinaryModule, StreaksModule],
   controllers: [MealLogsController],
   providers: [
     MealLogsService,

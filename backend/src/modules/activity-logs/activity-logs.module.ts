@@ -5,9 +5,11 @@ import { ActivityLogsService } from './activity-logs.service';
 import { ActivityLogsController } from './activity-logs.controller';
 import { ActivityLogsRepository } from './repositories/activity-logs.repository';
 import { ACTIVITY_LOGS_REPOSITORY } from './activity-logs.constants';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ActivityLog])],
+  imports: [TypeOrmModule.forFeature([ActivityLog]), NotificationsModule, UsersModule],
   controllers: [ActivityLogsController],
   providers: [
     ActivityLogsService,

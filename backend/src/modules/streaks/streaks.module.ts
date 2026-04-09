@@ -7,11 +7,13 @@ import { StreaksController } from './streaks.controller';
 import { StreaksScheduler } from './streaks.scheduler';
 import { StreaksRepository } from './repositories/streaks.repository';
 import { STREAKS_REPOSITORY } from './streaks.constants';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Streak]),
-    ScheduleModule.forRoot(), // Ensure scheduler is enabled
+    ScheduleModule.forRoot(),
+    NotificationsModule,
   ],
   controllers: [StreaksController],
   providers: [

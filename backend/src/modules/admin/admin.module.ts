@@ -10,6 +10,7 @@ import { Blog } from './entities/blog.entity';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
 import { AdminAuthController } from './admin-auth.controller';
+import { BlogController } from './blog.controller';
 import { JwtStrategy } from '../auth/strategies/jwt.strategy';
 
 @Module({
@@ -21,7 +22,7 @@ import { JwtStrategy } from '../auth/strategies/jwt.strategy';
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  controllers: [AdminController, AdminAuthController],
+  controllers: [AdminController, AdminAuthController, BlogController],
   providers: [AdminService, JwtStrategy],
 })
 export class AdminModule {}
