@@ -19,6 +19,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nes
 import { TrainingService } from './training.service';
 import { JwtAuthGuard } from '../../common/guards/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import type { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import {
   ExerciseQueryDto,
@@ -37,6 +38,7 @@ import {
 export class TrainingController {
   constructor(private readonly trainingService: TrainingService) {}
 
+  @Public()
   @ApiOperation({ summary: 'Get exercises (filter by name, muscleGroup)' })
   @Get('exercises')
   getExercises(@Query() query: ExerciseQueryDto) {

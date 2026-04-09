@@ -1,8 +1,18 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsArray, IsUrl, Min, Max, IsIn } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsArray,
+  IsUrl,
+  Min,
+  Max,
+  IsIn,
+} from 'class-validator';
 
 export class CreateFoodDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsString()
   @IsOptional()
@@ -22,7 +32,7 @@ export class CreateFoodDto {
 
   @IsNumber()
   @Min(0)
-  serving_size_g: number;
+  serving_size_g!: number;
 
   @IsString()
   @IsOptional()
@@ -30,7 +40,7 @@ export class CreateFoodDto {
 
   @IsNumber()
   @Min(0)
-  calories_per_100g: number;
+  calories_per_100g!: number;
 
   @IsNumber()
   @Min(0)
