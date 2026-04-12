@@ -6,6 +6,7 @@ export interface IMealLogsRepository {
   findOrCreate(userId: string, date: string, type: MealType): Promise<MealLog>;
   findById(id: string): Promise<MealLog | null>;
   findByUser(userId: string, date?: string): Promise<MealLog[]>;
+  findByRange(userId: string, fromDate: string, toDate: string): Promise<MealLog[]>;
   updateLog(id: string, data: Partial<MealLog>): Promise<MealLog>;
   deleteLog(id: string): Promise<void>;
   saveItem(item: Partial<MealLogItem>): Promise<MealLogItem>;

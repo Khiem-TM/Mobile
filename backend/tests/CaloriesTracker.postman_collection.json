@@ -1,0 +1,1508 @@
+{
+  "info": {
+    "name": "Calories Tracker API — Full Test Suite v2",
+    "_postman_id": "calories-tracker-full-suite-v2",
+    "description": "Full test suite for all 48+ endpoints. Requires server running on port 3005.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3005", "type": "string" },
+    { "key": "user_token", "value": "", "type": "string" },
+    { "key": "user_id", "value": "", "type": "string" },
+    { "key": "user2_token", "value": "", "type": "string" },
+    { "key": "admin_token", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" },
+    { "key": "food_id", "value": "", "type": "string" },
+    { "key": "meal_log_id", "value": "", "type": "string" },
+    { "key": "meal_item_id", "value": "", "type": "string" },
+    { "key": "exercise_id", "value": "", "type": "string" },
+    { "key": "workout_id", "value": "", "type": "string" },
+    { "key": "goal_id", "value": "", "type": "string" },
+    { "key": "notification_id", "value": "", "type": "string" },
+    { "key": "blog_id", "value": "", "type": "string" },
+    { "key": "admin_food_id", "value": "", "type": "string" },
+    { "key": "admin_exercise_id", "value": "", "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "00 — Setup",
+      "description": "Creates a verified test user. Requires server on port 3005 with admin credentials admin@gmail.com/admin.",
+      "item": [
+        {
+          "name": "00.1 Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/admin/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"admin@gmail.com\",\"password\":\"admin\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Admin login 201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "pm.collectionVariables.set('admin_token', r.data?.access_token || r.access_token);",
+            "pm.test('Admin token saved', () => pm.expect(pm.collectionVariables.get('admin_token')).to.not.be.empty);"
+          ]}}]
+        },
+        {
+          "name": "00.2 Register Test User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\"email\":\"testuser_suite@example.com\",\"password\":\"TestPass123!\",\"display_name\":\"Suite User\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const r = pm.response.json();",
+            "if (pm.response.code === 200 || pm.response.code === 201) {",
+            "  const tok = r.data?.access_token || r.access_token;",
+            "  const uid = r.data?.user?.id || r.user?.id;",
+            "  pm.collectionVariables.set('refresh_token', r.data?.refresh_token || r.refresh_token);",
+            "  pm.collectionVariables.set('user_id', uid);",
+            "  pm.test('Registered, user_id saved', () => pm.expect(uid).to.be.a('string'));",
+            "} else if (pm.response.code === 400 && JSON.stringify(r).includes('already registered')) {",
+            "  pm.test('User already exists — will get ID via admin API', () => true);",
+            "}"
+          ]}}]
+        },
+        {
+          "name": "00.3 Get Test User ID via Admin (if already existed)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/users?search=testuser_suite@example.com&limit=1"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const r = pm.response.json();",
+            "const users = r.data?.users || r.users || [];",
+            "if (users.length > 0 && !pm.collectionVariables.get('user_id')) {",
+            "  pm.collectionVariables.set('user_id', users[0].id);",
+            "}",
+            "pm.test('User ID available', () => pm.expect(pm.collectionVariables.get('user_id')).to.not.be.empty);"
+          ]}}]
+        },
+        {
+          "name": "00.4 Force Verify Test User Email (admin only)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/users/{{user_id}}/verify-email"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Force verify returns 200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "const user = r.data || r;",
+            "pm.test('is_verified = true', () => pm.expect(user.is_verified).to.equal(true));"
+          ]}}]
+        },
+        {
+          "name": "00.5 Login Test User (get real user_token)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"testuser_suite@example.com\",\"password\":\"TestPass123!\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Login returns 200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "const tok = r.data?.access_token || r.access_token;",
+            "const rtok = r.data?.refresh_token || r.refresh_token;",
+            "pm.collectionVariables.set('user_token', tok);",
+            "pm.collectionVariables.set('refresh_token', rtok);",
+            "pm.test('user_token saved', () => pm.expect(tok).to.be.a('string'));"
+          ]}}]
+        },
+        {
+          "name": "00.6 Get First Exercise ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/training/exercises"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const r = pm.response.json();",
+            "const exercises = r.data?.exercises || r.data || [];",
+            "if (Array.isArray(exercises) && exercises.length > 0) {",
+            "  pm.collectionVariables.set('exercise_id', exercises[0].id);",
+            "  pm.test('exercise_id saved: ' + exercises[0].id, () => true);",
+            "} else {",
+            "  pm.test('No exercises found — workout tests will be skipped', () => true);",
+            "}"
+          ]}}]
+        },
+        {
+          "name": "00.7 Set Health Profile (needed for BMI/TDEE tests)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users/me/health-profile",
+            "body": { "mode": "raw", "raw": "{\"birthDate\":\"1995-01-26\",\"gender\":\"male\",\"heightCm\":175,\"initialWeightKg\":70,\"activityLevel\":\"moderately_active\",\"waterGoalMl\":2000,\"caloriesGoal\":2000}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Health profile set', () => pm.expect([200,201]).to.include(pm.response.code));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "01 — Auth",
+      "item": [
+        {
+          "name": "01.1 Register — Happy Path",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\"email\":\"newuser_12345@example.com\",\"password\":\"SecurePass99!\",\"display_name\":\"Random User\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Status 200 or 201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "pm.test('Has access_token', () => pm.expect(r.data?.access_token || r.access_token).to.be.a('string'));",
+            "pm.test('Has refresh_token', () => pm.expect(r.data?.refresh_token || r.refresh_token).to.be.a('string'));",
+            "pm.test('User has id', () => pm.expect(r.data?.user?.id || r.user?.id).to.be.a('string'));"
+          ]}}]
+        },
+        {
+          "name": "01.2 Register — Duplicate Email (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\"email\":\"testuser_suite@example.com\",\"password\":\"SecurePass99!\",\"display_name\":\"Dup\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 for duplicate email', () => pm.response.to.have.status(400));",
+            "pm.test('Error mentions email', () => pm.expect(JSON.stringify(pm.response.json())).to.include('Email already registered'));"
+          ]}}]
+        },
+        {
+          "name": "01.3 Register — Short Password (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\"email\":\"shortpw@example.com\",\"password\":\"short\",\"display_name\":\"Test\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 for short password', () => pm.response.to.have.status(400));"
+          ]}}]
+        },
+        {
+          "name": "01.4 Register — Forbidden Extra Field (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/register",
+            "body": { "mode": "raw", "raw": "{\"email\":\"extra@example.com\",\"password\":\"SecurePass99!\",\"display_name\":\"Test\",\"role\":\"admin\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 for forbidden field role', () => pm.response.to.have.status(400));"
+          ]}}]
+        },
+        {
+          "name": "01.5 Login — Unverified User (403)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"newuser_12345@example.com\",\"password\":\"SecurePass99!\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('403 for unverified user', () => pm.response.to.have.status(403));",
+            "pm.test('Mentions verify', () => pm.expect(JSON.stringify(pm.response.json())).to.include('verify'));"
+          ]}}]
+        },
+        {
+          "name": "01.6 Login — Wrong Password (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"testuser_suite@example.com\",\"password\":\"WrongPassword!\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 for wrong password', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "01.7 Login — Non-existent User (401 no info leak)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"ghost_nobody_xyz@example.com\",\"password\":\"AnyPassword1!\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 for non-existent user', () => pm.response.to.have.status(401));",
+            "pm.test('Generic error (no user enum)', () => pm.expect(JSON.stringify(pm.response.json())).to.include('Invalid credentials'));"
+          ]}}]
+        },
+        {
+          "name": "01.8 Refresh Token — Valid",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/refresh",
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"{{refresh_token}}\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('refresh_token')) {",
+            "  pm.test('200/201 for valid refresh', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "  const r = pm.response.json();",
+            "  pm.test('Returns new access_token', () => pm.expect(r.data?.access_token || r.access_token).to.be.a('string'));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "01.9 Refresh Token — Invalid (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/refresh",
+            "body": { "mode": "raw", "raw": "{\"refresh_token\":\"totally.invalid.token\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 for invalid refresh token', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "01.10 Logout — No JWT (401)",
+          "request": { "method": "POST", "url": "{{base_url}}/auth/logout" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 without JWT', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "01.11 Logout — Valid JWT",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/auth/logout"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201 on logout', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "pm.test('Logout message', () => pm.expect(JSON.stringify(pm.response.json())).to.include('Logged out'));"
+          ]}}]
+        },
+        {
+          "name": "01.12 Re-login after logout (restore user_token)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"testuser_suite@example.com\",\"password\":\"TestPass123!\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "const r = pm.response.json();",
+            "pm.collectionVariables.set('user_token', r.data?.access_token || r.access_token);",
+            "pm.collectionVariables.set('refresh_token', r.data?.refresh_token || r.refresh_token);",
+            "pm.test('Token restored', () => pm.expect(pm.collectionVariables.get('user_token')).to.not.be.empty);"
+          ]}}]
+        },
+        {
+          "name": "01.13 Send Verification — No JWT (401)",
+          "request": { "method": "POST", "url": "{{base_url}}/auth/send-verification" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 without JWT', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "01.14 Send Verification — Already Verified (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/auth/send-verification"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 because already verified', () => pm.response.to.have.status(400));",
+            "pm.test('Mentions already verified', () => pm.expect(JSON.stringify(pm.response.json())).to.include('already verified'));"
+          ]}}]
+        },
+        {
+          "name": "01.15 Forgot Password — No Info Leak",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/forgot-password",
+            "body": { "mode": "raw", "raw": "{\"email\":\"nonexistent_xyz@example.com\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201 no info leak', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "pm.test('Generic message', () => pm.expect(JSON.stringify(pm.response.json())).to.include('If that email exists'));"
+          ]}}]
+        },
+        {
+          "name": "01.16 Reset Password — Invalid Token (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/reset-password",
+            "body": { "mode": "raw", "raw": "{\"token\":\"invalidtoken123\",\"newPassword\":\"NewSecurePass99!\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 for invalid token', () => pm.response.to.have.status(400));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "02 — Users",
+      "item": [
+        {
+          "name": "02.1 GET /users/me — Valid JWT",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/users/me"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "const user = r.data || r;",
+            "pm.test('Has id', () => pm.expect(user.id).to.be.a('string'));",
+            "pm.test('No password_hash exposed', () => pm.expect(JSON.stringify(r)).to.not.include('password_hash'));"
+          ]}}]
+        },
+        {
+          "name": "02.2 GET /users/me — No JWT (401)",
+          "request": { "method": "GET", "url": "{{base_url}}/users/me" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 without JWT', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "02.3 GET /users/me/health-profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/users/me/health-profile"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "const p = r.data || r;",
+            "pm.test('heightCm correct', () => pm.expect(Number(p.heightCm)).to.equal(175));"
+          ]}}]
+        },
+        {
+          "name": "02.4 PUT /users/me/health-profile — Update",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users/me/health-profile",
+            "body": { "mode": "raw", "raw": "{\"birthDate\":\"1995-01-26\",\"gender\":\"male\",\"heightCm\":180,\"initialWeightKg\":72,\"activityLevel\":\"moderately_active\",\"waterGoalMl\":2500}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "const p = r.data || r;",
+            "pm.test('heightCm updated to 180', () => pm.expect(Number(p.heightCm)).to.equal(180));"
+          ]}}]
+        },
+        {
+          "name": "02.5 PATCH /users/:id — Own Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users/{{user_id}}",
+            "body": { "mode": "raw", "raw": "{\"display_name\":\"Updated Name\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "const u = r.data || r;",
+            "pm.test('display_name updated', () => pm.expect(u.display_name).to.equal('Updated Name'));"
+          ]}}]
+        },
+        {
+          "name": "02.6 PATCH /users/:id — Forbidden: Another User (403)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/users/00000000-0000-0000-0000-000000000000",
+            "body": { "mode": "raw", "raw": "{\"display_name\":\"Hacker\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('403 for another user', () => pm.response.to.have.status(403));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "03 — Foods",
+      "item": [
+        {
+          "name": "03.1 GET /foods — Public (no auth)",
+          "request": { "method": "GET", "url": "{{base_url}}/foods" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 without auth', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "03.2 GET /foods — Search with query params",
+          "request": { "method": "GET", "url": "{{base_url}}/foods?q=apple&page=1&limit=5" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "03.3 GET /foods/favorites — No JWT (401)",
+          "request": { "method": "GET", "url": "{{base_url}}/foods/favorites" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 without JWT', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "03.4 GET /foods/favorites — With JWT",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/foods/favorites"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "03.5 POST /foods — Create Custom Food",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/foods",
+            "body": { "mode": "raw", "raw": "{\"name\":\"Test Apple\",\"category\":\"fruit\",\"food_type\":\"ingredient\",\"serving_size_g\":100,\"serving_unit\":\"g\",\"calories_per_100g\":52,\"protein_per_100g\":0.3,\"fat_per_100g\":0.2,\"carbs_per_100g\":14,\"fiber_per_100g\":2.4}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "const food = r.data || r;",
+            "pm.collectionVariables.set('food_id', food.id);",
+            "pm.test('is_custom=true', () => pm.expect(food.is_custom).to.equal(true));",
+            "pm.test('is_verified=false', () => pm.expect(food.is_verified).to.equal(false));"
+          ]}}]
+        },
+        {
+          "name": "03.6 GET /foods/:id — Valid ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/foods/{{food_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('food_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "  const r = pm.response.json();",
+            "  pm.test('Correct food returned', () => pm.expect(r.data?.id || r.id).to.equal(pm.collectionVariables.get('food_id')));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "03.7 GET /foods/:id — Non-existent (404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/foods/00000000-0000-0000-0000-000000000000"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('404 for non-existent food', () => pm.response.to.have.status(404));"
+          ]}}]
+        },
+        {
+          "name": "03.8 POST /foods/:id/favorite — Add",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/foods/{{food_id}}/favorite"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('food_id')) {",
+            "  pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "03.9 POST /foods/:id/favorite — Idempotent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/foods/{{food_id}}/favorite"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('food_id')) {",
+            "  pm.test('200/201 (idempotent)', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "03.10 DELETE /foods/:id/favorite",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/foods/{{food_id}}/favorite"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('food_id')) {",
+            "  pm.test('200/204', () => pm.expect([200,204]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "03.11 GET /foods/barcode/:barcode — Unknown (404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/foods/barcode/0000000000000"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('404 or 200 for unknown barcode', () => pm.expect([200,404]).to.include(pm.response.code));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "04 — Meal Logs",
+      "item": [
+        {
+          "name": "04.1 POST /meal-logs — Create BREAKFAST",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/meal-logs",
+            "body": { "mode": "raw", "raw": "{\"meal_type\":\"BREAKFAST\",\"notes\":\"Test breakfast\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "const log = r.data || r;",
+            "pm.collectionVariables.set('meal_log_id', log.id);",
+            "pm.test('meal_type = BREAKFAST', () => pm.expect(log.meal_type).to.equal('BREAKFAST'));"
+          ]}}]
+        },
+        {
+          "name": "04.2 POST /meal-logs — lowercase meal_type transform",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/meal-logs",
+            "body": { "mode": "raw", "raw": "{\"meal_type\":\"lunch\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "const log = r.data || r;",
+            "pm.test('meal_type stored as LUNCH', () => pm.expect(log.meal_type).to.equal('LUNCH'));"
+          ]}}]
+        },
+        {
+          "name": "04.3 POST /meal-logs — Invalid meal_type (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/meal-logs",
+            "body": { "mode": "raw", "raw": "{\"meal_type\":\"MIDNIGHT_SNACK\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 for invalid meal_type', () => pm.response.to.have.status(400));"
+          ]}}]
+        },
+        {
+          "name": "04.4 GET /meal-logs — Today",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/meal-logs"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "04.5 GET /meal-logs/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/meal-logs/summary"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "const s = r.data || r;",
+            "pm.test('Has total_calories', () => pm.expect(s).to.have.property('total_calories'));"
+          ]}}]
+        },
+        {
+          "name": "04.6 GET /meal-logs/:id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/meal-logs/{{meal_log_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('meal_log_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "04.7 POST /meal-logs/:id/items — Calorie Math Check",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/meal-logs/{{meal_log_id}}/items",
+            "body": { "mode": "raw", "raw": "{\"food_id\":\"{{food_id}}\",\"quantity\":200,\"serving_unit\":\"g\",\"source\":\"manual\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('meal_log_id') && pm.collectionVariables.get('food_id')) {",
+            "  pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "  const r = pm.response.json();",
+            "  const item = r.data || r;",
+            "  pm.collectionVariables.set('meal_item_id', item.id);",
+            "  // 200g * 52kcal/100g = 104kcal",
+            "  const snap = item.calories_snapshot ?? item.caloriesSnapshot;",
+            "  pm.test('Calorie snapshot = 104 for 200g Apple', () => pm.expect(Number(snap)).to.equal(104));",
+            "} else { pm.test('Skipped — missing ids', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "04.8 PATCH /meal-logs/:id/items/:itemId — Update Quantity",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/meal-logs/{{meal_log_id}}/items/{{meal_item_id}}",
+            "body": { "mode": "raw", "raw": "{\"quantity\":100}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('meal_item_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "  const r = pm.response.json();",
+            "  const item = r.data || r;",
+            "  // 100g * 52kcal/100g = 52kcal",
+            "  pm.test('Snapshot recalculated to 52', () => pm.expect(Number(item.calories_snapshot ?? item.caloriesSnapshot)).to.equal(52));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "04.9 PATCH /meal-logs/:id — Update Notes",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/meal-logs/{{meal_log_id}}",
+            "body": { "mode": "raw", "raw": "{\"notes\":\"Updated via test\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('meal_log_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "04.10 DELETE /meal-logs/:id/items/:itemId",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/meal-logs/{{meal_log_id}}/items/{{meal_item_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('meal_item_id')) {",
+            "  pm.test('200/204', () => pm.expect([200,204]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "04.11 DELETE /meal-logs/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/meal-logs/{{meal_log_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('meal_log_id')) {",
+            "  pm.test('204', () => pm.response.to.have.status(204));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "04.12 DELETE /meal-logs — Non-existent (404)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/meal-logs/00000000-0000-0000-0000-000000000000"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('404 for non-existent log', () => pm.response.to.have.status(404));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "05 — Body Metrics",
+      "item": [
+        {
+          "name": "05.1 POST /body-metrics — Create (BMI auto-calc)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/body-metrics",
+            "body": { "mode": "raw", "raw": "{\"weightKg\":70,\"waistCm\":80,\"notes\":\"Test metric\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "const m = r.data || r;",
+            "pm.test('weightKg = 70', () => pm.expect(Number(m.weightKg)).to.equal(70));",
+            "pm.test('bmi present', () => pm.expect(m).to.have.property('bmi'));",
+            "// BMI = 70 / (1.80^2) = 21.6",
+            "pm.test('bmi auto-calculated', () => pm.expect(Number(m.bmi)).to.be.within(20, 25));"
+          ]}}]
+        },
+        {
+          "name": "05.2 GET /body-metrics/latest",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/body-metrics/latest"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.test('Has weightKg', () => pm.expect(pm.response.json().data || pm.response.json()).to.have.property('weightKg'));"
+          ]}}]
+        },
+        {
+          "name": "05.3 GET /body-metrics/summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/body-metrics/summary"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "05.4 GET /body-metrics — History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/body-metrics"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "05.5 GET /body-metrics/photos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/body-metrics/photos"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "06 — Activity Logs",
+      "item": [
+        {
+          "name": "06.1 GET /activity-logs?date=2025-04-12",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/activity-logs?date=2025-04-12"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "06.2 PATCH /activity-logs/steps",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/activity-logs/steps",
+            "body": { "mode": "raw", "raw": "{\"logDate\":\"2025-04-12\",\"steps\":8500}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "pm.test('steps=8500', () => pm.expect(Number((r.data||r).steps)).to.equal(8500));"
+          ]}}]
+        },
+        {
+          "name": "06.3 PATCH /activity-logs/water — Goal Trigger Test",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/activity-logs/water",
+            "body": { "mode": "raw", "raw": "{\"logDate\":\"2025-04-12\",\"waterMl\":2500}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "pm.test('waterMl=2500', () => pm.expect(Number((r.data||r).waterMl)).to.equal(2500));",
+            "// At 2500ml > 2000ml goal → notification should be created (check folder 10)"
+          ]}}]
+        },
+        {
+          "name": "06.4 PATCH /activity-logs/calories-burned",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/activity-logs/calories-burned",
+            "body": { "mode": "raw", "raw": "{\"logDate\":\"2025-04-12\",\"caloriesBurned\":450,\"activeMinutes\":60,\"exerciseNotes\":\"Morning run\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "06.5 GET /activity-logs/range",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/activity-logs/range?fromDate=2025-04-01&toDate=2025-04-12"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.test('Returns array', () => pm.expect(Array.isArray(pm.response.json().data||pm.response.json())).to.be.true);"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "07 — Training",
+      "item": [
+        {
+          "name": "07.1 GET /training/exercises — Public",
+          "request": { "method": "GET", "url": "{{base_url}}/training/exercises" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 without auth', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "07.2 GET /training/exercises?muscleGroup=chest",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/training/exercises?muscleGroup=chest"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "07.3 GET /training/exercises — Invalid muscleGroup (400)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/training/exercises?muscleGroup=invalid_group"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('400 for invalid muscleGroup enum', () => pm.response.to.have.status(400));"
+          ]}}]
+        },
+        {
+          "name": "07.4 POST /training/workout — Log Workout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/training/workout",
+            "body": { "mode": "raw", "raw": "{\"exerciseId\":\"{{exercise_id}}\",\"sessionDate\":\"2025-04-12\",\"durationMinutes\":60,\"sets\":3,\"repsPerSet\":10,\"weightKg\":60,\"notes\":\"Test workout\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('exercise_id')) {",
+            "  pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "  const r = pm.response.json();",
+            "  const w = r.data || r;",
+            "  pm.collectionVariables.set('workout_id', w.id);",
+            "  pm.test('caloriesBurnedSnapshot is a number', () => pm.expect(w.caloriesBurnedSnapshot).to.be.a('number'));",
+            "} else { pm.test('Skipped — no exercise_id', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "07.5 GET /training/history",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/training/history"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "07.6 POST /training/goals — Create",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/training/goals",
+            "body": { "mode": "raw", "raw": "{\"goalType\":\"gain_muscle\",\"targetValue\":80,\"startDate\":\"2025-04-12\",\"deadline\":\"2025-12-31\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "pm.collectionVariables.set('goal_id', (r.data||r).id);"
+          ]}}]
+        },
+        {
+          "name": "07.7 GET /training/goals",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/training/goals"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "07.8 PATCH /training/workout/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{user_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/training/workout/{{workout_id}}",
+            "body": { "mode": "raw", "raw": "{\"notes\":\"Updated notes\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('workout_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "07.9 DELETE /training/goals/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/training/goals/{{goal_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('goal_id')) {",
+            "  pm.test('200/204', () => pm.expect([200,204]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "07.10 DELETE /training/workout/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/training/workout/{{workout_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('workout_id')) {",
+            "  pm.test('200/204', () => pm.expect([200,204]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "08 — Streaks",
+      "item": [
+        {
+          "name": "08.1 GET /streaks — With JWT",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/streaks"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "08.2 GET /streaks — No JWT (401)",
+          "request": { "method": "GET", "url": "{{base_url}}/streaks" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 without JWT', () => pm.response.to.have.status(401));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "09 — Dashboard",
+      "item": [
+        {
+          "name": "09.1 GET /dashboard — Daily",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/dashboard"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data || pm.response.json();",
+            "pm.test('Has nutrition', () => pm.expect(d).to.have.property('nutrition'));",
+            "pm.test('Has activity', () => pm.expect(d).to.have.property('activity'));",
+            "pm.test('Has streaks', () => pm.expect(d).to.have.property('streaks'));"
+          ]}}]
+        },
+        {
+          "name": "09.2 GET /dashboard/weekly (batch query — was N+1)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/dashboard/weekly?weekStart=2025-04-07"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data || pm.response.json();",
+            "pm.test('Has period', () => pm.expect(d).to.have.property('period'));",
+            "pm.test('Has daily_breakdown', () => pm.expect(d.nutrition).to.have.property('daily_breakdown'));",
+            "console.log('Weekly report time: ' + pm.response.responseTime + 'ms (was 7 sequential DB calls, now 1 batch)');"
+          ]}}]
+        },
+        {
+          "name": "09.3 GET /dashboard/monthly (batch query — was 31 N+1)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/dashboard/monthly?year=2025&month=4"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data || pm.response.json();",
+            "pm.test('period.year=2025', () => pm.expect(d.period?.year).to.equal(2025));",
+            "pm.test('Has daily_breakdown (30 entries)', () => {",
+            "  const keys = Object.keys(d.nutrition?.daily_breakdown || {});",
+            "  pm.expect(keys.length).to.equal(30);",
+            "});",
+            "console.log('Monthly report time: ' + pm.response.responseTime + 'ms (was 30 sequential calls, now 1 batch)');"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "10 — Notifications",
+      "item": [
+        {
+          "name": "10.1 GET /notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/notifications"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const r = pm.response.json();",
+            "const notifs = r.data || r;",
+            "if (Array.isArray(notifs) && notifs.length > 0) {",
+            "  pm.collectionVariables.set('notification_id', notifs[0].id);",
+            "}"
+          ]}}]
+        },
+        {
+          "name": "10.2 GET /notifications/unread-count",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/notifications/unread-count"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "pm.test('Count is a number', () => pm.expect(typeof (pm.response.json().data ?? pm.response.json())).to.equal('number'));"
+          ]}}]
+        },
+        {
+          "name": "10.3 PATCH /notifications/read-all",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/notifications/read-all"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "10.4 PATCH /notifications/:id/read",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/notifications/{{notification_id}}/read"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('notification_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "  pm.test('isRead=true', () => pm.expect((pm.response.json().data||pm.response.json()).isRead).to.equal(true));",
+            "} else { pm.test('Skipped — no notifications', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "10.5 DELETE /notifications/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/notifications/{{notification_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('notification_id')) {",
+            "  pm.test('200/204', () => pm.expect([200,204]).to.include(pm.response.code));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "11 — Admin",
+      "item": [
+        {
+          "name": "11.1 POST /admin/auth/login — Valid",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/admin/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"admin@gmail.com\",\"password\":\"admin\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const r = pm.response.json();",
+            "pm.collectionVariables.set('admin_token', r.data?.access_token || r.access_token);"
+          ]}}]
+        },
+        {
+          "name": "11.2 POST /admin/auth/login — Wrong Password (401)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/admin/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"admin@gmail.com\",\"password\":\"wrongpassword\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 for wrong admin password', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "11.3 GET /admin/stats — Admin Token",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/stats"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const s = pm.response.json().data || pm.response.json();",
+            "pm.test('Has totalUsers', () => pm.expect(s).to.have.property('totalUsers'));",
+            "pm.test('Has totalFoods', () => pm.expect(s).to.have.property('totalFoods'));"
+          ]}}]
+        },
+        {
+          "name": "11.4 GET /admin/stats — User Token (403)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{user_token}}" }],
+            "url": "{{base_url}}/admin/stats"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('403 for regular user', () => pm.response.to.have.status(403));"
+          ]}}]
+        },
+        {
+          "name": "11.5 GET /admin/stats — No Token (401)",
+          "request": { "method": "GET", "url": "{{base_url}}/admin/stats" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('401 without token', () => pm.response.to.have.status(401));"
+          ]}}]
+        },
+        {
+          "name": "11.6 GET /admin/users",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/users?page=1&limit=10"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));",
+            "const d = pm.response.json().data || pm.response.json();",
+            "pm.test('Has users array', () => pm.expect(d.users || d).to.be.an('array'));"
+          ]}}]
+        },
+        {
+          "name": "11.7 GET /admin/foods",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/foods"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "11.8 GET /admin/foods/pending",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/foods/pending"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "11.9 POST /admin/foods — Create (camelCase DTO)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/admin/foods",
+            "body": { "mode": "raw", "raw": "{\"name\":\"Admin Test Broccoli\",\"category\":\"vegetable\",\"foodType\":\"ingredient\",\"servingSizeG\":100,\"caloriesPer100g\":34,\"proteinPer100g\":2.8,\"fatPer100g\":0.4,\"carbsPer100g\":7}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "const food = pm.response.json().data || pm.response.json();",
+            "pm.collectionVariables.set('admin_food_id', food.id);",
+            "pm.test('is_verified=true for admin-created food', () => pm.expect(food.is_verified).to.equal(true));"
+          ]}}]
+        },
+        {
+          "name": "11.10 PATCH /admin/foods/:id/verify",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/foods/{{food_id}}/verify"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('food_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "11.11 GET /admin/exercises",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/exercises"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "11.12 POST /admin/exercises — Create",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/admin/exercises",
+            "body": { "mode": "raw", "raw": "{\"name\":\"Test Push-up\",\"primaryMuscleGroup\":\"chest\",\"intensity\":\"moderate\",\"description\":\"Standard push-up\",\"metValue\":3.8}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "pm.collectionVariables.set('admin_exercise_id', (pm.response.json().data||pm.response.json()).id);"
+          ]}}]
+        },
+        {
+          "name": "11.13 GET /admin/blogs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/blogs"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "11.14 POST /admin/blogs — Create",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/admin/blogs",
+            "body": { "mode": "raw", "raw": "{\"title\":\"Test Blog Post\",\"content\":\"This is test blog content for API testing purposes. Minimum length required.\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200/201', () => pm.expect([200,201]).to.include(pm.response.code));",
+            "pm.collectionVariables.set('blog_id', (pm.response.json().data||pm.response.json()).id);"
+          ]}}]
+        },
+        {
+          "name": "11.15 PATCH /admin/blogs/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{base_url}}/admin/blogs/{{blog_id}}",
+            "body": { "mode": "raw", "raw": "{\"title\":\"Updated Blog Post\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "if (pm.collectionVariables.get('blog_id')) {",
+            "  pm.test('200', () => pm.response.to.have.status(200));",
+            "} else { pm.test('Skipped', () => true); }"
+          ]}}]
+        },
+        {
+          "name": "11.16 SECURITY — Ban User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/users/{{user_id}}/ban"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200', () => pm.expect([200,201]).to.include(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "11.17 SECURITY — Banned User Login → 403 (Bug H2 fix verified)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{base_url}}/auth/login",
+            "body": { "mode": "raw", "raw": "{\"email\":\"testuser_suite@example.com\",\"password\":\"TestPass123!\"}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('[Bug H2 fix] Banned user gets 403', () => pm.response.to.have.status(403));",
+            "pm.test('[Bug H2 fix] Message mentions deactivated', () => pm.expect(JSON.stringify(pm.response.json())).to.include('deactivated'));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "12 — Blogs (Public)",
+      "item": [
+        {
+          "name": "12.1 GET /blogs — Public",
+          "request": { "method": "GET", "url": "{{base_url}}/blogs" },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('200 without auth', () => pm.response.to.have.status(200));"
+          ]}}]
+        },
+        {
+          "name": "12.2 GET /blogs/:id — Non-existent (404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/blogs/00000000-0000-0000-0000-000000000000"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('404 for non-existent blog', () => pm.response.to.have.status(404));"
+          ]}}]
+        }
+      ]
+    },
+
+    {
+      "name": "99 — Cleanup",
+      "item": [
+        {
+          "name": "99.1 Unban Test User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/users/{{user_id}}/unban"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Cleanup: unban', () => pm.expect([200,204,404]).to.include(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "99.2 Delete Admin Blog",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/blogs/{{blog_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Cleanup: delete blog', () => pm.expect([200,204,404]).to.include(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "99.3 Delete Admin Exercise",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/exercises/{{admin_exercise_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Cleanup: delete exercise', () => pm.expect([200,204,404]).to.include(pm.response.code));"
+          ]}}]
+        },
+        {
+          "name": "99.4 Delete Custom Food",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{admin_token}}" }],
+            "url": "{{base_url}}/admin/foods/{{food_id}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Cleanup: delete food', () => pm.expect([200,204,404]).to.include(pm.response.code));"
+          ]}}]
+        }
+      ]
+    }
+  ]
+}

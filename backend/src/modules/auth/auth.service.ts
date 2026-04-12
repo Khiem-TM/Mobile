@@ -110,6 +110,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.is_active) {
+      throw new ForbiddenException('Your account has been deactivated. Please contact support.');
+    }
+
     if (!user.is_verified) {
       throw new ForbiddenException(
         'Please verify your email before logging in. Check your inbox or request a new verification email.',

@@ -105,6 +105,13 @@ export class AdminService {
     return this.userRepo.save(user);
   }
 
+  async forceVerifyEmail(id: string): Promise<User> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    user.is_verified = true;
+    return this.userRepo.save(user);
+  }
+
   // ─── Foods ────────────────────────────────────────────────────────────────
 
   async getFoods(page = 1, limit = 20, search?: string) {

@@ -4,15 +4,23 @@ import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { HttpExceptionFilter, AllExceptionsFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+    : ['http://localhost:3000', 'http://localhost:8080', 'http://localhost:19006'];
+
   app.enableCors({
-    origin: '*',
+    origin: process.env.NODE_ENV === 'production' ? allowedOrigins : true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   });
+
+  app.useGlobalFilters(new AllExceptionsFilter(), new HttpExceptionFilter());
 
   app.useGlobalPipes(
     new ValidationPipe({

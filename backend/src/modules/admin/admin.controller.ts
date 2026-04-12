@@ -80,6 +80,12 @@ export class AdminController {
     return this.adminService.unbanUser(id);
   }
 
+  @ApiOperation({ summary: 'Force-verify a user email (dev/test only)' })
+  @Patch('users/:id/verify-email')
+  forceVerifyEmail(@Param('id') id: string) {
+    return this.adminService.forceVerifyEmail(id);
+  }
+
   // ─── Foods ──────────────────────────────────────────────────────────────────
   @ApiOperation({ summary: 'List all foods (paginated)' })
   @ApiQuery({ name: 'page', required: false })

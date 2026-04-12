@@ -51,7 +51,7 @@ import { AdminModule } from './modules/admin/admin.module';
           password: dbPass,
           database: dbName,
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: configService.get<string>('NODE_ENV', 'development') !== 'production',
           ...(isSsl && { ssl: { rejectUnauthorized: false } }),
         };
       },

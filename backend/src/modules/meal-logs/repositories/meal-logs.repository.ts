@@ -60,6 +60,19 @@ export class MealLogsRepository implements IMealLogsRepository {
     return qb.getMany();
   }
 
+  async findByRange(userId: string, fromDate: string, toDate: string): Promise<MealLog[]> {
+    return this.logRepo
+      .createQueryBuilder('ml')
+      .where('ml.user_id = :userId', { userId })
+      .andWhere("DATE(ml.log_date AT TIME ZONE 'UTC') >= :fromDate", { fromDate })
+      .andWhere("DATE(ml.log_date AT TIME ZONE 'UTC') <= :toDate", { toDate })
+      .leftJoinAndSelect('ml.items', 'items')
+      .leftJoinAndSelect('items.food', 'food')
+      .orderBy('ml.log_date', 'ASC')
+      .addOrderBy('ml.meal_type', 'ASC')
+      .getMany();
+  }
+
   async updateLog(id: string, data: Partial<MealLog>): Promise<MealLog> {
     await this.logRepo.update(id, data);
     return this.logRepo.findOne({ where: { id }, relations: ['items', 'items.food'] }) as Promise<MealLog>;
