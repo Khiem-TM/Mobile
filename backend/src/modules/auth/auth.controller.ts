@@ -12,6 +12,7 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   VerifyEmailDto,
+  SendVerificationDto,
 } from './dto/email-auth.dto';
 
 @ApiTags('auth')
@@ -51,13 +52,11 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Send email verification link' })
-  @ApiBearerAuth('access-token')
-  @UseGuards(JwtAuthGuard)
   @Post('send-verification')
   sendVerification(
-    @CurrentUser() user: JwtPayload,
+    @Body() dto: SendVerificationDto,
   ): Promise<{ message: string }> {
-    return this.authService.sendEmailVerification(user.sub);
+    return this.authService.sendEmailVerification(dto.email);
   }
 
   @ApiOperation({ summary: 'Verify email with token' })

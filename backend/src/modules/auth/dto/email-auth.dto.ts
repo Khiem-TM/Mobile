@@ -24,3 +24,9 @@ export class VerifyEmailDto {
   @IsString()
   token!: string;
 }
+
+export class SendVerificationDto {
+  @ApiProperty({ example: 'example@gmail.com' })
+  @IsEmail()
+  email!: string;
+}

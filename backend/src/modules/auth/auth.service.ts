@@ -94,6 +94,12 @@ export class AuthService {
     });
     await this.userRepository.save(user);
 
+    // Tự động gửi email xác nhận sau khi tạo tài khoản
+    // Không dùng await để tránh hold request quá lâu (tùy chọn)
+    this.sendEmailVerification(user.email).catch((err) => {
+      console.error('Failed to send verification email on register:', err);
+    });
+
     return this.generateAuthResponse(user);
   }
 
@@ -170,19 +176,22 @@ export class AuthService {
     }
   }
 
-  async sendEmailVerification(userId: string): Promise<{ message: string }> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+  async sendEmailVerification(email: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) {
+      // Trả về chung một thông báo để tránh lộ lọt email (Email enumeration attack)
+      return { message: 'If that email exists, a verification link has been sent.' };
+    }
     if (user.is_verified) {
       throw new BadRequestException('Email is already verified');
     }
 
-    await this.emailVerificationRepository.delete({ userId });
+    await this.emailVerificationRepository.delete({ userId: user.id });
 
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
-    await this.emailVerificationRepository.save({ userId, token, expiresAt });
+    await this.emailVerificationRepository.save({ userId: user.id, token, expiresAt });
 
     await this.mailerService.sendEmailVerification(user.email, token);
 
