@@ -16,6 +16,8 @@ import { TrainingModule } from './modules/training/training.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { AiScanModule } from './modules/ai-scan/ai-scan.module';
+import { ChatbotModule } from './modules/chatbot/chatbot.module';
 
 @Module({
   imports: [
@@ -68,6 +70,8 @@ import { AdminModule } from './modules/admin/admin.module';
     DashboardModule,
     NotificationsModule,
     AdminModule,
+    AiScanModule,
+    ChatbotModule,
   ],
   controllers: [AppController],
   providers: [

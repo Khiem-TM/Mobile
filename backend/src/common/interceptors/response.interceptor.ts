@@ -29,7 +29,6 @@ export class ResponseInterceptor<T> implements NestInterceptor<
 
     return next.handle().pipe(
       map((data) => {
-        // If the handler already returned a structured ApiResponse, don't wrap again
         if (
           data &&
           typeof data === 'object' &&

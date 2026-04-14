@@ -19,6 +19,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import { CreateFoodDto } from './dto/create-food.dto';
 import { IsString, IsNotEmpty } from 'class-validator';
+import { Public } from '../../common/decorators/public.decorator';
 
 class RemoveFoodImageDto {
   @IsString() @IsNotEmpty()
@@ -29,6 +30,20 @@ class RemoveFoodImageDto {
 @Controller('foods')
 export class FoodsController {
   constructor(private readonly foodsService: FoodsService) {}
+
+  @ApiOperation({ summary: 'Explore dishes with images and descriptions (public)' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'category', required: false })
+  @Public()
+  @Get('explore')
+  exploreDishe(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('category') category?: string,
+  ) {
+    return this.foodsService.exploreDishe(parseInt(page, 10), parseInt(limit, 10), category);
+  }
 
   @ApiOperation({ summary: 'Search foods with pagination (public)' })
   @ApiQuery({ name: 'search', required: false })
@@ -61,6 +76,13 @@ export class FoodsController {
   @Get(':id')
   getFood(@Param('id') id: string) {
     return this.foodsService.findOne(id);
+  }
+
+  @ApiOperation({ summary: 'Get recipe for a dish (public)' })
+  @Public()
+  @Get(':id/recipe')
+  getRecipe(@Param('id') id: string) {
+    return this.foodsService.getRecipe(id);
   }
 
   @ApiBearerAuth('access-token')

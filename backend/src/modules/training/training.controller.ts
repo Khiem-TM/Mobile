@@ -26,6 +26,7 @@ import {
   LogWorkoutDto,
   CreateTrainingGoalDto,
 } from './dto/training.dto';
+import { MuscleGroup } from '../../common/enums/muscle-group.enum';
 import {
   UpdateTrainingGoalDto,
   UpdateWorkoutSessionDto,
@@ -146,5 +147,53 @@ export class TrainingController {
   @HttpCode(HttpStatus.NO_CONTENT)
   deleteGoal(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.trainingService.deleteGoal(user.sub, id);
+  }
+
+  // ─── Exercise Favorites ───────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Get favorite exercises' })
+  @Get('exercises/favorites')
+  getExerciseFavorites(@CurrentUser() user: JwtPayload) {
+    return this.trainingService.getExerciseFavorites(user.sub);
+  }
+
+  @ApiOperation({ summary: 'Add exercise to favorites' })
+  @Post('exercises/:id/favorite')
+  async addExerciseFavorite(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    await this.trainingService.addExerciseFavorite(user.sub, id);
+    return { message: 'Added to favorites' };
+  }
+
+  @ApiOperation({ summary: 'Remove exercise from favorites' })
+  @Delete('exercises/:id/favorite')
+  async removeExerciseFavorite(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    await this.trainingService.removeExerciseFavorite(user.sub, id);
+    return { message: 'Removed from favorites' };
+  }
+
+  // ─── Sport Tips (public) ─────────────────────────────────────────────────
+
+  @Public()
+  @ApiOperation({ summary: 'List published sport tips (public)' })
+  @Get('tips')
+  getTips(
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+    @Query('sport_category') sportCategory?: string,
+    @Query('muscle_group') muscleGroup?: MuscleGroup,
+  ) {
+    return this.trainingService.getPublishedTips(
+      parseInt(page, 10),
+      parseInt(limit, 10),
+      sportCategory,
+      muscleGroup,
+    );
+  }
+
+  @Public()
+  @ApiOperation({ summary: 'Get one sport tip by ID (public)' })
+  @Get('tips/:id')
+  getOneTip(@Param('id') id: string) {
+    return this.trainingService.getOneTip(id);
   }
 }

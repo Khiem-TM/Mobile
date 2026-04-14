@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { DataSource, Repository, ILike } from 'typeorm';
 import { Food } from './entities/food.entity';
 import { FoodBarcode } from './entities/food-barcode.entity';
 import { FoodUserFavorite } from './entities/food-user-favorite.entity';
+import { FoodRecipe } from './entities/food-recipe.entity';
+import { FoodRecipeStep } from './entities/food-recipe-step.entity';
 import { CreateFoodDto } from './dto/create-food.dto';
+import { CreateRecipeDto, AddRecipeStepDto } from './dto/create-recipe.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
@@ -16,7 +19,12 @@ export class FoodsService {
     private readonly barcodeRepository: Repository<FoodBarcode>,
     @InjectRepository(FoodUserFavorite)
     private readonly favoriteRepository: Repository<FoodUserFavorite>,
+    @InjectRepository(FoodRecipe)
+    private readonly recipeRepository: Repository<FoodRecipe>,
+    @InjectRepository(FoodRecipeStep)
+    private readonly recipeStepRepository: Repository<FoodRecipeStep>,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(query: string = '', page: number = 1, limit: number = 20) {
@@ -26,6 +34,19 @@ export class FoodsService {
       skip: (page - 1) * limit,
     });
     return { items: foods, total, page, limit };
+  }
+
+  async exploreDishe(page: number = 1, limit: number = 20, category?: string) {
+    const where: Record<string, unknown> = { food_type: 'dish', is_active: true };
+    if (category) where['category'] = ILike(`%${category}%`);
+
+    const [items, total] = await this.foodRepository.findAndCount({
+      where,
+      take: limit,
+      skip: (page - 1) * limit,
+      order: { favorites_count: 'DESC', created_at: 'DESC' },
+    });
+    return { items, total, page, limit };
   }
 
   async findOne(id: string): Promise<Food> {
@@ -68,16 +89,28 @@ export class FoodsService {
   }
 
   async addFavorite(userId: string, foodId: string): Promise<void> {
+    await this.findOne(foodId);
     const existing = await this.favoriteRepository.findOne({
       where: { user_id: userId, food_id: foodId },
     });
     if (!existing) {
-      await this.favoriteRepository.save({ user_id: userId, food_id: foodId });
+      await this.dataSource.transaction(async (manager) => {
+        await manager.save(FoodUserFavorite, { user_id: userId, food_id: foodId });
+        await manager.increment(Food, { id: foodId }, 'favorites_count', 1);
+      });
     }
   }
 
   async removeFavorite(userId: string, foodId: string): Promise<void> {
-    await this.favoriteRepository.delete({ user_id: userId, food_id: foodId });
+    const existing = await this.favoriteRepository.findOne({
+      where: { user_id: userId, food_id: foodId },
+    });
+    if (existing) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.delete(FoodUserFavorite, { user_id: userId, food_id: foodId });
+        await manager.decrement(Food, { id: foodId }, 'favorites_count', 1);
+      });
+    }
   }
 
   async uploadImage(foodId: string, file: Express.Multer.File): Promise<Food> {
@@ -141,5 +174,82 @@ export class FoodsService {
     }
 
     throw new NotFoundException(`Food with barcode ${barcode} not found`);
+  }
+
+  // ─── Recipe ─────────────────────────────────────────────────────────────────
+
+  async getRecipe(foodId: string): Promise<FoodRecipe> {
+    await this.findOne(foodId);
+    const recipe = await this.recipeRepository.findOne({
+      where: { food_id: foodId },
+      relations: ['steps'],
+      order: { steps: { step_number: 'ASC' } },
+    });
+    if (!recipe) throw new NotFoundException('Recipe not found for this food');
+    return recipe;
+  }
+
+  async upsertRecipe(foodId: string, dto: CreateRecipeDto): Promise<FoodRecipe> {
+    await this.findOne(foodId);
+
+    let recipe = await this.recipeRepository.findOne({ where: { food_id: foodId } });
+    if (!recipe) {
+      recipe = this.recipeRepository.create({ food_id: foodId });
+    }
+    recipe.prep_time_min = dto.prep_time_min ?? recipe.prep_time_min;
+    recipe.cook_time_min = dto.cook_time_min ?? recipe.cook_time_min;
+    recipe.servings = dto.servings ?? recipe.servings;
+    await this.recipeRepository.save(recipe);
+
+    if (dto.steps?.length) {
+      await this.recipeStepRepository.delete({ recipe_id: recipe.id });
+      const steps = dto.steps.map((s) =>
+        this.recipeStepRepository.create({ recipe_id: recipe.id, ...s }),
+      );
+      await this.recipeStepRepository.save(steps);
+    }
+
+    return this.getRecipe(foodId);
+  }
+
+  async addRecipeStep(
+    foodId: string,
+    dto: AddRecipeStepDto,
+    file?: Express.Multer.File,
+  ): Promise<FoodRecipeStep> {
+    await this.findOne(foodId);
+    let recipe = await this.recipeRepository.findOne({ where: { food_id: foodId } });
+    if (!recipe) {
+      recipe = await this.recipeRepository.save(
+        this.recipeRepository.create({ food_id: foodId }),
+      );
+    }
+
+    let image_url: string | null = null;
+    let image_public_id: string | null = null;
+    if (file) {
+      const result = await this.cloudinaryService.uploadFile(file, 'recipe-steps');
+      image_url = result.url;
+      image_public_id = result.publicId;
+    }
+
+    const step = this.recipeStepRepository.create({
+      recipe_id: recipe.id,
+      step_number: dto.step_number,
+      instruction: dto.instruction,
+      image_url,
+      image_public_id,
+    });
+    return this.recipeStepRepository.save(step);
+  }
+
+  async removeRecipeStep(foodId: string, stepId: string): Promise<void> {
+    await this.findOne(foodId);
+    const step = await this.recipeStepRepository.findOne({ where: { id: stepId } });
+    if (!step) throw new NotFoundException('Step not found');
+    if (step.image_public_id) {
+      await this.cloudinaryService.deleteFile(step.image_public_id).catch(() => undefined);
+    }
+    await this.recipeStepRepository.delete(stepId);
   }
 }

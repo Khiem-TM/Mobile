@@ -1,6 +1,7 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Req } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
@@ -14,6 +15,7 @@ import {
   VerifyEmailDto,
   SendVerificationDto,
 } from './dto/email-auth.dto';
+import type { GoogleProfile } from './strategies/google.strategy';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -76,5 +78,21 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
     return this.authService.resetPassword(dto.token, dto.newPassword);
+  }
+
+  @ApiOperation({ summary: 'Redirect to Google OAuth consent screen' })
+  @ApiExcludeEndpoint()
+  @UseGuards(AuthGuard('google'))
+  @Get('google')
+  googleAuth(): void {
+    // Passport redirects automatically
+  }
+
+  @ApiOperation({ summary: 'Google OAuth callback — returns JWT tokens' })
+  @ApiExcludeEndpoint()
+  @UseGuards(AuthGuard('google'))
+  @Get('google/callback')
+  googleCallback(@Req() req: { user: GoogleProfile }): Promise<AuthResponseDto> {
+    return this.authService.googleLogin(req.user);
   }
 }

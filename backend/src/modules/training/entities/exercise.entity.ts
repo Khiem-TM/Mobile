@@ -53,6 +53,9 @@ export class Exercise {
   @Column({ name: 'image_public_ids', type: 'text', array: true, nullable: true, default: null })
   imagePublicIds!: string[] | null;
 
+  @Column({ name: 'favorites_count', type: 'int', default: 0 })
+  favoritesCount!: number;
+
   @CreateDateColumn()
   createdAt!: Date;
 

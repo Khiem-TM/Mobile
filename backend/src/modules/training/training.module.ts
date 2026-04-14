@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Exercise } from './entities/exercise.entity';
 import { WorkoutSession } from './entities/workout-session.entity';
 import { TrainingGoal } from './entities/training-goal.entity';
+import { ExerciseUserFavorite } from './entities/exercise-user-favorite.entity';
+import { SportTip } from './entities/sport-tip.entity';
 import { TrainingService } from './training.service';
 import { TrainingController } from './training.controller';
 import {
@@ -22,7 +24,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Exercise, WorkoutSession, TrainingGoal]),
+    TypeOrmModule.forFeature([Exercise, WorkoutSession, TrainingGoal, ExerciseUserFavorite, SportTip]),
     BodyMetricsModule,
     StreaksModule,
     UsersModule,

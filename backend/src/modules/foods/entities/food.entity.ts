@@ -9,6 +9,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { FoodRecipe } from './food-recipe.entity';
 
 @Entity('foods')
 export class Food {
@@ -27,8 +28,14 @@ export class Food {
   @Column({ type: 'varchar', length: 50, nullable: true })
   category: string;
 
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
   @Column({ type: 'varchar', length: 20, default: 'ingredient' })
   food_type: 'ingredient' | 'dish' | 'product';
+
+  @Column({ type: 'int', default: 0 })
+  favorites_count: number;
 
   @Column({ type: 'decimal', precision: 7, scale: 2 })
   serving_size_g: number;
@@ -87,4 +94,7 @@ export class Food {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  @OneToMany(() => FoodRecipe, (recipe) => recipe.food)
+  recipes: FoodRecipe[];
 }

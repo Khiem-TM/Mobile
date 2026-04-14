@@ -37,14 +37,12 @@ import { UpdateBlogDto } from './dto/update-blog.dto';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // ─── Stats ──────────────────────────────────────────────────────────────────
   @ApiOperation({ summary: 'Get platform stats' })
   @Get('stats')
   getStats() {
     return this.adminService.getStats();
   }
 
-  // ─── Users ──────────────────────────────────────────────────────────────────
   @ApiOperation({ summary: 'List all users' })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
@@ -62,7 +60,9 @@ export class AdminController {
     );
   }
 
-  @ApiOperation({ summary: 'Get user by ID (with health profile & recent workouts)' })
+  @ApiOperation({
+    summary: 'Get user by ID (with health profile & recent workouts)',
+  })
   @Get('users/:id')
   getUserById(@Param('id') id: string) {
     return this.adminService.getUserById(id);
@@ -191,10 +191,7 @@ export class AdminController {
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
   @Get('blogs')
-  getBlogs(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
+  getBlogs(@Query('page') page?: number, @Query('limit') limit?: number) {
     return this.adminService.getBlogs(
       page ? Number(page) : 1,
       limit ? Number(limit) : 20,

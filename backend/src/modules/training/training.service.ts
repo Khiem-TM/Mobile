@@ -1,4 +1,6 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   EXERCISES_REPOSITORY,
   WORKOUT_SESSIONS_REPOSITORY,
@@ -17,6 +19,10 @@ import { TrainingGoalType } from '../../common/enums/training-goal-type.enum';
 import { StreakType } from '../../common/enums/streak-type.enum';
 import { UpdateTrainingGoalDto, UpdateWorkoutSessionDto } from './dto/update-training.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { ExerciseUserFavorite } from './entities/exercise-user-favorite.entity';
+import { Exercise } from './entities/exercise.entity';
+import { SportTip } from './entities/sport-tip.entity';
+import { MuscleGroup } from '../../common/enums/muscle-group.enum';
 
 @Injectable()
 export class TrainingService {
@@ -27,10 +33,15 @@ export class TrainingService {
     private readonly sessionRepo: IWorkoutSessionsRepository,
     @Inject(TRAINING_GOALS_REPOSITORY)
     private readonly goalRepo: ITrainingGoalsRepository,
+    @InjectRepository(ExerciseUserFavorite)
+    private readonly exerciseFavoriteRepo: Repository<ExerciseUserFavorite>,
+    @InjectRepository(SportTip)
+    private readonly sportTipRepo: Repository<SportTip>,
     private readonly bodyMetricsService: BodyMetricsService,
     private readonly streaksService: StreaksService,
     private readonly usersService: UsersService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async getExercises(query: ExerciseQueryDto) {
@@ -173,5 +184,69 @@ export class TrainingService {
       throw new NotFoundException('Workout session not found');
     }
     await this.sessionRepo.delete(sessionId);
+  }
+
+  // ─── Exercise Favorites ───────────────────────────────────────────────────
+
+  async getExerciseFavorites(userId: string): Promise<Exercise[]> {
+    const favs = await this.exerciseFavoriteRepo.find({
+      where: { user_id: userId },
+      relations: ['exercise'],
+    });
+    return favs.map((f) => f.exercise);
+  }
+
+  async addExerciseFavorite(userId: string, exerciseId: string): Promise<void> {
+    const exercise = await this.exerciseRepo.findById(exerciseId);
+    if (!exercise) throw new NotFoundException('Exercise not found');
+
+    const existing = await this.exerciseFavoriteRepo.findOne({
+      where: { user_id: userId, exercise_id: exerciseId },
+    });
+    if (!existing) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.save(ExerciseUserFavorite, { user_id: userId, exercise_id: exerciseId });
+        await manager.increment(Exercise, { id: exerciseId }, 'favoritesCount', 1);
+      });
+    }
+  }
+
+  async removeExerciseFavorite(userId: string, exerciseId: string): Promise<void> {
+    const existing = await this.exerciseFavoriteRepo.findOne({
+      where: { user_id: userId, exercise_id: exerciseId },
+    });
+    if (existing) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.delete(ExerciseUserFavorite, { user_id: userId, exercise_id: exerciseId });
+        await manager.decrement(Exercise, { id: exerciseId }, 'favoritesCount', 1);
+      });
+    }
+  }
+
+  // ─── Sport Tips ───────────────────────────────────────────────────────────
+
+  async getPublishedTips(
+    page: number = 1,
+    limit: number = 20,
+    sportCategory?: string,
+    muscleGroup?: MuscleGroup,
+  ) {
+    const where: Record<string, unknown> = { is_published: true };
+    if (sportCategory) where['sport_category'] = sportCategory;
+    if (muscleGroup) where['muscle_group'] = muscleGroup;
+
+    const [items, total] = await this.sportTipRepo.findAndCount({
+      where,
+      take: limit,
+      skip: (page - 1) * limit,
+      order: { created_at: 'DESC' },
+    });
+    return { items, total, page, limit };
+  }
+
+  async getOneTip(id: string): Promise<SportTip> {
+    const tip = await this.sportTipRepo.findOne({ where: { id } });
+    if (!tip) throw new NotFoundException('Sport tip not found');
+    return tip;
   }
 }

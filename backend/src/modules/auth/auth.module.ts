@@ -9,6 +9,7 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { EmailVerification } from './entities/email-verification.entity';
 import { PasswordReset } from './entities/password-reset.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { MailerModule } from '../mailer/mailer.module';
 import { StreaksModule } from '../streaks/streaks.module';
 
@@ -29,7 +30,7 @@ import { StreaksModule } from '../streaks/streaks.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, GoogleStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,6 +21,7 @@ import { AuthResponseDto } from './dto/auth-response.dto';
 import { MailerService } from '../mailer/mailer.service';
 import { StreaksService } from '../streaks/streaks.service';
 import { StreakType } from '../../common/enums/streak-type.enum';
+import type { GoogleProfile } from './strategies/google.strategy';
 
 @Injectable()
 export class AuthService {
@@ -239,6 +241,38 @@ export class AuthService {
     await this.mailerService.sendPasswordReset(email, token);
 
     return { message: 'If that email exists, a reset link has been sent.' };
+  }
+
+  async googleLogin(googleProfile: GoogleProfile): Promise<AuthResponseDto> {
+    const { email, display_name, avatar_url, oauth_id } = googleProfile;
+
+    let user = await this.userRepository.findOne({ where: { email } });
+
+    if (user) {
+      if (user.oauth_provider !== 'google') {
+        throw new ConflictException(
+          'An account with this email already exists. Please log in with email and password.',
+        );
+      }
+      // Update oauth_id if changed
+      if (user.oauth_id !== oauth_id) {
+        await this.userRepository.update(user.id, { oauth_id });
+        user.oauth_id = oauth_id;
+      }
+    } else {
+      user = this.userRepository.create({
+        email,
+        display_name,
+        avatar_url: avatar_url ?? undefined,
+        oauth_provider: 'google',
+        oauth_id,
+        is_verified: true,
+        is_active: true,
+      });
+      await this.userRepository.save(user);
+    }
+
+    return this.generateAuthResponse(user);
   }
 
   async resetPassword(
