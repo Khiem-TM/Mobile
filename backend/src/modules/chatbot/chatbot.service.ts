@@ -5,10 +5,10 @@ import ModelClient, { isUnexpected } from '@azure-rest/ai-inference';
 import { AzureKeyCredential } from '@azure/core-auth';
 import { ChatSession } from './entities/chat-session.entity';
 import { ChatMessage } from './entities/chat-message.entity';
-import { MealLogsService } from '../meal-logs/meal-logs.service';
-import { BodyMetricsService } from '../body-metrics/services/body-metrics.service';
-import { TrainingService } from '../training/training.service';
-import { UsersService } from '../users/users.service';
+import { MealLogsService } from '../food/services/meal-logs.service';
+import { BodyMetricsService } from '../train/services/body-metrics.service';
+import { TrainingService } from '../train/services/training.service';
+import { UsersService } from '../user/services/users.service';
 
 @Injectable()
 export class ChatbotService {
@@ -75,12 +75,11 @@ export class ChatbotService {
 
     // Aggregate user context in parallel
     const today = new Date().toISOString().split('T')[0];
-    const [bodyMetric, healthProfile, dailySummary, goals, recentWorkouts] =
+    const [bodyMetric, healthProfile, dailySummary, recentWorkouts] =
       await Promise.all([
         this.bodyMetricsService.getLatest(userId).catch(() => null),
         this.usersService.getHealthProfile(userId).catch(() => null),
         this.mealLogsService.getDailySummary(userId, today).catch(() => null),
-        this.trainingService.getMyGoals(userId).catch(() => []),
         this.trainingService.getWorkoutHistory(userId, 7).catch(() => []),
       ]);
 
@@ -88,7 +87,6 @@ export class ChatbotService {
       bodyMetric,
       healthProfile,
       dailySummary,
-      goals,
       recentWorkouts,
     });
 
@@ -133,7 +131,6 @@ export class ChatbotService {
     bodyMetric: any;
     healthProfile: any;
     dailySummary: any;
-    goals: any[];
     recentWorkouts: any[];
   }): string {
     const lines: string[] = [
@@ -151,8 +148,10 @@ export class ChatbotService {
       lines.push(`Cân nặng ban đầu: ${p.initialWeightKg ?? 'chưa rõ'} kg`);
       lines.push(`Mức độ hoạt động: ${p.activityLevel ?? 'chưa rõ'}`);
       lines.push(`Mục tiêu cân nặng: ${p.weightGoalKg ?? 'chưa đặt'} kg`);
-      lines.push(`Mục tiêu calo/ngày: ${p.caloriesGoal ?? 'chưa đặt'} kcal`);
+      lines.push(`Mục tiêu calo/ngày: ${p.dailyCaloriesGoal ?? p.caloriesGoal ?? 'chưa đặt'} kcal`);
       lines.push(`Chế độ ăn: ${p.dietType ?? 'không có'}`);
+      if (p.goalType) lines.push(`Mục tiêu tập luyện: ${p.goalType}`);
+      if (p.proteinGoalG) lines.push(`Mục tiêu đạm: ${p.proteinGoalG}g, béo: ${p.fatGoalG ?? 0}g, tinh bột: ${p.carbsGoalG ?? 0}g`);
     }
 
     if (ctx.bodyMetric) {
@@ -167,15 +166,12 @@ export class ChatbotService {
       lines.push(`Hôm nay đã ăn: ${s.total_calories ?? 0} kcal, đạm ${s.total_protein ?? 0}g, béo ${s.total_fat ?? 0}g, tinh bột ${s.total_carbs ?? 0}g`);
     }
 
-    if (ctx.goals?.length) {
-      const active = ctx.goals.filter((g: any) => g.status === 'ACTIVE');
-      if (active.length) {
-        lines.push(`Mục tiêu tập luyện: ${active.map((g: any) => g.goalType).join(', ')}`);
-      }
-    }
-
     if (ctx.recentWorkouts?.length) {
-      lines.push(`Buổi tập gần đây: ${ctx.recentWorkouts.map((w: any) => w.exercise?.name ?? 'không rõ').join(', ')}`);
+      const names = ctx.recentWorkouts
+        .flatMap((w: any) => w.details?.map((d: any) => d.exercise?.name) ?? [])
+        .filter(Boolean)
+        .slice(0, 5);
+      if (names.length) lines.push(`Bài tập gần đây: ${names.join(', ')}`);
     }
 
     lines.push('');

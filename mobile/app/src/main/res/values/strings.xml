@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Calories Tracker</string>
+    <!-- Web Client ID from Google Cloud Console (must match backend GOOGLE_CLIENT_ID) -->
+    <string name="default_web_client_id">83069158424-n671o0mvlq4nbkvs9ag1g9cpd5pp0mg0.apps.googleusercontent.com</string>
+</resources>

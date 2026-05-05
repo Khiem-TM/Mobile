@@ -15,7 +15,7 @@ export class CreateBlogDto {
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
-  author?: string;
+  author: 'Admin';
 
   @ApiProperty({ required: false })
   @IsUrl()

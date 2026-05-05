@@ -1,0 +1,13 @@
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle-wrapper.jar
+build/
+*/build/
+local.properties
+*.iml
+.idea/caches/build_file_checksums.ser
+.idea/modules.xml
+.idea/workspace.xml
+.idea/libraries/
+.DS_Store

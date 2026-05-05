@@ -4,9 +4,11 @@ import {
   IsNumber,
   IsEnum,
   IsUrl,
+  IsArray,
+  IsBoolean,
   Min,
 } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { MuscleGroup } from '../../../common/enums/muscle-group.enum';
 import { TrainingIntensity } from '../../../common/enums/training-intensity.enum';
@@ -16,7 +18,7 @@ export class CreateExerciseAdminDto {
   @IsString()
   name!: string;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   description?: string;
@@ -29,20 +31,44 @@ export class CreateExerciseAdminDto {
   @IsEnum(TrainingIntensity)
   intensity!: TrainingIntensity;
 
-  @ApiProperty({ required: false, default: 0 })
+  @ApiPropertyOptional({ default: 0 })
   @IsNumber()
   @Min(0)
   @Type(() => Number)
   @IsOptional()
   metValue?: number;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
   instructions?: string;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional()
   @IsUrl()
   @IsOptional()
   videoUrl?: string;
+
+  @ApiPropertyOptional({ type: [String], example: ['biceps', 'core'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  secondaryMuscleGroups?: string[];
+
+  @ApiPropertyOptional({
+    example: 'bodyweight',
+    enum: ['bodyweight', 'dumbbell', 'barbell', 'cable', 'machine', 'resistance_band', 'kettlebell', 'other'],
+  })
+  @IsOptional()
+  @IsString()
+  equipment?: string;
+
+  @ApiPropertyOptional({ example: 'Keep your back straight throughout the movement.' })
+  @IsOptional()
+  @IsString()
+  formTips?: string;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

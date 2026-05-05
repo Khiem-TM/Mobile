@@ -26,8 +26,6 @@ import { CreateFoodAdminDto } from './dto/create-food-admin.dto';
 import { UpdateFoodAdminDto } from './dto/update-food-admin.dto';
 import { CreateExerciseAdminDto } from './dto/create-exercise-admin.dto';
 import { UpdateExerciseAdminDto } from './dto/update-exercise-admin.dto';
-import { CreateBlogDto } from './dto/create-blog.dto';
-import { UpdateBlogDto } from './dto/update-blog.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth('access-token')
@@ -186,34 +184,4 @@ export class AdminController {
     return this.adminService.deleteExercise(id);
   }
 
-  // ─── Blogs ──────────────────────────────────────────────────────────────────
-  @ApiOperation({ summary: 'List all blogs (paginated)' })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
-  @Get('blogs')
-  getBlogs(@Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.adminService.getBlogs(
-      page ? Number(page) : 1,
-      limit ? Number(limit) : 20,
-    );
-  }
-
-  @ApiOperation({ summary: 'Create a new blog post' })
-  @Post('blogs')
-  createBlog(@Body() dto: CreateBlogDto) {
-    return this.adminService.createBlog(dto);
-  }
-
-  @ApiOperation({ summary: 'Update a blog post' })
-  @Patch('blogs/:id')
-  updateBlog(@Param('id') id: string, @Body() dto: UpdateBlogDto) {
-    return this.adminService.updateBlog(id, dto);
-  }
-
-  @ApiOperation({ summary: 'Delete a blog post' })
-  @Delete('blogs/:id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  deleteBlog(@Param('id') id: string) {
-    return this.adminService.deleteBlog(id);
-  }
 }

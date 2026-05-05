@@ -5,18 +5,12 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './modules/auth/auth.module';
-import { UsersModule } from './modules/users/users.module';
-import { FoodsModule } from './modules/foods/foods.module';
-import { MealLogsModule } from './modules/meal-logs/meal-logs.module';
-import { BodyMetricsModule } from './modules/body-metrics/body-metrics.module';
-import { ActivityLogsModule } from './modules/activity-logs/activity-logs.module';
-import { StreaksModule } from './modules/streaks/streaks.module';
-import { TrainingModule } from './modules/training/training.module';
-import { DashboardModule } from './modules/dashboard/dashboard.module';
-import { NotificationsModule } from './modules/notifications/notifications.module';
+import { SupportModule } from './modules/support/support.module';
+import { UserModule } from './modules/user/user.module';
+import { FoodModule } from './modules/food/food.module';
+import { TrainModule } from './modules/train/train.module';
+import { BlogModule } from './modules/blog/blog.module';
 import { AdminModule } from './modules/admin/admin.module';
-import { AiScanModule } from './modules/ai-scan/ai-scan.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
 
 @Module({
@@ -59,18 +53,12 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module';
       },
     }),
 
-    AuthModule,
-    UsersModule,
-    FoodsModule,
-    MealLogsModule,
-    BodyMetricsModule,
-    ActivityLogsModule,
-    StreaksModule,
-    TrainingModule,
-    DashboardModule,
-    NotificationsModule,
+    SupportModule,
+    UserModule,
+    FoodModule,
+    TrainModule,
+    BlogModule,
     AdminModule,
-    AiScanModule,
     ChatbotModule,
   ],
   controllers: [AppController],

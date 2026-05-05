@@ -14,7 +14,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
-import { CreateRecipeDto, AddRecipeStepDto } from '../foods/dto/create-recipe.dto';
+import { CreateRecipeDto, AddRecipeStepDto } from '../food/dto/create-recipe.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth('access-token')
