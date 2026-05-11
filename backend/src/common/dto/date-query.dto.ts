@@ -12,6 +12,7 @@ interface DateValidationObject {
   endDate?: string;
 }
 
+// End date phải sau hoặc bằng start date nếu cả 2 cùng tồn tại
 @ValidatorConstraint({ name: 'isEndDateAfterStartDate', async: false })
 class IsEndDateAfterStartDate implements ValidatorConstraintInterface {
   validate(endDate: string, { object }: ValidationArguments) {
@@ -37,6 +38,7 @@ class IsEndDateAfterStartDate implements ValidatorConstraintInterface {
   }
 }
 
+// DTO cho truy vấn theo date
 export class DateQueryDto {
   @IsOptional()
   @IsDateString()

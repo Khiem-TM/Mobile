@@ -1,5 +1,5 @@
 export enum TrainingGoalStatus {
-  ACTIVE = 'active',
-  COMPLETED = 'completed',
-  ABANDONED = 'abandoned',
+  ACTIVE = 'active', // accomplishing goal
+  COMPLETED = 'completed', // goal achieved
+  ABANDONED = 'abandoned', // goal dropped
 }

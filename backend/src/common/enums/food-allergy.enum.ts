@@ -1,5 +1,5 @@
 export enum FoodAllergyType {
-  GLUTEN = 'gluten', // Wheat, barley, rye
+  GLUTEN = 'gluten', // Wheat, barley, rye (celiac disease)
   DAIRY = 'dairy', // Milk, cheese, yogurt (lactose intolerance)
   EGGS = 'eggs',
   FISH = 'fish',
@@ -10,6 +10,6 @@ export enum FoodAllergyType {
   SESAME = 'sesame',
   PORK = 'pork', // Common in Vietnam
   BEEF = 'beef',
-  SPICY = 'spicy',
-  NONE = 'none',
+  SPICY = 'spicy', // Not really an allergy but common intolerance
+  NONE = 'none', // No allergies
 }
