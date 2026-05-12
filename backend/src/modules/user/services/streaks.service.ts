@@ -5,8 +5,11 @@ import { Streak } from '../entities/streak.entity';
 import { StreakType } from '../../../common/enums/streak-type.enum';
 import { NotificationsService } from './notifications.service';
 import { NotificationType } from '../entities/notification.entity';
+import { RedisService } from '../../support/redis/redis.service';
 
 const STREAK_MILESTONES = [3, 7, 14, 30];
+// TTL slightly over 24h to handle timezone edge cases
+const STREAK_DEDUP_TTL = 90_000;
 
 @Injectable()
 export class StreaksService {
@@ -16,6 +19,7 @@ export class StreaksService {
     @Inject(STREAKS_REPOSITORY)
     private readonly repository: IStreaksRepository,
     private readonly notificationsService: NotificationsService,
+    private readonly redisService: RedisService,
   ) {}
 
   async getStreaks(userId: string): Promise<Streak[]> {
@@ -23,6 +27,11 @@ export class StreaksService {
   }
 
   async updateActivity(userId: string, type: StreakType, activityDate: string) {
+    // Skip DB round-trip if already processed today (idempotency guard)
+    const dedupKey = `streak:done:${userId}:${type}:${activityDate}`;
+    const isFirst = await this.redisService.setnx(dedupKey, '1', STREAK_DEDUP_TTL);
+    if (!isFirst) return;
+
     const streak = await this.repository.findOrCreate(userId, type);
     const lastDate = streak.last_activity_date;
     const today = activityDate;

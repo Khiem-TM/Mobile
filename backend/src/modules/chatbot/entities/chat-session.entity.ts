@@ -22,6 +22,12 @@ export class ChatSession {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
+  @Column({ nullable: true, type: 'varchar', length: 200 })
+  title: string | null;
+
+  @Column({ nullable: true, type: 'text' })
+  last_message: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

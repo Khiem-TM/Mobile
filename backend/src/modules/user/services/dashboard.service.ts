@@ -4,6 +4,13 @@ import { ActivityLogsService } from '../../train/services/activity-logs.service'
 import { BodyMetricsService } from '../../train/services/body-metrics.service';
 import { StreaksService } from './streaks.service';
 import { TrainingService } from '../../train/services/training.service';
+import { RedisService } from '../../support/redis/redis.service';
+
+const TTL = {
+  DAILY: 120,   // 2 min — invalidated on mutation
+  WEEKLY: 600,  // 10 min — stale ok for report
+  MONTHLY: 1800, // 30 min — stale ok for report
+};
 
 @Injectable()
 export class DashboardService {
@@ -17,9 +24,14 @@ export class DashboardService {
     private readonly streaksService: StreaksService,
     @Inject(forwardRef(() => TrainingService))
     private readonly trainingService: TrainingService,
+    private readonly redisService: RedisService,
   ) {}
 
   async getUserDailyDashboard(userId: string, date: string) {
+    const key = `cache:dashboard:daily:${userId}:${date}`;
+    const cached = await this.redisService.getJson<object>(key);
+    if (cached) return cached;
+
     const [meals, activity, latestMetric, streaks, recentWorkouts] =
       await Promise.all([
         this.mealLogsService.getDailySummary(userId, date),
@@ -29,7 +41,7 @@ export class DashboardService {
         this.trainingService.getWorkoutHistory(userId, 5),
       ]);
 
-    return {
+    const result = {
       date,
       nutrition: {
         total_calories: meals.total_calories,
@@ -52,9 +64,19 @@ export class DashboardService {
       streaks,
       recent_workouts: recentWorkouts,
     };
+    await this.redisService.setJson(key, result, TTL.DAILY);
+    return result;
+  }
+
+  // Called by MealLogsService and ActivityLogsService after mutations
+  async invalidateDailyCache(userId: string, date: string): Promise<void> {
+    await this.redisService.del(`cache:dashboard:daily:${userId}:${date}`);
   }
 
   async getWeeklyReport(userId: string, weekStart: string) {
+    const key = `cache:dashboard:weekly:${userId}:${weekStart}`;
+    const cached = await this.redisService.getJson<object>(key);
+    if (cached) return cached;
     const endDate = new Date(weekStart);
     endDate.setDate(endDate.getDate() + 6);
 
@@ -90,7 +112,7 @@ export class DashboardService {
       (w) => w.sessionDate >= fromDate && w.sessionDate <= toDate,
     );
 
-    return {
+    const weekResult = {
       period: { from: fromDate, to: toDate },
       nutrition: {
         avg_daily_calories:
@@ -112,9 +134,15 @@ export class DashboardService {
       },
       body_metrics: bodyRange,
     };
+    await this.redisService.setJson(key, weekResult, TTL.WEEKLY);
+    return weekResult;
   }
 
   async getMonthlyReport(userId: string, year: number, month: number) {
+    const key = `cache:dashboard:monthly:${userId}:${year}:${month}`;
+    const cached = await this.redisService.getJson<object>(key);
+    if (cached) return cached;
+
     const fromDate = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
     const toDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
@@ -156,7 +184,7 @@ export class DashboardService {
     const weightChange =
       weights.length >= 2 ? weights[weights.length - 1] - weights[0] : null;
 
-    return {
+    const monthResult = {
       period: { from: fromDate, to: toDate, year, month },
       nutrition: {
         total_calories: Math.round(monthTotalCalories),
@@ -184,5 +212,7 @@ export class DashboardService {
         measurements: bodyRange,
       },
     };
+    await this.redisService.setJson(key, monthResult, TTL.MONTHLY);
+    return monthResult;
   }
 }

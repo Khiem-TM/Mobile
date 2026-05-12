@@ -12,6 +12,15 @@ import { CreateRecipeDto, AddRecipeStepDto } from '../dto/create-recipe.dto';
 import { SetIngredientsDto } from '../dto/set-ingredients.dto';
 import { CloudinaryService } from '../../support/cloudinary/cloudinary.service';
 import { computeNutritionFromIngredients } from '../../../common/utils/nutrition-calculator';
+import { RedisService } from '../../support/redis/redis.service';
+
+const TTL = {
+  FOOD_LIST: 300,    // 5 min — search results
+  FOOD_ONE: 3600,    // 1 hour — individual food item (near-static)
+  FOOD_BARCODE: 3600,
+  FOOD_RECIPE: 3600,
+  FOOD_EXPLORE: 600, // 10 min — explore/browse page
+};
 
 @Injectable()
 export class FoodsService {
@@ -30,18 +39,29 @@ export class FoodsService {
     private readonly ingredientRepository: Repository<FoodIngredient>,
     private readonly cloudinaryService: CloudinaryService,
     private readonly dataSource: DataSource,
+    private readonly redisService: RedisService,
   ) {}
 
   async findAll(query: string = '', page: number = 1, limit: number = 20) {
+    const key = `cache:foods:list:${query}:${page}:${limit}`;
+    const cached = await this.redisService.getJson<{ items: Food[]; total: number; page: number; limit: number }>(key);
+    if (cached) return cached;
+
     const [foods, total] = await this.foodRepository.findAndCount({
       where: query ? [{ name: ILike(`%${query}%`) }] : {},
       take: limit,
       skip: (page - 1) * limit,
     });
-    return { items: foods, total, page, limit };
+    const result = { items: foods, total, page, limit };
+    await this.redisService.setJson(key, result, TTL.FOOD_LIST);
+    return result;
   }
 
   async exploreDishe(page: number = 1, limit: number = 20, category?: string) {
+    const key = `cache:foods:explore:${page}:${limit}:${category ?? ''}`;
+    const cached = await this.redisService.getJson<{ items: Food[]; total: number; page: number; limit: number }>(key);
+    if (cached) return cached;
+
     const where: Record<string, unknown> = { food_type: 'dish', is_active: true };
     if (category) where['category'] = ILike(`%${category}%`);
 
@@ -51,12 +71,19 @@ export class FoodsService {
       skip: (page - 1) * limit,
       order: { favorites_count: 'DESC', created_at: 'DESC' },
     });
-    return { items, total, page, limit };
+    const result = { items, total, page, limit };
+    await this.redisService.setJson(key, result, TTL.FOOD_EXPLORE);
+    return result;
   }
 
   async findOne(id: string): Promise<Food> {
+    const key = `cache:foods:one:${id}`;
+    const cached = await this.redisService.getJson<Food>(key);
+    if (cached) return cached;
+
     const food = await this.foodRepository.findOne({ where: { id } });
     if (!food) throw new NotFoundException('Food not found');
+    await this.redisService.setJson(key, food, TTL.FOOD_ONE);
     return food;
   }
 
@@ -137,11 +164,18 @@ export class FoodsService {
   }
 
   async findByBarcode(barcode: string): Promise<Food> {
+    const key = `cache:foods:barcode:${barcode}`;
+    const cached = await this.redisService.getJson<Food>(key);
+    if (cached) return cached;
+
     const record = await this.barcodeRepository.findOne({
       where: { barcode },
       relations: ['food'],
     });
-    if (record?.food) return record.food;
+    if (record?.food) {
+      await this.redisService.setJson(key, record.food, TTL.FOOD_BARCODE);
+      return record.food;
+    }
 
     // Fallback: Open Food Facts API
     try {
@@ -172,6 +206,7 @@ export class FoodsService {
         });
         const saved = await this.foodRepository.save(food);
         await this.barcodeRepository.save({ food_id: saved.id, barcode });
+        await this.redisService.setJson(key, saved, TTL.FOOD_BARCODE);
         return saved;
       }
     } catch {
@@ -185,12 +220,17 @@ export class FoodsService {
 
   async getRecipe(foodId: string): Promise<FoodRecipe> {
     await this.findOne(foodId);
+    const key = `cache:foods:recipe:${foodId}`;
+    const cached = await this.redisService.getJson<FoodRecipe>(key);
+    if (cached) return cached;
+
     const recipe = await this.recipeRepository.findOne({
       where: { food_id: foodId },
       relations: ['steps'],
       order: { steps: { step_number: 'ASC' } },
     });
     if (!recipe) throw new NotFoundException('Recipe not found for this food');
+    await this.redisService.setJson(key, recipe, TTL.FOOD_RECIPE);
     return recipe;
   }
 

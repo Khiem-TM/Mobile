@@ -39,6 +39,12 @@ export class ChatbotController {
     return this.chatbotService.getSessions(user.sub);
   }
 
+  @ApiOperation({ summary: 'Get messages for a chat session' })
+  @Get('sessions/:id/messages')
+  getMessages(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.chatbotService.getMessages(user.sub, id);
+  }
+
   @ApiOperation({ summary: 'Get a chat session with message history' })
   @Get('sessions/:id')
   getSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
@@ -59,6 +65,6 @@ export class ChatbotController {
     @Param('id') id: string,
     @Body() dto: SendMessageDto,
   ) {
-    return this.chatbotService.sendMessage(user.sub, id, dto.message);
+    return this.chatbotService.sendMessage(user.sub, id, dto.content);
   }
 }

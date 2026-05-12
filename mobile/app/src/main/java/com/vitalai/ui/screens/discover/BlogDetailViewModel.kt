@@ -11,39 +11,29 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class DiscoverUiState(
-    val blogs: List<BlogDto> = emptyList(),
-    val selectedTag: String? = null,
-    val isLoading: Boolean = false,
+data class BlogDetailUiState(
+    val blog: BlogDto? = null,
+    val isLoading: Boolean = true,
     val error: String? = null
 )
 
 @HiltViewModel
-class DiscoverViewModel @Inject constructor(
+class BlogDetailViewModel @Inject constructor(
     private val blogRepository: BlogRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(DiscoverUiState())
+    private val _uiState = MutableStateFlow(BlogDetailUiState())
     val uiState = _uiState.asStateFlow()
 
-    init {
-        loadBlogs()
-    }
-
-    fun loadBlogs() {
-        val tag = _uiState.value.selectedTag
+    fun loadBlog(id: String) {
+        if (_uiState.value.blog?.id == id) return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            blogRepository.getBlogs(tag).onSuccess { page ->
-                _uiState.update { it.copy(blogs = page.items, isLoading = false) }
+            blogRepository.getBlogById(id).onSuccess { blog ->
+                _uiState.update { it.copy(blog = blog, isLoading = false) }
             }.onFailure { err ->
-                _uiState.update { it.copy(isLoading = false, error = err.message) }
+                _uiState.update { it.copy(isLoading = false, error = err.message ?: "Không tìm thấy bài viết") }
             }
         }
-    }
-
-    fun filterByTag(tag: String?) {
-        _uiState.update { it.copy(selectedTag = tag) }
-        loadBlogs()
     }
 }

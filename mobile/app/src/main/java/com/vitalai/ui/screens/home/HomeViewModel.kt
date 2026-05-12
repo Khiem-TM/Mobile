@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.StreakDto
+import com.vitalai.data.remote.model.UserDto
 import com.vitalai.data.repository.DashboardRepository
 import com.vitalai.data.repository.MealLogRepository
+import com.vitalai.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +24,7 @@ data class HomeUiState(
     val streaks: StreakDto? = null,
     val mealLogs: List<MealLogDto> = emptyList(),
     val unreadCount: Int = 0,
+    val user: UserDto? = null,
     val selectedDate: String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
     val isLoading: Boolean = false,
     val error: String? = null
@@ -30,7 +33,8 @@ data class HomeUiState(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val dashboardRepository: DashboardRepository,
-    private val mealLogRepository: MealLogRepository
+    private val mealLogRepository: MealLogRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -48,11 +52,13 @@ class HomeViewModel @Inject constructor(
             val streaksDeferred = async { dashboardRepository.getStreaks() }
             val mealLogsDeferred = async { mealLogRepository.getMealLogs(date) }
             val unreadDeferred = async { dashboardRepository.getUnreadCount() }
+            val userDeferred = async { userRepository.getCurrentUser() }
 
             val dashboard = dashboardDeferred.await().getOrNull()
             val streaks = streaksDeferred.await().getOrNull()
             val mealLogs = mealLogsDeferred.await().getOrElse { emptyList() }
             val unread = unreadDeferred.await().getOrElse { 0 }
+            val user = userDeferred.await().getOrNull()
 
             _uiState.update {
                 it.copy(
@@ -60,6 +66,7 @@ class HomeViewModel @Inject constructor(
                     streaks = streaks,
                     mealLogs = mealLogs,
                     unreadCount = unread,
+                    user = user,
                     isLoading = false
                 )
             }

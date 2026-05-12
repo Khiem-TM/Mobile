@@ -65,6 +65,6 @@ import { StreaksRepository } from './repositories/streaks.repository';
     JwtStrategy, GoogleStrategy,
     { provide: STREAKS_REPOSITORY, useClass: StreaksRepository },
   ],
-  exports: [UsersService, AuthService, StreaksService, NotificationsService],
+  exports: [UsersService, AuthService, StreaksService, NotificationsService, DashboardService],
 })
 export class UserModule {}

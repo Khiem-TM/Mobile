@@ -1,6 +1,5 @@
 package com.vitalai.ui.screens.auth
 
-import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -55,28 +54,29 @@ fun SignUpScreen(
     val googleLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            try {
-                val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
-                    .getResult(ApiException::class.java)
-                val token = account.idToken
-                if (token != null) {
-                    viewModel.loginWithGoogle(token)
-                } else {
-                    viewModel.handleGoogleError("Không lấy được Google ID token. Vui lòng thử lại.")
-                }
-            } catch (e: ApiException) {
+        // Always try to extract result — DEVELOPER_ERROR comes back as RESULT_CANCELED
+        // with the ApiException embedded in the intent data, so we can't gate on resultCode.
+        try {
+            val account = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+                .getResult(ApiException::class.java)
+            val token = account.idToken
+            if (token != null) {
+                viewModel.loginWithGoogle(token)
+            } else {
+                viewModel.handleGoogleError("Không lấy được Google ID token. Vui lòng thử lại.")
+            }
+        } catch (e: ApiException) {
+            if (e.statusCode != 12501) { // 12501 = user pressed back (silent cancel)
                 viewModel.handleGoogleError("Google Sign-In thất bại (mã lỗi: ${e.statusCode})")
             }
         }
-        // RESULT_CANCELED = user pressed back, no action needed
     }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Success) {
             viewModel.resetState()
             navController.navigate(Screen.Onboarding(1)) {
-                popUpTo(Screen.SignUp::class.qualifiedName!!) { inclusive = true }
+                popUpTo(Screen.Welcome::class.qualifiedName!!) { inclusive = true }
             }
         }
     }

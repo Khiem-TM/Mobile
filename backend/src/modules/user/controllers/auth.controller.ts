@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Get, Req, Res, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Req, Res, HttpCode, HttpStatus, Headers } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
@@ -52,9 +52,11 @@ export class AuthController {
   @Post('logout')
   async logout(
     @CurrentUser() user: JwtPayload,
+    @Headers('authorization') authHeader: string,
     @Body('refresh_token') refreshToken?: string,
   ): Promise<{ message: string }> {
-    await this.authService.logout(user.sub, refreshToken);
+    const accessToken = authHeader?.replace(/^Bearer\s+/i, '');
+    await this.authService.logout(user.sub, refreshToken, accessToken);
     return { message: 'Logged out successfully' };
   }
 

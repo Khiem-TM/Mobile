@@ -7,10 +7,12 @@ import { ChatMessage } from './entities/chat-message.entity';
 import { FoodModule } from '../food/food.module';
 import { TrainModule } from '../train/train.module';
 import { UserModule } from '../user/user.module';
+import { SupportModule } from '../support/support.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChatSession, ChatMessage]),
+    SupportModule,
     forwardRef(() => UserModule),
     forwardRef(() => FoodModule),
     forwardRef(() => TrainModule),

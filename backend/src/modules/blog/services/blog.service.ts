@@ -16,6 +16,13 @@ import { RejectBlogDto } from '../dto/reject-blog.dto';
 import { CreateBlogBlockDto } from '../dto/create-blog-block.dto';
 import { CreateCommentDto } from '../dto/create-comment.dto';
 import { BatchBlogActionDto, BatchRejectBlogDto } from '../dto/batch-blog.dto';
+import { RedisService } from '../../support/redis/redis.service';
+
+const TTL = {
+  BLOG_LIST: 120,  // 2 min — approved blog list
+  BLOG_ONE: 300,   // 5 min — individual blog detail
+  BLOG_TAGS: 1800, // 30 min — tags rarely change
+};
 
 @Injectable()
 export class BlogService {
@@ -34,11 +41,16 @@ export class BlogService {
 
     private readonly dataSource: DataSource,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly redisService: RedisService,
   ) {}
 
   // ─── Public ────────────────────────────────────────────────────────────────
 
   async getApprovedBlogs(page = 1, limit = 20, search?: string, tag?: string) {
+    const key = `cache:blogs:list:${page}:${limit}:${search ?? ''}:${tag ?? ''}`;
+    const cached = await this.redisService.getJson<{ items: Blog[]; total: number; page: number; limit: number }>(key);
+    if (cached) return cached;
+
     const qb = this.blogRepo
       .createQueryBuilder('blog')
       .leftJoinAndSelect('blog.authorUser', 'author')
@@ -46,7 +58,6 @@ export class BlogService {
       .orderBy('blog.createdAt', 'DESC');
 
     if (search) {
-      // Feature 3: search by title OR author display_name
       qb.andWhere(
         '(LOWER(blog.title) LIKE :search OR LOWER(author.display_name) LIKE :search)',
         { search: `%${search.toLowerCase()}%` },
@@ -54,7 +65,6 @@ export class BlogService {
     }
 
     if (tag) {
-      // Feature 2: tag filter — PostgreSQL simple-array stored as comma-separated text
       qb.andWhere(":tag = ANY(string_to_array(blog.tags, ','))", { tag });
     }
 
@@ -63,10 +73,20 @@ export class BlogService {
       .take(limit)
       .getManyAndCount();
 
-    return { items, total, page, limit };
+    const result = { items, total, page, limit };
+    await this.redisService.setJson(key, result, TTL.BLOG_LIST);
+    return result;
   }
 
   async getOneBlog(id: string) {
+    const key = `cache:blogs:one:${id}`;
+    const cached = await this.redisService.getJson<Blog>(key);
+    if (cached) {
+      // Still increment view count even when serving from cache
+      void this.blogRepo.increment({ id }, 'viewCount', 1);
+      return cached;
+    }
+
     const blog = await this.blogRepo.findOne({
       where: { id, status: 'approved' },
       relations: ['blocks', 'authorUser'],
@@ -74,14 +94,17 @@ export class BlogService {
     });
     if (!blog) throw new NotFoundException('Blog not found');
 
-    // Feature 6: atomic view count increment (fire-and-forget)
     void this.blogRepo.increment({ id }, 'viewCount', 1);
-
+    await this.redisService.setJson(key, blog, TTL.BLOG_ONE);
     return blog;
   }
 
   // Feature 2: list all unique tags from approved blogs
   async getAllTags(): Promise<string[]> {
+    const key = 'cache:blogs:tags';
+    const cached = await this.redisService.getJson<string[]>(key);
+    if (cached) return cached;
+
     const rows = await this.blogRepo
       .createQueryBuilder('blog')
       .select('blog.tags', 'tags')
@@ -97,21 +120,29 @@ export class BlogService {
         if (v) tagSet.add(v);
       });
     }
-    return Array.from(tagSet).sort();
+    const tags = Array.from(tagSet).sort();
+    await this.redisService.setJson(key, tags, TTL.BLOG_TAGS);
+    return tags;
+  }
+
+  // Called internally after any approve/reject to keep cache consistent
+  private async invalidateBlogListCache(): Promise<void> {
+    await Promise.all([
+      this.redisService.delByPattern('cache:blogs:list:*'),
+      this.redisService.del('cache:blogs:tags'),
+    ]);
   }
 
   // ─── User ──────────────────────────────────────────────────────────────────
 
   async createUserBlog(userId: string, dto: CreateBlogDto) {
-    return this.dataSource.transaction(async (manager) => {
-      // Feature 4: draft mode
-      const status = dto.status === 'draft' ? 'draft' : 'pending';
+    const savedId = await this.dataSource.transaction(async (manager) => {
+      const status = dto.status === 'draft' ? 'draft' : 'approved';
 
       const blog = manager.create(Blog, {
         title: dto.title,
         author_id: userId,
         status,
-        // Feature 2: normalize empty array → null
         tags: dto.tags?.length ? dto.tags : null,
       });
 
@@ -122,6 +153,8 @@ export class BlogService {
         );
         blog.thumbnailUrl = result.url;
         blog.thumbnailPublicId = result.publicId;
+      } else if (dto.thumbnailUrl) {
+        blog.thumbnailUrl = dto.thumbnailUrl;
       }
 
       const saved = await manager.save(Blog, blog);
@@ -131,8 +164,9 @@ export class BlogService {
         await manager.save(BlogBlock, blocks);
       }
 
-      return this.findWithBlocks(saved.id);
+      return saved.id;
     });
+    return this.findWithBlocks(savedId);
   }
 
   async updateUserBlog(userId: string, blogId: string, dto: UpdateBlogDto) {
@@ -140,7 +174,7 @@ export class BlogService {
     if (!blog) throw new NotFoundException('Blog not found');
     if (blog.author_id !== userId) throw new ForbiddenException('Not your blog');
 
-    return this.dataSource.transaction(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       if (dto.thumbnailBase64) {
         if (blog.thumbnailPublicId) {
           await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
@@ -155,22 +189,14 @@ export class BlogService {
 
       if (dto.title) blog.title = dto.title;
 
-      // Feature 2: update tags if provided
       if (dto.tags !== undefined) {
         blog.tags = dto.tags.length ? dto.tags : null;
       }
 
-      // Feature 4: draft/pending status logic
-      if (blog.status === 'draft') {
-        // Only switch to pending when user explicitly publishes
-        if (dto.status === 'pending') {
-          blog.status = 'pending';
-          blog.rejectionReason = null;
-        }
-        // Content-only edits keep the blog as draft
-      } else {
-        // approved/rejected/pending → any content change re-submits for review
-        blog.status = 'pending';
+      const isDraft = (blog.status as string) === 'draft';
+      const keepAsDraft = (dto.status as string) === 'draft';
+      if (isDraft && !keepAsDraft) {
+        blog.status = 'approved';
         blog.rejectionReason = null;
       }
 
@@ -190,9 +216,8 @@ export class BlogService {
           await manager.save(BlogBlock, blocks);
         }
       }
-
-      return this.findWithBlocks(blogId);
     });
+    return this.findWithBlocks(blogId);
   }
 
   async deleteUserBlog(userId: string, blogId: string) {
@@ -326,7 +351,7 @@ export class BlogService {
   }
 
   async adminCreateBlog(dto: CreateBlogDto) {
-    return this.dataSource.transaction(async (manager) => {
+    const savedId = await this.dataSource.transaction(async (manager) => {
       const blog = manager.create(Blog, {
         title: dto.title,
         author_id: null,
@@ -341,6 +366,8 @@ export class BlogService {
         );
         blog.thumbnailUrl = result.url;
         blog.thumbnailPublicId = result.publicId;
+      } else if (dto.thumbnailUrl) {
+        blog.thumbnailUrl = dto.thumbnailUrl;
       }
 
       const saved = await manager.save(Blog, blog);
@@ -350,15 +377,16 @@ export class BlogService {
         await manager.save(BlogBlock, blocks);
       }
 
-      return this.findWithBlocks(saved.id);
+      return saved.id;
     });
+    return this.findWithBlocks(savedId);
   }
 
   async adminUpdateBlog(id: string, dto: UpdateBlogDto) {
     const blog = await this.blogRepo.findOne({ where: { id }, relations: ['blocks'] });
     if (!blog) throw new NotFoundException('Blog not found');
 
-    return this.dataSource.transaction(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       if (dto.thumbnailBase64) {
         if (blog.thumbnailPublicId) {
           await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
@@ -390,9 +418,8 @@ export class BlogService {
           await manager.save(BlogBlock, blocks);
         }
       }
-
-      return this.findWithBlocks(id);
     });
+    return this.findWithBlocks(id);
   }
 
   async adminApproveBlog(id: string) {
@@ -400,7 +427,9 @@ export class BlogService {
     if (!blog) throw new NotFoundException('Blog not found');
     blog.status = 'approved';
     blog.rejectionReason = null;
-    return this.blogRepo.save(blog);
+    const saved = await this.blogRepo.save(blog);
+    await this.invalidateBlogListCache();
+    return saved;
   }
 
   async adminRejectBlog(id: string, dto: RejectBlogDto) {
@@ -408,7 +437,10 @@ export class BlogService {
     if (!blog) throw new NotFoundException('Blog not found');
     blog.status = 'rejected';
     blog.rejectionReason = dto.reason ?? null;
-    return this.blogRepo.save(blog);
+    const saved = await this.blogRepo.save(blog);
+    await this.invalidateBlogListCache();
+    await this.redisService.del(`cache:blogs:one:${id}`);
+    return saved;
   }
 
   async adminDeleteBlog(id: string) {
@@ -416,6 +448,8 @@ export class BlogService {
     if (!blog) throw new NotFoundException('Blog not found');
     await this.cleanupBlogAssets(blog);
     await this.blogRepo.delete(id);
+    await this.invalidateBlogListCache();
+    await this.redisService.del(`cache:blogs:one:${id}`);
   }
 
   async getPendingCount() {
@@ -428,6 +462,7 @@ export class BlogService {
       { id: In(dto.ids) },
       { status: 'approved', rejectionReason: null },
     );
+    await this.invalidateBlogListCache();
     return { updated: dto.ids.length };
   }
 
@@ -436,6 +471,8 @@ export class BlogService {
       { id: In(dto.ids) },
       { status: 'rejected', rejectionReason: dto.reason ?? null },
     );
+    await this.invalidateBlogListCache();
+    await Promise.all(dto.ids.map((id) => this.redisService.del(`cache:blogs:one:${id}`)));
     return { updated: dto.ids.length };
   }
 

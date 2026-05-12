@@ -1,36 +1,30 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
-import ModelClient, { isUnexpected } from '@azure-rest/ai-inference';
-import { AzureKeyCredential } from '@azure/core-auth';
 import { CloudinaryService } from '../../support/cloudinary/cloudinary.service';
 import { Food } from '../entities/food.entity';
 import { AiScanLog } from '../entities/ai-scan-log.entity';
 import { AiScanResultDto } from '../dto/ai-scan-result.dto';
 
-interface GeminiDetectedItem {
-  food_name: string;
-  weight_g: number;
+interface PredictResult {
+  label: string;
+  score: number;
 }
+
+const FOOD_AI_URL = process.env.FOOD_AI_SERVICE_URL ?? 'http://localhost:8000';
+const HF_CONFIDENCE_THRESHOLD = 0.05;
+const HF_TOP_K = 5;
+const DEFAULT_WEIGHT_G = 100;
 
 @Injectable()
 export class AiScanService {
-  private readonly client: ReturnType<typeof ModelClient>;
-  private readonly model = 'openai/gpt-5';
-  private readonly endpoint = 'https://models.github.ai/inference';
-
   constructor(
     @InjectRepository(Food)
     private readonly foodRepo: Repository<Food>,
     @InjectRepository(AiScanLog)
     private readonly scanLogRepo: Repository<AiScanLog>,
     private readonly cloudinaryService: CloudinaryService,
-  ) {
-    this.client = ModelClient(
-      this.endpoint,
-      new AzureKeyCredential(process.env.GITHUB_TOKEN || ''),
-    );
-  }
+  ) {}
 
   async analyzeImage(
     file: Express.Multer.File,
@@ -40,56 +34,18 @@ export class AiScanService {
     const { url: image_url, publicId: image_public_id } =
       await this.cloudinaryService.uploadFile(file, 'ai-scans');
 
-    // 2. Build base64 data URI for GPT-5 vision
-    const base64Data = file.buffer.toString('base64');
-    const dataUri = `data:${file.mimetype};base64,${base64Data}`;
-
-    const prompt =
-      'Nhận diện tất cả các món ăn hoặc thực phẩm trong hình. ' +
-      'Với mỗi món, ước lượng khối lượng (gram). ' +
-      'Trả về JSON array duy nhất, không có markdown, không có giải thích. ' +
-      'Format: [{"food_name":"tên tiếng Việt","weight_g":số}]';
-
-    let rawText = '';
-    let detectedItems: GeminiDetectedItem[] = [];
+    // 2. Call Python food-ai-service
+    let predictions: PredictResult[] = [];
+    let rawResponse = '';
 
     try {
-      const response = await this.client.path('/chat/completions').post({
-        body: {
-          model: this.model,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image_url',
-                  image_url: { url: dataUri },
-                },
-                {
-                  type: 'text',
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-        },
-      });
-
-      if (isUnexpected(response)) {
-        console.error('[AiScan] API error:', response.body.error);
-        throw new Error(response.body.error?.message ?? 'Unknown API error');
-      }
-
-      rawText = response.body.choices[0]?.message?.content ?? '';
-
-      // Extract JSON (strip markdown code fences if present)
-      const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        detectedItems = JSON.parse(jsonMatch[0]) as GeminiDetectedItem[];
-      }
+      predictions = await this.callFoodAiService(file);
+      rawResponse = JSON.stringify(predictions);
     } catch (err) {
-      console.error('[AiScan] Error:', err);
-      throw new InternalServerErrorException('AI analysis failed. Please try again.');
+      console.error('[AiScan] food-ai-service error:', err);
+      throw new InternalServerErrorException(
+        'AI analysis failed. Please ensure the food-ai-service is running.',
+      );
     }
 
     // 3. Save scan log
@@ -98,39 +54,70 @@ export class AiScanService {
         user_id: userId,
         image_url,
         image_public_id,
-        raw_response: rawText,
+        raw_response: rawResponse,
       }),
     );
 
-    // 4. Fuzzy-match each detected item in DB
-    const results: AiScanResultDto[] = await Promise.all(
-      detectedItems.map(async (item: GeminiDetectedItem) => {
-        const matched = await this.foodRepo.find({
-          where: [
-            { name: ILike(`%${item.food_name}%`), is_active: true },
-            { name_en: ILike(`%${item.food_name}%`), is_active: true },
-          ],
-          take: 5,
-          select: [
-            'id',
-            'name',
-            'name_en',
-            'calories_per_100g',
-            'protein_per_100g',
-            'fat_per_100g',
-            'carbs_per_100g',
-            'image_urls',
-          ],
-        });
+    // 4. Filter by confidence, take top K, fuzzy-match in DB
+    const filtered = predictions
+      .filter((r) => r.score >= HF_CONFIDENCE_THRESHOLD)
+      .slice(0, HF_TOP_K);
 
-        return {
-          ai_food_name: item.food_name,
-          estimated_weight_g: item.weight_g,
-          matched_foods: matched,
-        };
-      }),
+    const results: AiScanResultDto[] = await Promise.all(
+      filtered.map((item) => this.buildResult(item)),
     );
 
     return results;
+  }
+
+  private async callFoodAiService(
+    file: Express.Multer.File,
+  ): Promise<PredictResult[]> {
+    const form = new FormData();
+    const blob = new Blob([new Uint8Array(file.buffer)], { type: file.mimetype });
+    form.append('image', blob, file.originalname || 'image.jpg');
+
+    const response = await fetch(`${FOOD_AI_URL}/predict`, {
+      method: 'POST',
+      body: form,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`food-ai-service returned ${response.status}: ${errText}`);
+    }
+
+    const data = (await response.json()) as PredictResult[];
+    if (!Array.isArray(data)) {
+      throw new Error(`Unexpected response shape: ${JSON.stringify(data)}`);
+    }
+    return data;
+  }
+
+  private async buildResult(item: PredictResult): Promise<AiScanResultDto> {
+    const matched = await this.foodRepo.find({
+      where: [
+        { name: ILike(`%${item.label}%`), is_active: true },
+        { name_en: ILike(`%${item.label}%`), is_active: true },
+      ],
+      take: 5,
+      select: [
+        'id',
+        'name',
+        'name_en',
+        'calories_per_100g',
+        'protein_per_100g',
+        'fat_per_100g',
+        'carbs_per_100g',
+        'image_urls',
+      ],
+    });
+
+    return {
+      ai_food_name: item.label,
+      estimated_weight_g: DEFAULT_WEIGHT_G,
+      confidence_score: Math.round(item.score * 10_000) / 10_000,
+      matched_foods: matched,
+    };
   }
 }

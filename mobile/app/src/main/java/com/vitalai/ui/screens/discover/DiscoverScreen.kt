@@ -131,9 +131,9 @@ private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(3.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            if (blog.imageUrl != null) {
+            if (blog.thumbnailUrl != null) {
                 AsyncImage(
-                    model = blog.imageUrl,
+                    model = blog.thumbnailUrl,
                     contentDescription = blog.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -160,7 +160,7 @@ private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
                     .align(Alignment.BottomStart)
                     .padding(16.dp)
             ) {
-                blog.tag?.let {
+                blog.firstTag?.let {
                     Surface(
                         shape = RoundedCornerShape(999.dp),
                         color = Mint500.copy(alpha = 0.9f)
@@ -177,9 +177,6 @@ private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                blog.readTimeMin?.let {
-                    Text("$it phút đọc", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
-                }
             }
         }
     }
@@ -194,9 +191,9 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (blog.imageUrl != null) {
+        if (blog.thumbnailUrl != null) {
             AsyncImage(
-                model = blog.imageUrl,
+                model = blog.thumbnailUrl,
                 contentDescription = blog.title,
                 modifier = Modifier
                     .size(90.dp)
@@ -214,7 +211,7 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            blog.tag?.let {
+            blog.firstTag?.let {
                 Surface(
                     shape = RoundedCornerShape(999.dp),
                     color = Mint50
@@ -231,9 +228,7 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            blog.readTimeMin?.let {
-                Text("$it phút đọc", fontSize = 11.sp, color = Ink500)
-            }
+            Text(blog.displayAuthor, fontSize = 11.sp, color = Ink500)
         }
     }
     HorizontalDivider(color = Ink200, thickness = 0.5.dp)

@@ -7,6 +7,7 @@ import { LogWaterDto } from '../dto/log-water.dto';
 import { NotificationsService } from '../../user/services/notifications.service';
 import { NotificationType } from '../../user/entities/notification.entity';
 import { UsersService } from '../../user/services/users.service';
+import { DashboardService } from '../../user/services/dashboard.service';
 
 @Injectable()
 export class ActivityLogsService {
@@ -17,20 +18,26 @@ export class ActivityLogsService {
     private readonly notificationsService: NotificationsService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => DashboardService))
+    private readonly dashboardService: DashboardService,
   ) {}
 
   async logSteps(userId: string, dto: LogStepsDto) {
-    return this.repository.upsertSteps(userId, dto.logDate, dto.steps);
+    const result = await this.repository.upsertSteps(userId, dto.logDate, dto.steps);
+    void this.dashboardService.invalidateDailyCache(userId, dto.logDate);
+    return result;
   }
 
   async logCaloriesBurned(userId: string, dto: LogCaloriesBurnedDto) {
-    return this.repository.upsertCaloriesBurned(
+    const result = await this.repository.upsertCaloriesBurned(
       userId,
       dto.logDate,
       dto.caloriesBurned,
       dto.activeMinutes,
       dto.exerciseNotes,
     );
+    void this.dashboardService.invalidateDailyCache(userId, dto.logDate);
+    return result;
   }
 
   async logWater(userId: string, dto: LogWaterDto) {
@@ -47,6 +54,7 @@ export class ActivityLogsService {
       );
     }
 
+    void this.dashboardService.invalidateDailyCache(userId, dto.logDate);
     return log;
   }
 

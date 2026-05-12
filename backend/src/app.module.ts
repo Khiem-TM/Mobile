@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from 'nestjs-throttler-storage-redis';
 import { APP_GUARD } from '@nestjs/core';
+import Redis from 'ioredis';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SupportModule } from './modules/support/support.module';
@@ -20,10 +22,23 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module';
       envFilePath: '.env',
     }),
 
-    ThrottlerModule.forRoot([
-      { name: 'short', ttl: 1000, limit: 10 },
-      { name: 'medium', ttl: 60000, limit: 100 },
-    ]),
+    ThrottlerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          { name: 'short', ttl: 1000, limit: 10 },
+          { name: 'medium', ttl: 60000, limit: 100 },
+        ],
+        storage: new ThrottlerStorageRedisService(
+          new Redis({
+            host: config.get<string>('REDIS_HOST', 'localhost'),
+            port: config.get<number>('REDIS_PORT', 6379),
+            lazyConnect: true,
+          }),
+        ),
+      }),
+    }),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],

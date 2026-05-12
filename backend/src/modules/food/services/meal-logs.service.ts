@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { NotificationsService } from '../../user/services/notifications.service';
 import { UsersService } from '../../user/services/users.service';
+import { DashboardService } from '../../user/services/dashboard.service';
 import { NotificationType } from '../../user/entities/notification.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -33,6 +34,8 @@ export class MealLogsService {
     private readonly notificationsService: NotificationsService,
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    @Inject(forwardRef(() => DashboardService))
+    private readonly dashboardService: DashboardService,
   ) {}
 
   async create(userId: string, dto: CreateMealLogDto): Promise<MealLog> {
@@ -51,6 +54,7 @@ export class MealLogsService {
 
     await this.streaksService.updateActivity(userId, StreakType.CALORIE_GOAL, logDate);
     await this.checkCalorieGoal(userId, logDate);
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
 
     return this.repository.findById(log.id) as Promise<MealLog>;
   }
@@ -85,6 +89,8 @@ export class MealLogsService {
     if (log.image_public_id) {
       await this.cloudinaryService.deleteFile(log.image_public_id);
     }
+    const logDate = new Date(log.log_date).toISOString().split('T')[0];
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
     return this.repository.deleteLog(id);
   }
 
@@ -205,6 +211,8 @@ export class MealLogsService {
     if (!log || log.user_id !== userId) {
       throw new NotFoundException('Meal log not found');
     }
+    const logDate = new Date(log.log_date).toISOString().split('T')[0];
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
     await this.repository.removeItem(itemId);
   }
 

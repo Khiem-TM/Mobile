@@ -4,6 +4,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  IsUrl,
   Matches,
   MaxLength,
   MinLength,
@@ -24,6 +25,12 @@ export class CreateBlogDto {
   @IsOptional()
   thumbnailBase64?: string;
 
+  /** Direct URL for the thumbnail (admin use) */
+  @ApiProperty({ required: false })
+  @IsUrl()
+  @IsOptional()
+  thumbnailUrl?: string;
+
   @ApiProperty({ required: false, type: [String], description: 'Tag strings — no commas allowed' })
   @IsArray()
   @IsString({ each: true })
@@ -32,11 +39,11 @@ export class CreateBlogDto {
   @IsOptional()
   tags?: string[];
 
-  /** Users may only set 'draft' or 'pending'. Omit to default to 'pending'. */
-  @ApiProperty({ required: false, enum: ['draft', 'pending'] })
-  @IsIn(['draft', 'pending'])
+  /** Users may set 'draft' to save without publishing. Omit to publish immediately (approved). */
+  @ApiProperty({ required: false, enum: ['draft'] })
+  @IsIn(['draft'])
   @IsOptional()
-  status?: 'draft' | 'pending';
+  status?: 'draft';
 
   @ApiProperty({ required: false })
   @IsArray()

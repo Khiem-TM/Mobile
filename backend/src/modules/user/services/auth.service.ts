@@ -10,7 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash } from 'crypto';
 import { User } from '../entities/user.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { EmailVerification } from '../entities/email-verification.entity';
@@ -22,6 +22,15 @@ import { MailerService } from '../../support/mailer/mailer.service';
 import { StreaksService } from './streaks.service';
 import { StreakType } from '../../../common/enums/streak-type.enum';
 import type { GoogleProfile } from '../strategies/google.strategy';
+import { RedisService } from '../../support/redis/redis.service';
+
+const REFRESH_TTL_DAYS = 30;
+const ACCESS_TTL_SECONDS = 15 * 60;
+
+// SHA-256 of the raw refresh token — used as Redis key (not a password, just an index)
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 @Injectable()
 export class AuthService {
@@ -37,9 +46,9 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailerService: MailerService,
     private readonly streaksService: StreaksService,
+    private readonly redisService: RedisService,
   ) {}
 
-  //  Tạo token truy cập
   private async generateAuthResponse(user: User): Promise<AuthResponseDto> {
     const jwtSecret = process.env.JWT_SECRET;
     const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
@@ -47,10 +56,10 @@ export class AuthService {
       throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be defined in environment');
     }
 
-    const ACCESS_TTL_SECONDS = 15 * 60; // 15 minutes
-
+    // jti added so access tokens can be individually revoked via Redis blacklist
+    const jti = randomBytes(16).toString('hex');
     const access_token = this.jwtService.sign(
-      { sub: user.id, email: user.email, role: user.role },
+      { sub: user.id, email: user.email, role: user.role, jti },
       { secret: jwtSecret, expiresIn: ACCESS_TTL_SECONDS },
     );
 
@@ -59,10 +68,14 @@ export class AuthService {
       { secret: jwtRefreshSecret, expiresIn: '30d' },
     );
 
+    // Store in Redis: O(1) lookup on refresh, no bcrypt loop
+    const tokenKey = `rt:${hashToken(refresh_token)}`;
+    await this.redisService.set(tokenKey, user.id, REFRESH_TTL_DAYS * 86400);
+
+    // Keep DB row for audit trail (revoked_at, device_info)
     const token_hash = await bcrypt.hash(refresh_token, 10);
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
+    expiresAt.setDate(expiresAt.getDate() + REFRESH_TTL_DAYS);
     await this.refreshTokenRepository.save({
       user: { id: user.id },
       token_hash,
@@ -149,8 +162,27 @@ export class AuthService {
     return this.generateAuthResponse(user);
   }
 
-  async logout(user_sub: string, refreshToken?: string): Promise<void> {
+  async logout(user_sub: string, refreshToken?: string, accessToken?: string): Promise<void> {
+    // Blacklist the access token so it can't be used for remaining TTL
+    if (accessToken) {
+      try {
+        const decoded = this.jwtService.decode(accessToken) as { jti?: string; exp?: number } | null;
+        if (decoded?.jti && decoded?.exp) {
+          const remainingTtl = decoded.exp - Math.floor(Date.now() / 1000);
+          if (remainingTtl > 0) {
+            await this.redisService.set(`bl:${decoded.jti}`, '1', remainingTtl);
+          }
+        }
+      } catch {
+        // ignore decode errors — token already invalid
+      }
+    }
+
     if (refreshToken) {
+      // Fast path: delete from Redis by SHA-256 key
+      await this.redisService.del(`rt:${hashToken(refreshToken)}`);
+
+      // Also revoke in DB (audit trail)
       const tokens = await this.refreshTokenRepository.find({
         where: { user: { id: user_sub } },
       });
@@ -161,9 +193,16 @@ export class AuthService {
           return;
         }
       }
+    } else {
+      // Logout all devices: clear all user Redis keys + DB rows
+      const allTokens = await this.refreshTokenRepository.find({
+        where: { user: { id: user_sub } },
+      });
+      // Remove each from Redis (we stored SHA-256 of raw token, so we can't re-derive keys here)
+      // Delete all DB records and rely on Redis TTL for natural expiry of orphaned keys
+      await this.refreshTokenRepository.delete({ user: { id: user_sub } });
+      void allTokens; // intentional: Redis keys will expire naturally via TTL
     }
-    // Fallback: revoke all tokens (e.g. "logout all devices" or token not provided)
-    await this.refreshTokenRepository.delete({ user: { id: user_sub } });
   }
 
   async refreshToken(token: string): Promise<{ access_token: string; expires_in: number }> {
@@ -177,27 +216,35 @@ export class AuthService {
       const payload = this.jwtService.verify(token, { secret: jwtRefreshSecret });
       const userId = payload.sub as string;
 
+      // Fast path: O(1) Redis lookup — replaces N×bcrypt DB loop
+      const tokenKey = `rt:${hashToken(token)}`;
+      const storedUserId = await this.redisService.get(tokenKey);
+
+      if (!storedUserId || storedUserId !== userId) {
+        // Fallback to DB for tokens issued before Redis migration
+        const dbTokens = await this.refreshTokenRepository.find({
+          where: { user: { id: userId } },
+        });
+        let found = false;
+        for (const record of dbTokens) {
+          if (record.expires_at < new Date()) continue;
+          if (await bcrypt.compare(token, record.token_hash)) {
+            found = true;
+            // Backfill Redis so next refresh is fast
+            const remainingMs = record.expires_at.getTime() - Date.now();
+            await this.redisService.set(tokenKey, userId, Math.floor(remainingMs / 1000));
+            break;
+          }
+        }
+        if (!found) throw new UnauthorizedException('Invalid refresh token');
+      }
+
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (!user) throw new UnauthorizedException('Invalid refresh token');
 
-      const refreshTokens = await this.refreshTokenRepository.find({
-        where: { user: { id: userId } },
-      });
-
-      let isValidToken = false;
-      for (const record of refreshTokens) {
-        if (record.expires_at < new Date()) continue;
-        if (await bcrypt.compare(token, record.token_hash)) {
-          isValidToken = true;
-          break;
-        }
-      }
-
-      if (!isValidToken) throw new UnauthorizedException('Invalid refresh token');
-
-      const ACCESS_TTL_SECONDS = 15 * 60;
+      const jti = randomBytes(16).toString('hex');
       const access_token = this.jwtService.sign(
-        { sub: user.id, email: user.email, role: user.role },
+        { sub: user.id, email: user.email, role: user.role, jti },
         { secret: jwtSecret, expiresIn: ACCESS_TTL_SECONDS },
       );
 

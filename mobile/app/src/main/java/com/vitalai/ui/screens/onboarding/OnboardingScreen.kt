@@ -2,10 +2,25 @@ package com.vitalai.ui.screens.onboarding
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,13 +34,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.navigation.Screen
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OnboardingScreen(
-    step: Int,
+    initialStep: Int = 1,
     navController: NavController,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
+    var step by remember { mutableIntStateOf(initialStep) }
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState) {
@@ -36,51 +51,147 @@ fun OnboardingScreen(
         }
     }
 
-    // Handle back press to go to previous step
-    BackHandler(enabled = step > 1) {
-        navController.popBackStack()
+    BackHandler(enabled = true) {
+        if (step > 1) {
+            step--
+        } else {
+            navController.popBackStack()
+        }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        repeat(4) { index ->
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 40.dp, height = 4.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(
-                                        if (index + 1 <= step) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.outlineVariant
-                                    )
-                            )
-                        }
-                    }
-                },
-                navigationIcon = {
-                    if (step > 1) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Text("←", fontSize = 24.sp)
-                        }
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    val primaryGreen = Color(0xFF38C182)
+    val surface2Color = Color(0xFFF3F4F6)
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp)
+                .padding(horizontal = 28.dp)
+                .padding(top = 60.dp, bottom = 28.dp)
         ) {
-            Box(modifier = Modifier.weight(1f)) {
-                when (step) {
-                    1 -> Step1Gender(viewModel)
-                    2 -> Step2BodyMetrics(viewModel)
-                    3 -> Step3Activity(viewModel)
-                    4 -> Step4Goal(viewModel)
+            // Header: Back button + Progress bar + Step count
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp)
+            ) {
+                // Back button
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(surface2Color)
+                        .clickable {
+                            if (step > 1) {
+                                step--
+                            } else {
+                                navController.popBackStack()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronLeft,
+                        contentDescription = "Back",
+                        tint = Color.DarkGray
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Progress Bar
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(6.dp)
+                        .clip(RoundedCornerShape(100))
+                        .background(Color(0xFFF3F4F6))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(fraction = step / 4f)
+                            .clip(RoundedCornerShape(100))
+                            .background(primaryGreen)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Text(
+                    text = "$step/4",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Gray
+                )
+            }
+
+            // Title & Subtitle based on step
+            val title = when (step) {
+                1 -> "Bạn là?"
+                2 -> "Số đo cơ thể"
+                3 -> "Mục tiêu chính của bạn?"
+                4 -> "Mức độ vận động"
+                else -> ""
+            }
+            val subtitle = when (step) {
+                1 -> "Giúp chúng tôi cá nhân hóa kế hoạch dinh dưỡng phù hợp với bạn"
+                2 -> "Chiều cao và cân nặng hiện tại của bạn"
+                3 -> "Chúng tôi sẽ điều chỉnh kế hoạch calo theo mục tiêu này"
+                4 -> "Tần suất bạn tập luyện trong tuần"
+                else -> ""
+            }
+
+            Text(
+                text = title,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Text(
+                text = subtitle,
+                fontSize = 15.sp,
+                color = Color.Gray,
+                modifier = Modifier.padding(bottom = 28.dp)
+            )
+
+            // Scrollable Content with Animation
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                AnimatedContent(
+                    targetState = step,
+                    transitionSpec = {
+                        if (targetState > initialState) {
+                            slideInHorizontally(
+                                animationSpec = tween(400),
+                                initialOffsetX = { fullWidth -> fullWidth }
+                            ) togetherWith slideOutHorizontally(
+                                animationSpec = tween(400),
+                                targetOffsetX = { fullWidth -> -fullWidth }
+                            )
+                        } else {
+                            slideInHorizontally(
+                                animationSpec = tween(400),
+                                initialOffsetX = { fullWidth -> -fullWidth }
+                            ) togetherWith slideOutHorizontally(
+                                animationSpec = tween(400),
+                                targetOffsetX = { fullWidth -> fullWidth }
+                            )
+                        }
+                    },
+                    label = "step_transition"
+                ) { currentStep ->
+                    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        when (currentStep) {
+                            1 -> Step1Gender(viewModel)
+                            2 -> Step2BodyMetrics(viewModel)
+                            3 -> Step3Activity(viewModel)
+                            4 -> Step4Goal(viewModel)
+                        }
+                    }
                 }
             }
 
@@ -88,27 +199,54 @@ fun OnboardingScreen(
                 Text(
                     text = (uiState as OnboardingState.Error).message,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    fontSize = 13.sp
                 )
             }
 
+            // Next Button
             Button(
                 onClick = {
                     if (step < 4) {
-                        navController.navigate(Screen.Onboarding(step + 1))
+                        step++
                     } else {
                         viewModel.submitProfile()
                     }
                 },
+                colors = ButtonDefaults.buttonColors(containerColor = primaryGreen),
+                shape = RoundedCornerShape(100),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .padding(top = 16.dp),
                 enabled = uiState !is OnboardingState.Loading
             ) {
                 if (uiState is OnboardingState.Loading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
                 } else {
-                    Text(if (step == 4) "Hoàn tất" else "Tiếp tục")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            if (step == 4) "Hoàn tất" else "Tiếp tục",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         }
@@ -117,26 +255,103 @@ fun OnboardingScreen(
 
 @Composable
 fun Step1Gender(viewModel: OnboardingViewModel) {
-    Column {
-        Text("Giới tính của bạn là gì?", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text("Thông tin này giúp chúng tôi tính toán nhu cầu calo chính xác hơn.", modifier = Modifier.padding(top = 8.dp, bottom = 32.dp))
+    val primaryGreen = Color(0xFF38C182)
+    val lightGreen = Color(0xFFECFDF5)
+    val surface2Color = Color(0xFFF3F4F6)
 
-        listOf("male" to "Nam", "female" to "Nữ", "other" to "Khác").forEach { (id, label) ->
+    val options = listOf(
+        Triple("male", "Nam", "👨"),
+        Triple("female", "Nữ", "👩")
+    )
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        options.forEach { (id, label, emoji) ->
             val isSelected = viewModel.gender == id
-            OutlinedCard(
-                onClick = { viewModel.gender = id },
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                border = if (isSelected) ButtonDefaults.outlinedButtonBorder.copy(width = 2.dp) else CardDefaults.outlinedCardBorder()
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isSelected) lightGreen else surface2Color)
+                    .border(
+                        2.dp,
+                        if (isSelected) primaryGreen else Color.Transparent,
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable { viewModel.gender = id }
+                    .padding(vertical = 28.dp, horizontal = 16.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = isSelected, onClick = { viewModel.gender = id })
-                    Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = emoji, fontSize = 48.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = label,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
                 }
+            }
+        }
+    }
+
+    Spacer(modifier = Modifier.height(24.dp))
+
+    // Year of birth
+    var year by remember { mutableStateOf(1996) }
+    LaunchedEffect(year) {
+        viewModel.birthDate = "$year-01-01"
+    }
+
+    Text(
+        text = "NĂM SINH",
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.Gray,
+        letterSpacing = 0.5.sp
+    )
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(surface2Color)
+            .padding(18.dp, 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = year.toString(),
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Minus button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .border(1.dp, Color(0xFFE5E7EB), CircleShape)
+                    .clickable { if (year > 1900) year-- },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Remove, contentDescription = "Minus", modifier = Modifier.size(16.dp))
+            }
+            // Plus button
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black)
+                    .clickable { if (year < 2020) year++ },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Plus", tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -144,74 +359,271 @@ fun Step1Gender(viewModel: OnboardingViewModel) {
 
 @Composable
 fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
-    Column {
-        Text("Chỉ số cơ thể", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(32.dp))
+    val primaryGreen = Color(0xFF38C182)
 
-        Text("Chiều cao (cm): ${viewModel.heightCm.toInt()}")
-        Slider(
-            value = viewModel.heightCm,
-            onValueChange = { viewModel.heightCm = it },
-            valueRange = 100f..250f
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        // Height Card
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(22.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Chiều cao (Height)", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(100))
+                            .background(Color(0xFFF3F4F6))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("cm", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(10.dp))
+                
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = viewModel.heightCm.toInt().toString(),
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryGreen
+                    )
+                    Text(
+                        text = "cm",
+                        fontSize = 20.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                    )
+                }
 
-        Spacer(modifier = Modifier.height(24.dp))
+                Slider(
+                    value = viewModel.heightCm,
+                    onValueChange = { viewModel.heightCm = it },
+                    valueRange = 140f..210f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = primaryGreen,
+                        activeTrackColor = primaryGreen
+                    ),
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("140", fontSize = 11.sp, color = Color.Gray)
+                    Text("175", fontSize = 11.sp, color = Color.Gray)
+                    Text("210", fontSize = 11.sp, color = Color.Gray)
+                }
+            }
+        }
 
-        Text("Cân nặng hiện tại (kg): ${viewModel.weightKg.toInt()}")
-        Slider(
-            value = viewModel.weightKg,
-            onValueChange = { viewModel.weightKg = it },
-            valueRange = 30f..200f
-        )
-    }
-}
+        // Weight Card
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(22.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Cân nặng hiện tại", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(100))
+                            .background(Color(0xFFF3F4F6))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("kg", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(10.dp))
+                
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = viewModel.weightKg.toInt().toString(),
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = primaryGreen
+                    )
+                    Text(
+                        text = "kg",
+                        fontSize = 20.sp,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
+                    )
+                }
 
-@Composable
-fun Step3Activity(viewModel: OnboardingViewModel) {
-    val levels = listOf(
-        "sedentary" to "Ít vận động",
-        "lightly_active" to "Vận động nhẹ",
-        "moderately_active" to "Vận động vừa phải",
-        "very_active" to "Vận động nhiều",
-        "extra_active" to "Vận động rất nhiều"
-    )
-
-    Column {
-        Text("Mức độ hoạt động", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        levels.forEach { (id, label) ->
-            val isSelected = viewModel.activityLevel == id
-            FilterChip(
-                selected = isSelected,
-                onClick = { viewModel.activityLevel = id },
-                label = { Text(label) },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-            )
+                Slider(
+                    value = viewModel.weightKg,
+                    onValueChange = { viewModel.weightKg = it },
+                    valueRange = 40f..150f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = primaryGreen,
+                        activeTrackColor = primaryGreen
+                    ),
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
         }
     }
 }
 
+// In the JSX, Step 3 is "Mục tiêu chính", which corresponds to Goal (viewModel.goalType).
+@Composable
+fun Step3Activity(viewModel: OnboardingViewModel) {
+    val primaryGreen = Color(0xFF38C182)
+    val lightGreen = Color(0xFFECFDF5)
+    val surface2Color = Color(0xFFF3F4F6)
+
+    val goals = listOf(
+        Triple("lose_weight", "Giảm cân", "🎯" to "Burn fat, get lean"),
+        Triple("maintain", "Duy trì", "⚖️" to "Stay healthy & balanced"),
+        Triple("gain_muscle", "Tăng cơ", "💪" to "Build strength & muscle")
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        goals.forEach { (id, title, extra) ->
+            val (emoji, sub) = extra
+            val isSelected = viewModel.goalType == id
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isSelected) lightGreen else surface2Color)
+                    .border(
+                        2.dp,
+                        if (isSelected) primaryGreen else Color.Transparent,
+                        RoundedCornerShape(16.dp)
+                    )
+                    .clickable { viewModel.goalType = id }
+                    .padding(18.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(text = emoji, fontSize = 38.sp)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(text = sub, fontSize = 13.sp, color = Color.Gray)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, if (isSelected) primaryGreen else Color(0xFFD1D5DB), CircleShape)
+                            .background(if (isSelected) primaryGreen else Color.Transparent),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isSelected) {
+                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// In the JSX, Step 4 is "Mức độ vận động", which corresponds to Activity (viewModel.activityLevel).
 @Composable
 fun Step4Goal(viewModel: OnboardingViewModel) {
-    val goals = listOf(
-        "lose_weight" to "Giảm cân",
-        "maintain" to "Duy trì vóc dáng",
-        "gain_muscle" to "Tăng cơ"
+    val primaryGreen = Color(0xFF38C182)
+    val lightGreen = Color(0xFFECFDF5)
+    val surface2Color = Color(0xFFF3F4F6)
+
+    val opts = listOf(
+        Triple("sedentary", "Ít vận động", "Văn phòng, ít đi lại"),
+        Triple("lightly_active", "Vận động nhẹ", "1-2 buổi tập / tuần"),
+        Triple("moderately_active", "Vừa phải", "3-5 buổi tập / tuần"),
+        Triple("very_active", "Cao", "6+ buổi tập / tuần")
     )
 
     Column {
-        Text("Mục tiêu của bạn", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            opts.forEach { (id, title, sub) ->
+                val isSelected = viewModel.activityLevel == id
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isSelected) lightGreen else surface2Color)
+                        .border(
+                            2.dp,
+                            if (isSelected) primaryGreen else Color.Transparent,
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { viewModel.activityLevel = id }
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) primaryGreen else Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (id == "sedentary") "🚶" else if (id == "very_active") "🏃‍♂️" else "🚴", 
+                                fontSize = 22.sp
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(text = sub, fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+                }
+            }
+        }
 
-        goals.forEach { (id, label) ->
-            val isSelected = viewModel.goalType == id
-            OutlinedCard(
-                onClick = { viewModel.goalType = id },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                colors = if (isSelected) CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer) else CardDefaults.outlinedCardColors()
-            ) {
-                Text(label, modifier = Modifier.padding(24.dp), style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // Recommendation Card
+        Card(
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = lightGreen),
+            border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "KẾ HOẠCH ĐỀ XUẤT",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF047857),
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("1,938", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                        Text("kcal / ngày", fontSize = 12.sp, color = Color(0xFF047857))
+                    }
+                    Column {
+                        Text("110g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                        Text("protein", fontSize = 12.sp, color = Color(0xFF047857))
+                    }
+                    Column {
+                        Text("240g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                        Text("carbs", fontSize = 12.sp, color = Color(0xFF047857))
+                    }
+                }
             }
         }
     }

@@ -1,14 +1,19 @@
 package com.vitalai.ui.screens.diary
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,11 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.vitalai.data.remote.model.FoodDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,81 +43,157 @@ fun SearchFoodScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Tất cả", "Yêu thích", "Của tôi")
+    val tabs = listOf("Tất cả", "Gần đây", "Món của tôi", "Yêu thích")
+
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.loadAllFoods()
         viewModel.loadFavorites()
     }
 
+    LaunchedEffect(uiState.addSuccess) {
+        if (uiState.addSuccess) {
+            viewModel.clearAddSuccess()
+            navController.popBackStack()
+        }
+    }
+
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Tìm kiếm món ăn", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = { navController.navigate(Screen.CreateFood) }) {
-                        Text("Tạo mới", color = Mint500)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
-            )
-        },
-        containerColor = AppBackground
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = Color(0xFFF9FAFB)
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            OutlinedTextField(
-                value = uiState.query,
-                onValueChange = viewModel::search,
-                placeholder = { Text("Tìm kiếm món ăn...", color = Ink500) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Ink500) },
+            // Header with custom Search Bar
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Mint500,
-                    unfocusedBorderColor = Ink200,
-                    focusedContainerColor = AppSurface,
-                    unfocusedContainerColor = AppSurface
-                )
-            )
-
-            ScrollableTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = AppSurface,
-                contentColor = Mint500,
-                edgePadding = 16.dp,
-                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                tabs.forEachIndexed { i, title ->
-                    Tab(
-                        selected = selectedTab == i,
-                        onClick = { selectedTab = i },
-                        text = {
-                            Text(
-                                title,
-                                fontWeight = if (selectedTab == i) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTab == i) Mint500 else Ink500
-                            )
-                        }
-                    )
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF3F4F6))
+                        .clickable { navController.popBackStack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                TextField(
+                    value = uiState.query,
+                    onValueChange = viewModel::search,
+                    placeholder = { Text("Tìm món ăn, thương hiệu...", color = Color.Gray, fontSize = 14.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
+                    trailingIcon = { Icon(Icons.Default.Mic, contentDescription = null, tint = Color.Gray) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(25.dp)),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFFF3F4F6),
+                        unfocusedContainerColor = Color(0xFFF3F4F6),
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true
+                )
+            }
+
+            // Filter Chips
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(tabs.size) { i ->
+                    val isSelected = selectedTab == i
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (isSelected) Color(0xFF1E293B) else Color.White)
+                            .border(1.dp, if (isSelected) Color.Transparent else Color.Black, RoundedCornerShape(20.dp))
+                            .clickable { selectedTab = i }
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = tabs[i],
+                            color = if (isSelected) Color.White else Color.Black,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
 
+            // Action Cards
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // AI Scan Card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(80.dp)
+                        .clickable { navController.navigate(Screen.Scan) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF38C182))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("🔍", fontSize = 20.sp) // Replace with scan icon
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("AI Scan", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Quét ảnh món ăn", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+                    }
+                }
+
+                // Create Food Card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(80.dp)
+                        .clickable { navController.navigate(Screen.CreateFood) },
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("✏️", fontSize = 20.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Tạo món mới", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("Thêm vào My Foods", fontSize = 11.sp, color = Color.Gray)
+                    }
+                }
+            }
+
+            Text(
+                text = "GẦN ĐÂY",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Gray,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+
             val displayItems = when {
-                selectedTab == 1 -> uiState.favorites
+                selectedTab == 3 -> uiState.favorites
                 uiState.query.isNotBlank() -> uiState.searchResults
-                selectedTab == 0 -> uiState.allFoods
+                selectedTab == 0 || selectedTab == 1 -> uiState.allFoods
                 else -> emptyList()
             }
 
@@ -123,18 +203,21 @@ fun SearchFoodScreen(
 
                 displayItems.isEmpty() && uiState.query.isNotBlank() ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Không tìm thấy kết quả", color = Ink500)
+                        Text("Không tìm thấy kết quả", color = Color.Gray)
                     }
 
                 else ->
                     LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
                         items(displayItems) { food ->
-                            FoodSearchItem(
+                            FoodSearchCard(
                                 food = food,
                                 onClick = {
                                     navController.navigate(
                                         Screen.FoodDetail(id = food.id, mealType = mealType, date = date)
                                     )
+                                },
+                                onQuickAdd = {
+                                    viewModel.addToMealLog(mealType, date, food.id, 1f, "1 phần")
                                 }
                             )
                         }
@@ -145,68 +228,69 @@ fun SearchFoodScreen(
 }
 
 @Composable
-private fun FoodSearchItem(food: FoodDto, onClick: () -> Unit) {
-    Row(
+fun FoodSearchCard(food: FoodDto, onClick: () -> Unit, onQuickAdd: () -> Unit) {
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
     ) {
-        if (food.imageUrl != null) {
-            AsyncImage(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SubcomposeAsyncImage(
                 model = food.imageUrl,
                 contentDescription = food.name,
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(10.dp)),
-                contentScale = ContentScale.Crop
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                contentScale = ContentScale.Crop,
+                error = {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFF3F4F6)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🍽️", fontSize = 24.sp)
+                    }
+                }
             )
-        } else {
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = food.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "1 phần (${food.servingSizeG.toInt()}g) · ${food.caloriesPer100g.toInt()} kcal",
+                    fontSize = 13.sp,
+                    color = Color.Gray
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Mint50),
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF38C182))
+                    .clickable { onQuickAdd() },
                 contentAlignment = Alignment.Center
             ) {
-                Text("🍽️", fontSize = 22.sp)
+                Icon(Icons.Default.Add, contentDescription = "Thêm nhanh", tint = Color.White, modifier = Modifier.size(20.dp))
             }
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = food.name,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                color = Ink900,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = food.brand ?: "100g",
-                fontSize = 12.sp,
-                color = Ink500
-            )
-        }
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = "${food.caloriesPer100g.toInt()} kcal",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-                color = Mint500
-            )
-            Text(text = "/100g", fontSize = 11.sp, color = Ink500)
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Mint500),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Thêm", tint = Color.White, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
         }
     }
 }

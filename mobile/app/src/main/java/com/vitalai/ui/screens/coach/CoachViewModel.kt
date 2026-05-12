@@ -55,6 +55,12 @@ class CoachViewModel @Inject constructor(
         }
     }
 
+    fun selectSession(sessionId: String) {
+        if (_uiState.value.currentSessionId == sessionId) return
+        _uiState.update { it.copy(currentSessionId = sessionId, messages = emptyList()) }
+        loadMessages(sessionId)
+    }
+
     fun createNewSession() {
         viewModelScope.launch {
             chatbotRepository.createSession(null).onSuccess { session ->
@@ -65,6 +71,18 @@ class CoachViewModel @Inject constructor(
                         messages = emptyList()
                     )
                 }
+            }
+        }
+    }
+
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            chatbotRepository.deleteSession(sessionId).onSuccess {
+                val remaining = _uiState.value.sessions.filter { it.id != sessionId }
+                val wasActive = _uiState.value.currentSessionId == sessionId
+                val newCurrentId = if (wasActive) remaining.firstOrNull()?.id else _uiState.value.currentSessionId
+                _uiState.update { it.copy(sessions = remaining, currentSessionId = newCurrentId, messages = if (wasActive) emptyList() else it.messages) }
+                if (wasActive && newCurrentId != null) loadMessages(newCurrentId)
             }
         }
     }
@@ -89,10 +107,18 @@ class CoachViewModel @Inject constructor(
 
         viewModelScope.launch {
             chatbotRepository.sendMessage(sessionId, content).onSuccess { aiMsg ->
-                _uiState.update { it.copy(messages = it.messages + aiMsg, isSending = false) }
+                // Update session's lastMessage preview in the list
+                val updatedSessions = _uiState.value.sessions.map { s ->
+                    if (s.id == sessionId) s.copy(lastMessage = aiMsg.content.take(80)) else s
+                }
+                _uiState.update { it.copy(messages = it.messages + aiMsg, isSending = false, sessions = updatedSessions) }
             }.onFailure {
-                _uiState.update { it.copy(isSending = false) }
+                _uiState.update { it.copy(isSending = false, error = "Không gửi được tin nhắn. Thử lại.") }
             }
         }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 }

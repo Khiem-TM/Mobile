@@ -9,7 +9,7 @@ import com.vitalai.ui.theme.VitalAITheme
 @Composable
 fun OnboardingStep1Preview() {
     VitalAITheme {
-        OnboardingScreen(step = 1, navController = rememberNavController())
+        OnboardingScreen(initialStep = 1, navController = rememberNavController())
     }
 }
 
@@ -17,7 +17,7 @@ fun OnboardingStep1Preview() {
 @Composable
 fun OnboardingStep2Preview() {
     VitalAITheme {
-        OnboardingScreen(step = 2, navController = rememberNavController())
+        OnboardingScreen(initialStep = 2, navController = rememberNavController())
     }
 }
 
@@ -25,7 +25,7 @@ fun OnboardingStep2Preview() {
 @Composable
 fun OnboardingStep3Preview() {
     VitalAITheme {
-        OnboardingScreen(step = 3, navController = rememberNavController())
+        OnboardingScreen(initialStep = 3, navController = rememberNavController())
     }
 }
 
@@ -33,6 +33,6 @@ fun OnboardingStep3Preview() {
 @Composable
 fun OnboardingStep4Preview() {
     VitalAITheme {
-        OnboardingScreen(step = 4, navController = rememberNavController())
+        OnboardingScreen(initialStep = 4, navController = rememberNavController())
     }
 }

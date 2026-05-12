@@ -16,11 +16,12 @@ import { AdminController } from './admin.controller';
 import { AdminAuthController } from './admin-auth.controller';
 import { RecipeAdminController } from './recipe.controller';
 import { JwtStrategy } from '../user/strategies/jwt.strategy';
+import { SupportModule } from '../support/support.module';
 
 @Module({
   imports: [
     forwardRef(() => UserModule),
-    
+    SupportModule,
     TypeOrmModule.forFeature([User, Food, Exercise, WorkoutSession, Blog, FoodRecipe, FoodRecipeStep]),
     PassportModule,
     JwtModule.register({

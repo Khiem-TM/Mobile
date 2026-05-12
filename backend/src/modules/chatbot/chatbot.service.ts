@@ -9,11 +9,14 @@ import { MealLogsService } from '../food/services/meal-logs.service';
 import { BodyMetricsService } from '../train/services/body-metrics.service';
 import { TrainingService } from '../train/services/training.service';
 import { UsersService } from '../user/services/users.service';
+import { RedisService } from '../support/redis/redis.service';
+
+const CHATBOT_CTX_TTL = 600; // 10 minutes
 
 @Injectable()
 export class ChatbotService {
   private readonly client: ReturnType<typeof ModelClient>;
-  private readonly model = 'openai/gpt-5';
+  private readonly model = 'openai/gpt-4o-mini';
   private readonly endpoint = 'https://models.github.ai/inference';
 
   constructor(
@@ -25,6 +28,7 @@ export class ChatbotService {
     private readonly bodyMetricsService: BodyMetricsService,
     private readonly trainingService: TrainingService,
     private readonly usersService: UsersService,
+    private readonly redisService: RedisService,
   ) {
     this.client = ModelClient(
       this.endpoint,
@@ -41,7 +45,7 @@ export class ChatbotService {
     return this.sessionRepo.find({
       where: { user_id: userId },
       order: { created_at: 'DESC' },
-      take: 10,
+      take: 20,
     });
   }
 
@@ -53,6 +57,17 @@ export class ChatbotService {
     });
     if (!session) throw new NotFoundException('Chat session not found');
     return session;
+  }
+
+  async getMessages(userId: string, sessionId: string): Promise<ChatMessage[]> {
+    const session = await this.sessionRepo.findOne({
+      where: { id: sessionId, user_id: userId },
+    });
+    if (!session) throw new NotFoundException('Chat session not found');
+    return this.messageRepo.find({
+      where: { session_id: sessionId },
+      order: { created_at: 'ASC' },
+    });
   }
 
   async deleteSession(userId: string, sessionId: string): Promise<void> {
@@ -67,28 +82,32 @@ export class ChatbotService {
     userId: string,
     sessionId: string,
     userMessage: string,
-  ): Promise<{ reply: string }> {
+  ): Promise<ChatMessage> {
     const session = await this.sessionRepo.findOne({
       where: { id: sessionId, user_id: userId },
     });
     if (!session) throw new NotFoundException('Chat session not found');
 
-    // Aggregate user context in parallel
+    // Aggregate user context — cached per user per day to avoid 4 DB queries per message
     const today = new Date().toISOString().split('T')[0];
-    const [bodyMetric, healthProfile, dailySummary, recentWorkouts] =
-      await Promise.all([
-        this.bodyMetricsService.getLatest(userId).catch(() => null),
-        this.usersService.getHealthProfile(userId).catch(() => null),
-        this.mealLogsService.getDailySummary(userId, today).catch(() => null),
-        this.trainingService.getWorkoutHistory(userId, 7).catch(() => []),
-      ]);
+    const ctxKey = `chatbot:ctx:${userId}:${today}`;
+    let ctx = await this.redisService.getJson<{
+      bodyMetric: any; healthProfile: any; dailySummary: any; recentWorkouts: any[];
+    }>(ctxKey);
 
-    const systemContent = this.buildSystemPrompt({
-      bodyMetric,
-      healthProfile,
-      dailySummary,
-      recentWorkouts,
-    });
+    if (!ctx) {
+      const [bodyMetric, healthProfile, dailySummary, recentWorkouts] =
+        await Promise.all([
+          this.bodyMetricsService.getLatest(userId).catch(() => null),
+          this.usersService.getHealthProfile(userId).catch(() => null),
+          this.mealLogsService.getDailySummary(userId, today).catch(() => null),
+          this.trainingService.getWorkoutHistory(userId, 7).catch(() => []),
+        ]);
+      ctx = { bodyMetric, healthProfile, dailySummary, recentWorkouts };
+      await this.redisService.setJson(ctxKey, ctx, CHATBOT_CTX_TTL);
+    }
+
+    const systemContent = this.buildSystemPrompt(ctx);
 
     // Load last 20 messages as history
     const history = await this.messageRepo.find({
@@ -97,7 +116,8 @@ export class ChatbotService {
       take: 20,
     });
 
-    // Build messages array for Azure AI Inference
+    const isFirstMessage = history.length === 0;
+
     const messages: Array<{ role: string; content: string }> = [
       { role: 'system', content: systemContent },
       ...history.map((msg) => ({
@@ -108,7 +128,7 @@ export class ChatbotService {
     ];
 
     const response = await this.client.path('/chat/completions').post({
-      body: { model: this.model, messages },
+      body: { model: this.model, messages, max_tokens: 800 },
     });
 
     if (isUnexpected(response)) {
@@ -118,13 +138,26 @@ export class ChatbotService {
 
     const reply = response.body.choices[0]?.message?.content ?? '';
 
-    // Persist both messages
-    await this.messageRepo.save([
+    // Persist user message + assistant reply
+    await this.messageRepo.save(
       this.messageRepo.create({ session_id: sessionId, role: 'user', content: userMessage }),
+    );
+    const assistantMsg = await this.messageRepo.save(
       this.messageRepo.create({ session_id: sessionId, role: 'assistant', content: reply }),
-    ]);
+    );
 
-    return { reply };
+    // Update session title (from first user message) and last_message preview
+    const sessionUpdate: Partial<ChatSession> = {
+      last_message: reply.slice(0, 120),
+    };
+    if (isFirstMessage) {
+      sessionUpdate.title = userMessage.length > 60
+        ? userMessage.slice(0, 60) + '…'
+        : userMessage;
+    }
+    await this.sessionRepo.update(sessionId, sessionUpdate);
+
+    return assistantMsg;
   }
 
   private buildSystemPrompt(ctx: {

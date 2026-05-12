@@ -7,6 +7,7 @@ import com.vitalai.data.remote.model.CreateChatSessionRequest
 import com.vitalai.data.remote.model.SendMessageRequest
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -20,6 +21,9 @@ interface ChatbotApi {
 
     @GET("chatbot/sessions/{sessionId}/messages")
     suspend fun getMessages(@Path("sessionId") sessionId: String): Response<ApiResponse<List<ChatMessageDto>>>
+
+    @DELETE("chatbot/sessions/{sessionId}")
+    suspend fun deleteSession(@Path("sessionId") sessionId: String): Response<Unit>
 
     @POST("chatbot/sessions/{sessionId}/messages")
     suspend fun sendMessage(

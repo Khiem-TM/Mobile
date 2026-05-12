@@ -1,19 +1,27 @@
 package com.vitalai.ui.screens.diary
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -21,12 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FoodDetailScreen(
     foodId: String,
@@ -58,19 +64,8 @@ fun FoodDetailScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(uiState.selectedFood?.name ?: "Chi tiết món ăn") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
-            )
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = AppBackground
+        containerColor = Color.White
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -88,172 +83,264 @@ fun FoodDetailScreen(
                 val protein = food.proteinPer100g * factor
                 val fat = food.fatPer100g * factor
 
+                val totalMacros = carbs + protein + fat
+                val carbPct = if (totalMacros > 0) ((carbs / totalMacros) * 100).toInt() else 0
+                val proPct = if (totalMacros > 0) ((protein / totalMacros) * 100).toInt() else 0
+                val fatPct = if (totalMacros > 0) ((fat / totalMacros) * 100).toInt() else 0
+
                 Box(modifier = Modifier.fillMaxSize()) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(padding)
                             .verticalScroll(rememberScrollState())
-                            .padding(bottom = 80.dp)
+                            .padding(bottom = 100.dp)
                     ) {
-                        if (food.imageUrl != null) {
-                            AsyncImage(
+                        // Image Header
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(320.dp)
+                        ) {
+                            SubcomposeAsyncImage(
                                 model = food.imageUrl,
                                 contentDescription = food.name,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(240.dp),
-                                contentScale = ContentScale.Crop
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                loading = { Box(modifier = Modifier.background(Color(0xFFF3F4F6))) },
+                                error = { Box(modifier = Modifier.background(Color(0xFFF3F4F6))) }
                             )
-                        } else {
+                            // Gradient overlay
                             Box(
                                 modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent, Color.White),
+                                            startY = 0f,
+                                            endY = 850f
+                                        )
+                                    )
+                            )
+                            // Top Bar Icons
+                            Row(
+                                modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(200.dp)
-                                    .background(Mint50),
-                                contentAlignment = Alignment.Center
+                                    .padding(top = 50.dp, start = 16.dp, end = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text("🍽️", fontSize = 60.sp)
+                                Box(
+                                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White).clickable { navController.popBackStack() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Box(
+                                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White).clickable { /* toggle favorite */ },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorite", tint = Color.Black, modifier = Modifier.size(20.dp))
+                                    }
+                                    Box(
+                                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White).clickable { /* more */ },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.MoreHoriz, contentDescription = "More", tint = Color.Black, modifier = Modifier.size(20.dp))
+                                    }
+                                }
                             }
                         }
 
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        // Content
+                        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                             Text(
                                 text = food.name,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Ink900
+                                fontSize = 28.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.Black
                             )
-                            food.brand?.let {
-                                Text(text = it, fontSize = 14.sp, color = Ink500)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(
+                                    modifier = Modifier.clip(RoundedCornerShape(100)).background(Color(0xFFF3F4F6)).padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("🌐", fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(food.brand ?: "Vietnamese", fontSize = 13.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+                                }
+                                Row(
+                                    modifier = Modifier.clip(RoundedCornerShape(100)).background(Color(0xFFF3F4F6)).padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("⭐", fontSize = 12.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("4.8", fontSize = 13.sp, color = Color.Black, fontWeight = FontWeight.Medium)
+                                }
                             }
 
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
 
+                            // Portion Selector
                             Card(
-                                shape = RoundedCornerShape(14.dp),
-                                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                                elevation = CardDefaults.cardElevation(1.dp),
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB))
                             ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    IconButton(
-                                        onClick = { if (quantity > 0.5f) quantity -= 0.5f },
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Ink100)
-                                    ) {
-                                        Icon(Icons.Default.Remove, contentDescription = "Giảm", tint = Ink700)
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Column {
+                                        Text("Khẩu phần", fontSize = 12.sp, color = Color.Gray)
                                         Text(
-                                            text = if (quantity == quantity.toLong().toFloat())
-                                                "${quantity.toInt()} phần"
-                                            else
-                                                "$quantity phần",
-                                            fontWeight = FontWeight.SemiBold,
+                                            text = if (quantity == quantity.toLong().toFloat()) "${quantity.toInt()} phần (${servingG.toInt()}g)" else "$quantity phần (${(servingG*quantity).toInt()}g)",
                                             fontSize = 16.sp,
-                                            color = Ink900
-                                        )
-                                        Text(
-                                            text = "(${(quantity * servingG).toInt()}g)",
-                                            fontSize = 12.sp,
-                                            color = Ink500
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.Black
                                         )
                                     }
-                                    IconButton(
-                                        onClick = { quantity += 0.5f },
-                                        modifier = Modifier
-                                            .size(36.dp)
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Mint500)
-                                    ) {
-                                        Icon(Icons.Default.Add, contentDescription = "Tăng", tint = Color.White)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Box(
+                                            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFE5E7EB)).clickable { if (quantity > 0.5f) quantity -= 0.5f },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = Color.Black)
+                                        }
+                                        Text(
+                                            text = if (quantity == quantity.toLong().toFloat()) "${quantity.toInt()}" else "$quantity",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 16.dp),
+                                            color = Color.Black
+                                        )
+                                        Box(
+                                            modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFF0F172A)).clickable { quantity += 0.5f },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Add, contentDescription = "Increase", tint = Color.White)
+                                        }
                                     }
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Box(
+                            // Calories Card
+                            Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Color(0xFFF3F4F6))
                             ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Tổng năng lượng", fontSize = 13.sp, color = Color.Gray)
                                     Text(
                                         text = calories.toString(),
-                                        fontSize = 48.sp,
+                                        fontSize = 56.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Mint500
+                                        color = Color(0xFF38C182)
                                     )
-                                    Text(text = "kcal", fontSize = 16.sp, color = Ink500)
+                                    Text("kcal", fontSize = 14.sp, color = Color.Gray)
                                 }
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
 
+                            // Macros
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                MacroChip("Carbs", "${carbs.toInt()}g", MacroCarbs, modifier = Modifier.weight(1f))
-                                MacroChip("Protein", "${protein.toInt()}g", MacroProtein, modifier = Modifier.weight(1f))
-                                MacroChip("Chất béo", "${fat.toInt()}g", MacroFat, modifier = Modifier.weight(1f))
+                                MacroBox(label = "Carbs", value = "${carbs.toInt()}g", pct = "$carbPct%", color = Color(0xFFF59E0B), modifier = Modifier.weight(1f))
+                                MacroBox(label = "Protein", value = "${protein.toInt()}g", pct = "$proPct%", color = Color(0xFFEF4444), modifier = Modifier.weight(1f))
+                                MacroBox(label = "Fat", value = "${fat.toInt()}g", pct = "$fatPct%", color = Color(0xFF8B5CF6), modifier = Modifier.weight(1f))
                             }
 
-                            food.fiberPer100g?.let {
-                                Spacer(modifier = Modifier.height(12.dp))
-                                NutrientRow("Chất xơ", "${(it * factor).toInt()}g")
-                            }
-                            food.sugarPer100g?.let {
-                                NutrientRow("Đường", "${(it * factor).toInt()}g")
-                            }
-                            food.sodiumPer100g?.let {
-                                NutrientRow("Natri", "${(it * factor).toInt()}mg")
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            // Micronutrients
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+                            ) {
+                                Column(modifier = Modifier.padding(20.dp)) {
+                                    Text("Vi chất dinh dưỡng", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    food.sodiumPer100g?.let {
+                                        NutrientRow("Sodium", "${(it * factor).toInt()} mg", progress = 0.6f, color = Color(0xFF38C182))
+                                    }
+                                    food.sugarPer100g?.let {
+                                        NutrientRow("Sugar", "${(it * factor).toInt()} g", progress = 0.3f, color = Color(0xFF38C182))
+                                    }
+                                    food.fiberPer100g?.let {
+                                        NutrientRow("Fiber", "${(it * factor).toInt()} g", progress = 0.5f, color = Color(0xFF38C182))
+                                    }
+                                }
                             }
                         }
                     }
 
-                    Button(
-                        onClick = {
-                            if (mealType.isNotBlank() && date.isNotBlank()) {
-                                viewModel.addToMealLog(
-                                    mealType = mealType,
-                                    date = date,
-                                    foodId = food.id,
-                                    quantity = quantity,
-                                    servingUnit = food.servingUnit
-                                )
-                            }
-                        },
-                        enabled = !uiState.isAdding,
+                    // Bottom Bar
+                    Row(
                         modifier = Modifier
-                            .fillMaxWidth()
                             .align(Alignment.BottomCenter)
-                            .padding(16.dp)
-                            .height(52.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Mint900)
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (uiState.isAdding) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = if (mealType.isNotBlank()) "Thêm vào bữa" else "Xem chi tiết",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFFF3F4F6))
+                                .clickable { /* view receipt/details */ },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.ReceiptLong, contentDescription = "Log", tint = Color.Black)
+                        }
+                        
+                        val mealTypeLabel = if (mealType.isNotBlank()) "vào bữa ${
+                            when(mealType.lowercase()) {
+                                "breakfast" -> "Sáng"
+                                "lunch" -> "Trưa"
+                                "dinner" -> "Tối"
+                                else -> "Phụ"
+                            }
+                        }" else ""
+                        
+                        Button(
+                            onClick = {
+                                if (mealType.isNotBlank() && date.isNotBlank()) {
+                                    viewModel.addToMealLog(
+                                        mealType = mealType,
+                                        date = date,
+                                        foodId = food.id,
+                                        quantity = quantity,
+                                        servingUnit = food.servingUnit
+                                    )
+                                }
+                            },
+                            enabled = !uiState.isAdding,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F172A)) // Dark slate
+                        ) {
+                            if (uiState.isAdding) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text("Thêm $mealTypeLabel +", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            }
                         }
                     }
                 }
@@ -263,33 +350,41 @@ fun FoodDetailScreen(
 }
 
 @Composable
-private fun MacroChip(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
+fun MacroBox(label: String, value: String, pct: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        elevation = CardDefaults.cardElevation(0.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB))
     ) {
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(10.dp)
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = value, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = color)
-            Text(text = label, fontSize = 11.sp, color = color.copy(alpha = 0.8f))
+            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(color))
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(label, fontSize = 12.sp, color = Color.Gray)
+            Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            Text(pct, fontSize = 11.sp, color = Color.Gray)
         }
     }
 }
 
 @Composable
-private fun NutrientRow(label: String, value: String) {
+fun NutrientRow(label: String, value: String, progress: Float, color: Color) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = label, fontSize = 13.sp, color = Ink700)
-        Text(text = value, fontSize = 13.sp, color = Ink900, fontWeight = FontWeight.Medium)
+        Text(label, fontSize = 14.sp, color = Color.Black)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(100)).background(Color(0xFFF3F4F6))) {
+                Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().clip(RoundedCornerShape(100)).background(color))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.width(70.dp))
+        }
     }
-    HorizontalDivider(color = Ink200, thickness = 0.5.dp)
 }

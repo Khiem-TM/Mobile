@@ -1,16 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { RedisService } from '../../support/redis/redis.service';
 
 export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
+  jti?: string;
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor() {
+  constructor(private readonly redisService: RedisService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -18,9 +20,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload) {
+    // Check blacklist — tokens added here on logout/password-change until they expire
+    if (payload.jti) {
+      const isBlacklisted = await this.redisService.get(`bl:${payload.jti}`);
+      if (isBlacklisted) throw new UnauthorizedException('Token has been revoked');
+    }
     return { sub: payload.sub, email: payload.email, role: payload.role };
   }
 }
-
-// Lấy token từ request --> Confirm token hợp lệ --> Lấy payload từ token --> Gắn payload vào req.user

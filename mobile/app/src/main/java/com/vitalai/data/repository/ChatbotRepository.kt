@@ -45,6 +45,16 @@ class ChatbotRepository @Inject constructor(
         }
     }
 
+    suspend fun deleteSession(sessionId: String): Result<Unit> {
+        return try {
+            val response = chatbotApi.deleteSession(sessionId)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi xóa cuộc hội thoại (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun sendMessage(sessionId: String, content: String): Result<ChatMessageDto> {
         return try {
             val response = chatbotApi.sendMessage(sessionId, SendMessageRequest(content))
