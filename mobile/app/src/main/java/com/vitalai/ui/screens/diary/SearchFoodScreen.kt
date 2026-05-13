@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -207,6 +208,103 @@ private fun FoodSearchItem(food: FoodDto, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Default.Add, contentDescription = "Thêm", tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun SearchFoodScreenPreview() {
+
+    Scaffold(
+        containerColor = AppBackground
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+
+            OutlinedTextField(
+                value = "gà",
+                onValueChange = {},
+                placeholder = {
+                    Text(
+                        "Tìm kiếm món ăn...",
+                        color = Ink500
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = Ink500
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint500,
+                    unfocusedBorderColor = Ink200,
+                    focusedContainerColor = AppSurface,
+                    unfocusedContainerColor = AppSurface
+                )
+            )
+
+            LazyColumn {
+
+                item {
+                    FoodSearchItem(
+                        food = FoodDto(
+                            id = "1",
+                            name = "Ức gà áp chảo",
+                            brand = "Healthy Meal",
+                            category = "Protein",
+                            imageUrls = null,
+                            servingSizeG = 100f,
+                            servingUnit = "g",
+                            caloriesPer100g = 165f,
+                            carbsPer100g = 0f,
+                            proteinPer100g = 31f,
+                            fatPer100g = 3.6f,
+                            fiberPer100g = 0f,
+                            sugarPer100g = 0f,
+                            sodiumPer100g = 75f,
+                            isVerified = true,
+                            isCustom = false
+                        ),
+                        onClick = {}
+                    )
+                }
+
+                item {
+                    FoodSearchItem(
+                        food = FoodDto(
+                            id = "2",
+                            name = "Cơm gạo lứt",
+                            brand = "Healthy Meal",
+                            category = "Carbs",
+                            imageUrls = null,
+                            servingSizeG = 100f,
+                            servingUnit = "g",
+                            caloriesPer100g = 110f,
+                            carbsPer100g = 23f,
+                            proteinPer100g = 2.6f,
+                            fatPer100g = 0.9f,
+                            fiberPer100g = 1.8f,
+                            sugarPer100g = 0f,
+                            sodiumPer100g = 5f,
+                            isVerified = true,
+                            isCustom = false
+                        ),
+                        onClick = {}
+                    )
+                }
+            }
         }
     }
 }

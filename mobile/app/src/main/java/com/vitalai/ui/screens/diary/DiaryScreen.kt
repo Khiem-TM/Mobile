@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -266,3 +267,55 @@ private fun DiaryMealSection(
 }
 
 private val Mint600 = Color(0xFF059669)
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun DiaryScreenPreview() {
+
+    Scaffold(
+        containerColor = AppBackground
+    ) { padding ->
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+
+            item {
+                DiaryDaySummary(
+                    consumed = 1450f,
+                    goal = 2000f
+                )
+            }
+
+            item {
+                DiaryMealSection(
+                    label = "Bữa sáng",
+                    mealLog = null,
+                    onAddClick = {},
+                    onDeleteItem = { _, _ -> }
+                )
+            }
+
+            item {
+                DiaryMealSection(
+                    label = "Bữa trưa",
+                    mealLog = null,
+                    onAddClick = {},
+                    onDeleteItem = { _, _ -> }
+                )
+            }
+
+            item {
+                DiaryMealSection(
+                    label = "Bữa tối",
+                    mealLog = null,
+                    onAddClick = {},
+                    onDeleteItem = { _, _ -> }
+                )
+            }
+        }
+    }
+}

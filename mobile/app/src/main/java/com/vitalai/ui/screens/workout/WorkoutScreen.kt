@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -274,6 +275,162 @@ private fun SessionItem(session: WorkoutSessionDto) {
                 Text("${session.durationMin} phút", fontSize = 12.sp, color = Ink500)
             }
             Text("${session.totalCalories.toInt()} kcal", fontSize = 12.sp, color = Mint500, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun WorkoutScreenPreview() {
+
+    val exercises = listOf(
+        ExerciseDto(
+            id = "1",
+            name = "Chạy bộ",
+            muscleGroup = "Cardio",
+            equipment = null,
+            description = null,
+            imageUrl = null,
+            caloriesPerMin = 10f
+        ),
+        ExerciseDto(
+            id = "2",
+            name = "Push Up",
+            muscleGroup = "Strength",
+            equipment = null,
+            description = null,
+            imageUrl = null,
+            caloriesPerMin = 8f
+        )
+    )
+
+    val sessions = listOf(
+        WorkoutSessionDto(
+            id = "1",
+            name = "Morning Cardio",
+            date = "2026-05-13",
+            durationMin = 35,
+            totalCalories = 320f,
+            exercises = emptyList()
+        )
+    )
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Luyện tập",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurface
+                )
+            )
+        },
+        containerColor = AppBackground
+    ) { padding ->
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+
+            item {
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Mint500, Mint700)
+                            )
+                        )
+                        .padding(20.dp)
+                ) {
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+
+                        WorkoutStat("🔥", "320", "kcal")
+                        WorkoutStat("⏱️", "45", "phút")
+                        WorkoutStat("👟", "8240", "bước")
+                    }
+                }
+            }
+
+            item {
+
+                Text(
+                    "Danh mục",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Ink900,
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 8.dp
+                    )
+                )
+            }
+
+            item {
+
+                CategoryGrid(
+                    categories = workoutCategories,
+                    selected = "Cardio",
+                    onSelect = {}
+                )
+            }
+
+            item {
+
+                Text(
+                    "Bài tập gợi ý",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Ink900,
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 8.dp
+                    )
+                )
+            }
+
+            items(exercises) { exercise ->
+
+                ExerciseItem(
+                    exercise = exercise
+                )
+            }
+
+            item {
+
+                Text(
+                    "Phiên tập hôm nay",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = Ink900,
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 8.dp
+                    )
+                )
+            }
+
+            items(sessions) { session ->
+
+                SessionItem(
+                    session = session
+                )
+            }
         }
     }
 }

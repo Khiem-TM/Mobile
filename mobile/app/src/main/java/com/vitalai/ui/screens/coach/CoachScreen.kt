@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -266,3 +267,177 @@ private fun TypingIndicator() {
 
 private val Ink800 = Color(0xFF1F2937)
 private val Mint200 = Color(0xFFA7F3D0)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CoachScreenPreview() {
+
+    Scaffold(
+        containerColor = AppBackground,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Mint500, Mint700)
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "V",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column {
+                            Text(
+                                "Vita · AI Coach",
+                                fontWeight = FontWeight.Bold,
+                                color = Ink900
+                            )
+
+                            Text(
+                                "Đang hoạt động",
+                                fontSize = 11.sp,
+                                color = Mint500
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurface
+                )
+            )
+        }
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+
+                item {
+                    ChatBubble(
+                        role = "assistant",
+                        content = "Xin chào 👋 Tôi có thể giúp gì cho bạn hôm nay?"
+                    )
+                }
+
+                item {
+                    ChatBubble(
+                        role = "user",
+                        content = "Hôm nay tôi nên ăn gì để giảm cân?"
+                    )
+                }
+
+                item {
+                    ChatBubble(
+                        role = "assistant",
+                        content = "Bạn nên ưu tiên protein nạc, rau xanh và giảm tinh bột nhanh 🥗"
+                    )
+                }
+
+                item {
+                    TypingIndicator()
+                }
+            }
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+
+                items(
+                    listOf(
+                        "Thực đơn hôm nay 🥗",
+                        "Bài tập cho tôi 💪",
+                        "Mẹo giảm cân 🎯"
+                    )
+                ) { text ->
+
+                    SuggestionChip(
+                        onClick = {},
+                        label = {
+                            Text(text, fontSize = 12.sp)
+                        },
+                        colors = SuggestionChipDefaults.suggestionChipColors(
+                            containerColor = Mint50,
+                            labelColor = Mint700
+                        )
+                    )
+                }
+            }
+
+            Surface(
+                color = AppSurface,
+                shadowElevation = 8.dp
+            ) {
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+
+                    OutlinedTextField(
+                        value = "Tôi cần thực đơn eat clean",
+                        onValueChange = {},
+                        modifier = Modifier.weight(1f),
+                        placeholder = {
+                            Text(
+                                "Hỏi Vita điều gì đó...",
+                                color = Ink500
+                            )
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Mint500,
+                            unfocusedBorderColor = Ink200,
+                            focusedContainerColor = AppSurface,
+                            unfocusedContainerColor = AppSurface
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    IconButton(
+                        onClick = {},
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Mint500)
+                    ) {
+
+                        Icon(
+                            Icons.Default.ArrowUpward,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}

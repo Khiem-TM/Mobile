@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -164,5 +165,163 @@ private fun FoodTextField(
             unfocusedContainerColor = AppSurface
         )
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun CreateFoodScreenPreview() {
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Tạo món ăn mới",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurface
+                )
+            )
+        },
+        containerColor = AppBackground
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+            Box(
+                modifier = Modifier
+                    .size(96.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Mint50)
+                    .border(1.dp, Mint200, RoundedCornerShape(12.dp))
+                    .align(Alignment.CenterHorizontally),
+                contentAlignment = Alignment.Center
+            ) {
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    Text("📷", fontSize = 24.sp)
+
+                    Text(
+                        "+ Thêm ảnh",
+                        fontSize = 11.sp,
+                        color = Mint500
+                    )
+                }
+            }
+
+            FoodTextField(
+                label = "Tên món ăn *",
+                value = "Ức gà áp chảo",
+                onValueChange = {}
+            )
+
+            FoodTextField(
+                label = "Thương hiệu",
+                value = "Healthy Meal",
+                onValueChange = {}
+            )
+
+            FoodTextField(
+                label = "Khẩu phần (g)",
+                value = "100",
+                onValueChange = {},
+                keyboardType = KeyboardType.Number
+            )
+
+            Text(
+                "Thông tin dinh dưỡng (trên 100g)",
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = Ink900
+            )
+
+            FoodTextField(
+                label = "Calories (kcal)",
+                value = "165",
+                onValueChange = {},
+                keyboardType = KeyboardType.Number
+            )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                FoodTextField(
+                    label = "Carbs",
+                    value = "0",
+                    onValueChange = {},
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+
+                FoodTextField(
+                    label = "Protein",
+                    value = "31",
+                    onValueChange = {},
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                FoodTextField(
+                    label = "Fat",
+                    value = "3.6",
+                    onValueChange = {},
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+
+                FoodTextField(
+                    label = "Fiber",
+                    value = "0",
+                    onValueChange = {},
+                    keyboardType = KeyboardType.Number,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            FoodTextField(
+                label = "Sugar",
+                value = "0",
+                onValueChange = {},
+                keyboardType = KeyboardType.Number
+            )
+
+            Button(
+                onClick = {},
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Mint900
+                )
+            ) {
+
+                Text(
+                    "Lưu món ăn",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+    }
 }
 

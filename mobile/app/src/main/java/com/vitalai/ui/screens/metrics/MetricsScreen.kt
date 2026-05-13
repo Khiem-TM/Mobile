@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -218,7 +219,7 @@ private fun WeightLineChart(data: List<BodyMetricDto>, modifier: Modifier = Modi
             Offset(x, y)
         }
 
-        // Fill area under line
+        // Fill area underline
         val fillPath = Path().apply {
             moveTo(points.first().x, h)
             points.forEach { lineTo(it.x, it.y) }
@@ -254,4 +255,222 @@ private fun bmiLabel(bmi: Float) = when {
     bmi < 25f -> "Bình thường"
     bmi < 30f -> "Thừa cân"
     else -> "Béo phì"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun MetricsScreenPreview() {
+
+    val mockData = listOf(
+        BodyMetricDto(
+            id = "1",
+            date = "2026-05-01",
+            weightKg = 78.5f,
+            bodyFatPct = 24f,
+            muscleMassKg = null,
+            bmi = 26.2f,
+            notes = null
+        ),
+        BodyMetricDto(
+            id = "2",
+            date = "2026-05-05",
+            weightKg = 77.8f,
+            bodyFatPct = 23.5f,
+            muscleMassKg = null,
+            bmi = 25.9f,
+            notes = null
+        ),
+        BodyMetricDto(
+            id = "3",
+            date = "2026-05-10",
+            weightKg = 77.1f,
+            bodyFatPct = 23f,
+            muscleMassKg = null,
+            bmi = 25.6f,
+            notes = null
+        ),
+        BodyMetricDto(
+            id = "4",
+            date = "2026-05-13",
+            weightKg = 76.4f,
+            bodyFatPct = 22.4f,
+            muscleMassKg = null,
+            bmi = 25.2f,
+            notes = "Giảm mỡ tốt"
+        )
+    )
+
+    val latest = mockData.last()
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Số liệu cơ thể",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurface
+                )
+            )
+        },
+        containerColor = AppBackground
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                MetricCard(
+                    "Cân nặng",
+                    "${latest.weightKg} kg",
+                    Mint500,
+                    Modifier.weight(1f)
+                )
+
+                latest.bmi?.let { bmi ->
+
+                    MetricCard(
+                        "BMI",
+                        "%.1f".format(bmi),
+                        bmiColor(bmi),
+                        Modifier.weight(1f)
+                    )
+                }
+
+                latest.bodyFatPct?.let { fat ->
+
+                    MetricCard(
+                        "Mỡ cơ thể",
+                        "%.1f%%".format(fat),
+                        MacroFat,
+                        Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                listOf(
+                    "1W" to "1 tuần",
+                    "1M" to "1 tháng",
+                    "3M" to "3 tháng"
+                ).forEach { (_, label) ->
+
+                    FilterChip(
+                        selected = label == "1 tháng",
+                        onClick = {},
+                        label = {
+                            Text(label, fontSize = 12.sp)
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Mint500,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+            }
+
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = AppSurface
+                ),
+                elevation = CardDefaults.cardElevation(2.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+
+                        Text(
+                            "Biểu đồ cân nặng",
+                            fontWeight = FontWeight.Bold,
+                            color = Ink900
+                        )
+
+                        Text(
+                            "TB: 77.4 kg",
+                            fontSize = 12.sp,
+                            color = Ink500
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    WeightLineChart(
+                        data = mockData,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                    )
+                }
+            }
+
+            latest.bmi?.let { bmi ->
+
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = AppSurface
+                    ),
+                    elevation = CardDefaults.cardElevation(2.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+
+                            Text(
+                                "Chỉ số BMI",
+                                fontWeight = FontWeight.Bold,
+                                color = Ink900
+                            )
+
+                            Text(
+                                bmiLabel(bmi),
+                                fontSize = 13.sp,
+                                color = bmiColor(bmi)
+                            )
+                        }
+
+                        Text(
+                            "%.1f".format(bmi),
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = bmiColor(bmi)
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

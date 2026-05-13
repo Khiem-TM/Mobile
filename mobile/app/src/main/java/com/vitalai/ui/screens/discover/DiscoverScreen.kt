@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -237,4 +238,102 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
         }
     }
     HorizontalDivider(color = Ink200, thickness = 0.5.dp)
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun DiscoverScreenPreview() {
+
+    val featuredBlog = BlogDto(
+        id = "1",
+        title = "7 nguyên tắc eat clean giúp giảm mỡ hiệu quả",
+        summary = "Hướng dẫn xây dựng chế độ ăn eat clean khoa học.",
+        content = null,
+        imageUrl = null,
+        tag = "Dinh dưỡng",
+        authorName = "VitalAI",
+        readTimeMin = 5,
+        createdAt = "2026-05-13T10:00:00"
+    )
+
+    val blogs = listOf(
+        featuredBlog,
+        BlogDto(
+            id = "2",
+            title = "Cardio hay gym tốt hơn cho giảm cân?",
+            summary = null,
+            content = null,
+            imageUrl = null,
+            tag = "Tập luyện",
+            authorName = "Coach Vita",
+            readTimeMin = 4,
+            createdAt = "2026-05-13T12:00:00"
+        ),
+        BlogDto(
+            id = "3",
+            title = "Meal prep cho người bận rộn",
+            summary = null,
+            content = null,
+            imageUrl = null,
+            tag = "Công thức",
+            authorName = "Healthy Team",
+            readTimeMin = 6,
+            createdAt = "2026-05-13T14:00:00"
+        )
+    )
+
+    Scaffold(
+        containerColor = AppBackground
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+
+                items(
+                    listOf(
+                        "Tất cả",
+                        "Dinh dưỡng",
+                        "Tập luyện",
+                        "Mindset"
+                    )
+                ) { label ->
+
+                    FilterChip(
+                        selected = label == "Tất cả",
+                        onClick = {},
+                        label = {
+                            Text(label)
+                        }
+                    )
+                }
+            }
+
+            LazyColumn {
+
+                item {
+                    FeaturedBlogCard(
+                        blog = featuredBlog,
+                        onClick = {}
+                    )
+                }
+
+                items(blogs.drop(1)) { blog ->
+
+                    BlogListItem(
+                        blog = blog,
+                        onClick = {}
+                    )
+                }
+            }
+        }
+    }
 }
