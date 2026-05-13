@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -385,6 +386,112 @@ fun NutrientRow(label: String, value: String, progress: Float, color: Color) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.width(70.dp))
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun FoodDetailScreenPreview() {
+
+    Scaffold(
+        containerColor = AppBackground
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+
+            Text(
+                text = "Ức gà áp chảo",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Ink900
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Mint50),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🍗", fontSize = 72.sp)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = "165",
+                fontSize = 48.sp,
+                fontWeight = FontWeight.Bold,
+                color = Mint500
+            )
+
+            Text(
+                text = "kcal",
+                color = Ink500
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                MacroChip(
+                    label = "Carbs",
+                    value = "0g",
+                    color = MacroCarbs,
+                    modifier = Modifier.weight(1f)
+                )
+
+                MacroChip(
+                    label = "Protein",
+                    value = "31g",
+                    color = MacroProtein,
+                    modifier = Modifier.weight(1f)
+                )
+
+                MacroChip(
+                    label = "Fat",
+                    value = "3.6g",
+                    color = MacroFat,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            NutrientRow("Chất xơ", "0g")
+            NutrientRow("Đường", "0g")
+            NutrientRow("Natri", "75mg")
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Button(
+                onClick = {},
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Mint900
+                )
+            ) {
+
+                Text(
+                    "Thêm vào bữa",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 }
