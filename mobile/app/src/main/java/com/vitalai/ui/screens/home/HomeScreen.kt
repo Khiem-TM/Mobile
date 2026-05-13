@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -454,3 +455,152 @@ private fun MealCard(
 
 private val Ink800 = Color(0xFF1F2937)
 private val Mint600 = Color(0xFF059669)
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun HomeScreenPreview() {
+    Scaffold(
+        containerColor = AppBackground
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            item {
+                HomeHeaderPreview()
+            }
+
+            item {
+                WeekStrip(
+                    selectedDate = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    onDateSelected = {}
+                )
+            }
+
+            item {
+                CalorieArcSection(
+                    consumed = 1250f,
+                    goal = 2000f,
+                    remaining = 750
+                )
+            }
+
+            item {
+                MacroSection(
+                    carbsG = 120f,
+                    carbsGoal = 260f,
+                    proteinG = 75f,
+                    proteinGoal = 130f,
+                    fatG = 35f,
+                    fatGoal = 65f
+                )
+            }
+
+            item {
+                WaterTrackerRow(
+                    cups = 6,
+                    goalCups = 10
+                )
+            }
+
+            item {
+                StreakBanner(streak = 7)
+            }
+
+            item {
+                Text(
+                    text = "Bữa ăn hôm nay",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Ink900,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            item {
+                MealCard(
+                    mealType = "Sáng",
+                    mealLog = null,
+                    onAddClick = {},
+                    onDeleteItem = { _, _ -> }
+                )
+            }
+
+            item {
+                MealCard(
+                    mealType = "Trưa",
+                    mealLog = null,
+                    onAddClick = {},
+                    onDeleteItem = { _, _ -> }
+                )
+            }
+
+            item {
+                MealCard(
+                    mealType = "Tối",
+                    mealLog = null,
+                    onAddClick = {},
+                    onDeleteItem = { _, _ -> }
+                )
+            }
+
+            item {
+                MealCard(
+                    mealType = "Snack",
+                    mealLog = null,
+                    onAddClick = {},
+                    onDeleteItem = { _, _ -> }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeHeaderPreview() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AppSurface)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "Xin chào 👋",
+                style = MaterialTheme.typography.labelMedium,
+                color = Ink500
+            )
+
+            Text(
+                text = LocalDate.now()
+                    .format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale("vi"))),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Ink900
+            )
+        }
+
+        Box {
+            IconButton(onClick = {}) {
+                Icon(
+                    Icons.Default.Notifications,
+                    contentDescription = "Thông báo",
+                    tint = Ink700
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(MacroProtein)
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-2).dp, y = 2.dp)
+            )
+        }
+    }
+}
