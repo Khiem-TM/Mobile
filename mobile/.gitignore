@@ -1,3 +1,4 @@
+*.hprof
 *.iml
 .gradle
 /local.properties
