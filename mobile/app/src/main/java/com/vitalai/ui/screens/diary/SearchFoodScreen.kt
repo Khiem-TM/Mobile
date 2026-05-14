@@ -300,8 +300,56 @@ fun FoodSearchCard(food: FoodDto, onClick: () -> Unit, onQuickAdd: () -> Unit) {
 @Composable
 fun SearchFoodScreenPreview() {
 
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    val tabs = listOf(
+        "Tất cả",
+        "Gần đây",
+        "Món của tôi",
+        "Yêu thích"
+    )
+
+    val foods = listOf(
+        FoodDto(
+            id = "1",
+            name = "Ức gà áp chảo",
+            brand = "Healthy Meal",
+            category = "Protein",
+            imageUrls = null,
+            servingSizeG = 100f,
+            servingUnit = "g",
+            caloriesPer100g = 165f,
+            carbsPer100g = 0f,
+            proteinPer100g = 31f,
+            fatPer100g = 3.6f,
+            fiberPer100g = 0f,
+            sugarPer100g = 0f,
+            sodiumPer100g = 75f,
+            isVerified = true,
+            isCustom = false
+        ),
+        FoodDto(
+            id = "2",
+            name = "Cơm gạo lứt",
+            brand = "Healthy Meal",
+            category = "Carbs",
+            imageUrls = null,
+            servingSizeG = 100f,
+            servingUnit = "g",
+            caloriesPer100g = 110f,
+            carbsPer100g = 23f,
+            proteinPer100g = 2.6f,
+            fatPer100g = 0.9f,
+            fiberPer100g = 1.8f,
+            sugarPer100g = 0f,
+            sodiumPer100g = 5f,
+            isVerified = true,
+            isCustom = false
+        )
+    )
+
     Scaffold(
-        containerColor = AppBackground
+        containerColor = Color(0xFFF9FAFB)
     ) { padding ->
 
         Column(
@@ -310,82 +358,228 @@ fun SearchFoodScreenPreview() {
                 .padding(padding)
         ) {
 
-            OutlinedTextField(
-                value = "gà",
-                onValueChange = {},
-                placeholder = {
-                    Text(
-                        "Tìm kiếm món ăn...",
-                        color = Ink500
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = null,
-                        tint = Ink500
-                    )
-                },
+            // Header
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(12.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Mint500,
-                    unfocusedBorderColor = Ink200,
-                    focusedContainerColor = AppSurface,
-                    unfocusedContainerColor = AppSurface
-                )
-            )
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
 
-            LazyColumn {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFF3F4F6)),
+                    contentAlignment = Alignment.Center
+                ) {
 
-                item {
-                    FoodSearchItem(
-                        food = FoodDto(
-                            id = "1",
-                            name = "Ức gà áp chảo",
-                            brand = "Healthy Meal",
-                            category = "Protein",
-                            imageUrls = null,
-                            servingSizeG = 100f,
-                            servingUnit = "g",
-                            caloriesPer100g = 165f,
-                            carbsPer100g = 0f,
-                            proteinPer100g = 31f,
-                            fatPer100g = 3.6f,
-                            fiberPer100g = 0f,
-                            sugarPer100g = 0f,
-                            sodiumPer100g = 75f,
-                            isVerified = true,
-                            isCustom = false
-                        ),
-                        onClick = {}
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                        tint = Color.Black
                     )
                 }
 
-                item {
-                    FoodSearchItem(
-                        food = FoodDto(
-                            id = "2",
-                            name = "Cơm gạo lứt",
-                            brand = "Healthy Meal",
-                            category = "Carbs",
-                            imageUrls = null,
-                            servingSizeG = 100f,
-                            servingUnit = "g",
-                            caloriesPer100g = 110f,
-                            carbsPer100g = 23f,
-                            proteinPer100g = 2.6f,
-                            fatPer100g = 0.9f,
-                            fiberPer100g = 1.8f,
-                            sugarPer100g = 0f,
-                            sodiumPer100g = 5f,
-                            isVerified = true,
-                            isCustom = false
-                        ),
-                        onClick = {}
+                Spacer(modifier = Modifier.width(12.dp))
+
+                TextField(
+                    value = "gà",
+                    onValueChange = {},
+                    placeholder = {
+                        Text(
+                            "Tìm món ăn, thương hiệu...",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Color.Gray
+                        )
+                    },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.Mic,
+                            contentDescription = null,
+                            tint = Color.Gray
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(25.dp)),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color(0xFFF3F4F6),
+                        unfocusedContainerColor = Color(0xFFF3F4F6),
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    singleLine = true
+                )
+            }
+
+            // Tabs
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                ),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+
+                items(tabs.size) { i ->
+
+                    val isSelected = selectedTab == i
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                if (isSelected)
+                                    Color(0xFF1E293B)
+                                else
+                                    Color.White
+                            )
+                            .border(
+                                1.dp,
+                                if (isSelected)
+                                    Color.Transparent
+                                else
+                                    Color.Black,
+                                RoundedCornerShape(20.dp)
+                            )
+                            .clickable {
+                                selectedTab = i
+                            }
+                            .padding(
+                                horizontal = 16.dp,
+                                vertical = 8.dp
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        Text(
+                            text = tabs[i],
+                            color = if (isSelected)
+                                Color.White
+                            else
+                                Color.Black,
+                            fontWeight = if (isSelected)
+                                FontWeight.Medium
+                            else
+                                FontWeight.Normal,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+
+            // Action cards
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(80.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF38C182)
+                    )
+                ) {
+
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+
+                        Text("🔍", fontSize = 20.sp)
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            "AI Scan",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+
+                        Text(
+                            "Quét ảnh món ăn",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(80.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    border = BorderStroke(
+                        1.dp,
+                        Color(0xFFE5E7EB)
+                    )
+                ) {
+
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.Center
+                    ) {
+
+                        Text("✏️", fontSize = 20.sp)
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            "Tạo món mới",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+
+                        Text(
+                            "Thêm vào My Foods",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = "GẦN ĐÂY",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Gray,
+                modifier = Modifier.padding(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                )
+            )
+
+            LazyColumn(
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+
+                items(foods) { food ->
+
+                    FoodSearchCard(
+                        food = food,
+                        onClick = {},
+                        onQuickAdd = {}
                     )
                 }
             }

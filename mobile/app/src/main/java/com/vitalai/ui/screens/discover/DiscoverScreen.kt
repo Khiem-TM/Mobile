@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
@@ -242,38 +243,70 @@ fun DiscoverScreenPreview() {
     val featuredBlog = BlogDto(
         id = "1",
         title = "7 nguyên tắc eat clean giúp giảm mỡ hiệu quả",
-        summary = "Hướng dẫn xây dựng chế độ ăn eat clean khoa học.",
+        author = "VitalAI",
         content = null,
-        imageUrl = null,
-        tag = "Dinh dưỡng",
-        authorName = "VitalAI",
-        readTimeMin = 5,
-        createdAt = "2026-05-13T10:00:00"
+        thumbnailUrl = null,
+        tags = listOf(
+            "Dinh dưỡng",
+            "Healthy"
+        ),
+        status = "published",
+        likesCount = 328,
+        viewCount = 1240,
+        createdAt = "2026-05-13T10:00:00",
+
+        authorUser = AuthorUserDto(
+            id = "1",
+            displayName = "VitalAI",
+            email = "vitalai@example.com"
+        ),
+
+        blocks = null
     )
 
     val blogs = listOf(
         featuredBlog,
+
         BlogDto(
             id = "2",
             title = "Cardio hay gym tốt hơn cho giảm cân?",
-            summary = null,
+            author = "Coach Vita",
             content = null,
-            imageUrl = null,
-            tag = "Tập luyện",
-            authorName = "Coach Vita",
-            readTimeMin = 4,
-            createdAt = "2026-05-13T12:00:00"
+            thumbnailUrl = null,
+            tags = listOf("Tập luyện"),
+            status = "published",
+            likesCount = 120,
+            viewCount = 830,
+            createdAt = "2026-05-13T12:00:00",
+
+            authorUser = AuthorUserDto(
+                id = "2",
+                displayName = "Coach Vita",
+                email = "coach@example.com"
+            ),
+
+            blocks = null
         ),
+
         BlogDto(
             id = "3",
             title = "Meal prep cho người bận rộn",
-            summary = null,
+            author = "Healthy Team",
             content = null,
-            imageUrl = null,
-            tag = "Công thức",
-            authorName = "Healthy Team",
-            readTimeMin = 6,
-            createdAt = "2026-05-13T14:00:00"
+            thumbnailUrl = null,
+            tags = listOf("Công thức"),
+            status = "published",
+            likesCount = 89,
+            viewCount = 450,
+            createdAt = "2026-05-13T14:00:00",
+
+            authorUser = AuthorUserDto(
+                id = "3",
+                displayName = "Healthy Team",
+                email = "healthy@example.com"
+            ),
+
+            blocks = null
         )
     )
 

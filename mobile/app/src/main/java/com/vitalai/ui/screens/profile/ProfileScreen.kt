@@ -348,153 +348,336 @@ private fun ProfileMenuItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun ProfileScreenPreview() {
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Cá nhân",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppSurface
-                )
-            )
-        },
-        containerColor = AppBackground
+        containerColor = Color(0xFFF9FAFB)
     ) { padding ->
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .verticalScroll(rememberScrollState())
         ) {
 
-            Card(
+            // Top bar
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = AppSurface
-                ),
-                elevation = CardDefaults.cardElevation(2.dp)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
 
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(20.dp)
+                Text(
+                    "Hồ sơ",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .border(
+                            1.dp,
+                            Color(0xFFF3F4F6),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
+
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            // User card
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+            ) {
+
+                Row(verticalAlignment = Alignment.Top) {
 
                     Box(
                         modifier = Modifier
-                            .size(80.dp)
+                            .size(64.dp)
                             .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(Mint500, Mint700)
-                                )
-                            ),
+                            .background(Color(0xFFE5E7EB)),
                         contentAlignment = Alignment.Center
                     ) {
 
                         Text(
-                            text = "S",
-                            fontSize = 32.sp,
+                            "S",
+                            fontSize = 28.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.Gray
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                    Text(
-                        text = "a",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = Ink900
-                    )
+                    Column {
 
-                    Text(
-                        text = "a@example.com",
-                        fontSize = 13.sp,
-                        color = Ink500
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-
-                        StatChip(
-                            label = "Cân nặng",
-                            value = "76kg"
+                        Text(
+                            text = "Sơn Royale",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
                         )
 
-                        StatChip(
-                            label = "Mục tiêu",
-                            value = "Giảm mỡ"
+                        Text(
+                            text = "son@example.com",
+                            fontSize = 14.sp,
+                            color = Color.Gray
                         )
 
-                        StatChip(
-                            label = "BMI",
-                            value = "24.1"
-                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(100))
+                                    .background(Color(0xFF0F172A))
+                                    .padding(
+                                        horizontal = 10.dp,
+                                        vertical = 4.dp
+                                    )
+                            ) {
+
+                                Text(
+                                    "PRO",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(100))
+                                    .background(Color(0xFFFEF3C7))
+                                    .padding(
+                                        horizontal = 10.dp,
+                                        vertical = 4.dp
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+
+                                Text("🎯", fontSize = 11.sp)
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                Text(
+                                    "Giảm cân",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFFB45309)
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(100))
+                                    .background(Color(0xFFECFDF5))
+                                    .padding(
+                                        horizontal = 10.dp,
+                                        vertical = 4.dp
+                                    ),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+
+                                Text("🔥", fontSize = 11.sp)
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                Text(
+                                    "7 day streak",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF047857)
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            ProfileMenuSection(title = "Sức khoẻ") {
+            Spacer(modifier = Modifier.height(20.dp))
 
-                ProfileMenuItem(
-                    icon = Icons.Default.BarChart,
-                    label = "Số liệu cơ thể",
-                    onClick = {}
+            // Stats
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+
+                StatCard(
+                    value = "76.5",
+                    unit = "kg",
+                    label = "Hiện tại",
+                    color = Color(0xFF38C182),
+                    modifier = Modifier.weight(1f)
                 )
 
-                ProfileMenuItem(
-                    icon = Icons.Default.FitnessCenter,
-                    label = "Luyện tập",
-                    onClick = {}
+                StatCard(
+                    value = "70",
+                    unit = "kg",
+                    label = "Mục tiêu",
+                    color = Color.Black,
+                    modifier = Modifier.weight(1f)
+                )
+
+                StatCard(
+                    value = "24.1",
+                    unit = "",
+                    label = "BMI",
+                    color = Color(0xFF38C182),
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            ProfileMenuSection(title = "Khám phá") {
+            Spacer(modifier = Modifier.height(24.dp))
 
-                ProfileMenuItem(
-                    icon = Icons.AutoMirrored.Filled.Article,
-                    label = "Bài viết & Blog",
-                    onClick = {}
+            // Section 1
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    Color(0xFFF3F4F6)
                 )
+            ) {
 
-                ProfileMenuItem(
-                    icon = Icons.Default.Notifications,
-                    label = "Thông báo",
-                    onClick = {}
-                )
-            }
+                Column {
 
-            ProfileMenuSection(title = "Tài khoản") {
+                    ProfileMenuItem(
+                        icon = Icons.Default.BarChart,
+                        label = "Chỉ số cơ thể"
+                    ) {}
 
-                ProfileMenuItem(
-                    icon = Icons.AutoMirrored.Filled.Logout,
-                    label = "Đăng xuất",
-                    labelColor = MacroProtein,
-                    onClick = {}
-                )
+                    ProfileMenuItem(
+                        icon = Icons.Default.TrackChanges,
+                        label = "Mục tiêu & kế hoạch"
+                    ) {}
+
+                    ProfileMenuItem(
+                        icon = Icons.Default.EmojiEvents,
+                        label = "Huy hiệu của tôi"
+                    ) {}
+
+                    ProfileMenuItem(
+                        icon = Icons.Default.FavoriteBorder,
+                        label = "Món của tôi (My Foods)",
+                        showDivider = false
+                    ) {}
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                "KHÁM PHÁ THÊM",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Gray,
+                modifier = Modifier.padding(
+                    horizontal = 24.dp,
+                    vertical = 8.dp
+                )
+            )
+
+            // Section 2
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color.White
+                ),
+                border = BorderStroke(
+                    1.dp,
+                    Color(0xFFF3F4F6)
+                )
+            ) {
+
+                Column {
+
+                    ProfileMenuItem(
+                        icon = Icons.Default.Language,
+                        label = "Khám phá (Blog)"
+                    ) {}
+
+                    ProfileMenuItem(
+                        icon = Icons.Default.Notifications,
+                        label = "Thông báo"
+                    ) {}
+
+                    ProfileMenuItem(
+                        icon = Icons.Default.Settings,
+                        label = "Cài đặt",
+                        showDivider = false
+                    ) {}
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Logout
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Color.White)
+                    .border(
+                        1.dp,
+                        Color(0xFFF3F4F6),
+                        RoundedCornerShape(20.dp)
+                    )
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+
+                Icon(
+                    Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = null,
+                    tint = Color(0xFFEF4444),
+                    modifier = Modifier.size(22.dp)
+                )
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Text(
+                    "Đăng xuất",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFEF4444)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
