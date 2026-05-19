@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, Max, Min } from 'class-validator';
 
-// DTO cho tham số phân trang
 export class PaginationDto {
   @IsOptional()
   @Type(() => Number)
