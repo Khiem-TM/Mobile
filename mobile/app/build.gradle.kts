@@ -97,4 +97,14 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // LiteRT (TFLite) — supports FULLY_CONNECTED v12
+    implementation("com.google.ai.edge.litert:litert:1.0.1")
+
+    // CameraX
+    val cameraVersion = "1.3.4"
+    implementation("androidx.camera:camera-core:$cameraVersion")
+    implementation("androidx.camera:camera-camera2:$cameraVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraVersion")
+    implementation("androidx.camera:camera-view:$cameraVersion")
 }
