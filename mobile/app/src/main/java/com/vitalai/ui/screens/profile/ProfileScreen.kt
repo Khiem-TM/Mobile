@@ -215,14 +215,20 @@ fun ProfileScreen(
                     ProfileMenuItem(icon = Icons.Default.BarChart, label = "Chỉ số cơ thể") {
                         navController.navigate(Screen.Metrics)
                     }
+                    ProfileMenuItem(icon = Icons.Default.FitnessCenter, label = "Luyện tập") {
+                        navController.navigate(Screen.Workout)
+                    }
                     ProfileMenuItem(icon = Icons.Default.TrackChanges, label = "Mục tiêu & kế hoạch") {
                         // navigate to goals
                     }
                     ProfileMenuItem(icon = Icons.Default.EmojiEvents, label = "Huy hiệu của tôi") {
                         // navigate to badges
                     }
-                    ProfileMenuItem(icon = Icons.Default.FavoriteBorder, label = "Món của tôi (My Foods)", showDivider = false) {
+                    ProfileMenuItem(icon = Icons.Default.FavoriteBorder, label = "Món của tôi (My Foods)") {
                         navController.navigate(Screen.CreateFood)
+                    }
+                    ProfileMenuItem(icon = Icons.Default.Article, label = "Bài viết của tôi", showDivider = false) {
+                        navController.navigate(Screen.MyBlogs)
                     }
                 }
             }

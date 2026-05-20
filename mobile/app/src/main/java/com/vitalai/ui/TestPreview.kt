@@ -6,7 +6,7 @@ import androidx.compose.ui.tooling.preview.Preview
 
 @Composable
 fun SimpleText() {
-    Text(text = "Hello VitalAI")
+    Text(text = "Hello Tracker")
 }
 
 @Preview(showBackground = true)

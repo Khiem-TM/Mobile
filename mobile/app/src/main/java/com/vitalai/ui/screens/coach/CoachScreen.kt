@@ -271,7 +271,7 @@ private fun ChatHistoryDrawer(
                 Text("V", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
             Spacer(Modifier.width(10.dp))
-            Text("Vita AI", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = DrawerText)
+            Text("AI Coach", fontWeight = FontWeight.Bold, fontSize = 17.sp, color = DrawerText)
         }
 
         // New chat button

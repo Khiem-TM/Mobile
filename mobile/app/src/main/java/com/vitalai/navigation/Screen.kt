@@ -21,4 +21,11 @@ sealed class Screen {
     @Serializable object Notifications
     @Serializable data class BlogDetail(val id: String)
     @Serializable object Discover
+    @Serializable object Activity
+    @Serializable object ExerciseLibrary
+    @Serializable data class ExerciseDetail(val id: String = "")
+    @Serializable object WorkoutBuilder
+    @Serializable object MetricsHistory
+    @Serializable object BlogComposer
+    @Serializable object MyBlogs
 }

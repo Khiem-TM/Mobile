@@ -42,6 +42,11 @@ fun DiscoverScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Khám phá", fontWeight = FontWeight.Bold) },
+                actions = {
+                    TextButton(onClick = { navController.navigate(Screen.BlogComposer) }) {
+                        Text("Viết bài", color = Mint500, fontSize = 13.sp)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
