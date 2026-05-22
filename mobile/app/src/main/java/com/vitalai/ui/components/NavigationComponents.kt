@@ -51,9 +51,9 @@ fun VitalBottomNavBar(navController: NavController) {
     val navBackStackEntry = navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry.value?.destination?.route
 
-    val primaryGreen = Color(0xFF38C182)
-    val activeBorderBlue = Color(0xFF2563EB)
-    val inactiveGray = Color(0xFF9CA3AF)
+    val primaryGreen = MaterialTheme.colorScheme.primary
+    val activeBorderBlue = MaterialTheme.colorScheme.primary
+    val inactiveGray = MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = Modifier
@@ -69,7 +69,7 @@ fun VitalBottomNavBar(navController: NavController) {
                 .align(Alignment.BottomCenter)
                 .shadow(elevation = 16.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             Row(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -102,7 +102,7 @@ fun VitalBottomNavBar(navController: NavController) {
                 .padding(top = 4.dp)
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(Color.White) // Outer white ring
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(6.dp)
                 .clip(CircleShape)
                 .background(primaryGreen)
@@ -134,7 +134,7 @@ fun NavBarItem(
     val modifier = if (isSelected) {
         Modifier
             .border(1.5.dp, activeBorderColor, RoundedCornerShape(12.dp))
-            .background(Color(0xFFF0FDF4), RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(horizontal = 12.dp, vertical = 6.dp)
     } else {
         Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
