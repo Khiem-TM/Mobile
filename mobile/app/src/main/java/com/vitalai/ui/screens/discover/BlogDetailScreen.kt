@@ -1,7 +1,6 @@
 package com.vitalai.ui.screens.discover
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -236,7 +235,6 @@ private fun BlogBlockView(block: BlogBlockDto) {
     }
 }
 
-<<<<<<< HEAD
 @Composable
 private fun HeroStatPill(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(
@@ -264,11 +262,12 @@ private fun DetailStat(icon: androidx.compose.ui.graphics.vector.ImageVector, va
     ) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
         Text(value, color = Ink700, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-=======
+    }
+}
+
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BlogDetailScreenPreview() {
-
     val mockBlog = BlogDto(
         id = "1",
         title = "7 nguyên tắc eat clean giúp giảm mỡ hiệu quả",
@@ -284,13 +283,11 @@ fun BlogDetailScreenPreview() {
         likesCount = 328,
         viewCount = 1240,
         createdAt = "2026-05-13T10:00:00",
-
         authorUser = AuthorUserDto(
             id = "1",
             displayName = "VitalAI",
             email = "vitalai@example.com"
         ),
-
         blocks = listOf(
             BlogBlockDto(
                 id = "1",
@@ -302,7 +299,6 @@ fun BlogDetailScreenPreview() {
             """.trimIndent(),
                 imageUrl = null
             ),
-
             BlogBlockDto(
                 id = "2",
                 order = 2,
@@ -310,7 +306,6 @@ fun BlogDetailScreenPreview() {
                 textContent = null,
                 imageUrl = null
             ),
-
             BlogBlockDto(
                 id = "3",
                 order = 3,
@@ -333,11 +328,10 @@ fun BlogDetailScreenPreview() {
     Scaffold(
         containerColor = AppBackground
     ) { padding ->
-
         BlogContent(
             blog = mockBlog,
-            paddingValues = padding
+            paddingValues = padding,
+            onBack = {}
         )
->>>>>>> refs/remotes/origin/main
     }
 }
