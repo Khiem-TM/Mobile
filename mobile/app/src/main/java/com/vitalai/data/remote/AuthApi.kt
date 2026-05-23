@@ -3,6 +3,7 @@ package com.vitalai.data.remote
 import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.AuthResponseDto
 import com.vitalai.data.remote.model.LoginRequest
+import com.vitalai.data.remote.model.RefreshResponseDto
 import com.vitalai.data.remote.model.RegisterRequest
 import retrofit2.Response
 import retrofit2.http.Body
@@ -19,5 +20,5 @@ interface AuthApi {
     suspend fun register(@Body request: RegisterRequest): Response<ApiResponse<AuthResponseDto>>
 
     @POST("auth/refresh")
-    suspend fun refresh(@Body refreshToken: Map<String, String>): Response<ApiResponse<AuthResponseDto>>
+    suspend fun refresh(@Body refreshToken: Map<String, String>): Response<ApiResponse<RefreshResponseDto>>
 }

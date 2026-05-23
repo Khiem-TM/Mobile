@@ -14,32 +14,22 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  redis:
-    image: redis:7-alpine
-    container_name: calories_tracker_redis
-    restart: always
-    ports:
-      - "6380:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: calories_ollama
-    restart: unless-stopped
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_models:/root/.ollama
-    # GPU support (uncomment if you have NVIDIA GPU):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: calories_ollama
+  #   restart: unless-stopped
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama_models:/root/.ollama
+  #   # GPU support (uncomment if you have NVIDIA GPU):
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices:
+  #   #         - driver: nvidia
+  #   #           count: 1
+  #   #           capabilities: [gpu]
 
   rag-service:
     build:
@@ -67,10 +57,9 @@ services:
       - rag_chroma_data:/data/chroma
     depends_on:
       - postgres
-      - ollama
+      # - ollama
 
 volumes:
-  postgres_data:
-  redis_data:
-  ollama_models:
+  postgres_data: # ollama_models:
+
   rag_chroma_data:

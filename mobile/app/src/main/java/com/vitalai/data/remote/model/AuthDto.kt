@@ -21,3 +21,9 @@ data class UserDto(
     val role: String,
     @Json(name = "is_verified") val isVerified: Boolean
 )
+
+@JsonClass(generateAdapter = true)
+data class RefreshResponseDto(
+    @Json(name = "access_token") val accessToken: String,
+    @Json(name = "expires_in") val expiresIn: Int
+)
