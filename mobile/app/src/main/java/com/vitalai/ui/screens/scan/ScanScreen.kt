@@ -13,9 +13,16 @@ import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -119,14 +126,23 @@ fun ScanScreen(
             )
 
             // Viewfinder reticle
+            val scanProgress by rememberInfiniteTransition(label = "scan_line").animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 1600, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "scan_progress"
+            )
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .offset(y = (-60).dp)
             ) {
-                androidx.compose.foundation.Canvas(modifier = Modifier.size(260.dp)) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(280.dp)) {
                     val sw = 4.dp.toPx()
-                    val cl = 36.dp.toPx()
+                    val cl = 42.dp.toPx()
                     val s = sw / 2
                     val w = size.width
                     val h = size.height
@@ -141,6 +157,15 @@ fun ScanScreen(
                         drawLine(Color.White, androidx.compose.ui.geometry.Offset(pts[2].first, pts[2].second), androidx.compose.ui.geometry.Offset(pts[3].first, pts[3].second), sw)
                     }
                 }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = (scanProgress * 278f).dp)
+                        .width(220.dp)
+                        .height(2.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Mint500.copy(alpha = 0.92f))
+                )
                 Text(
                     text = "Đưa món ăn vào khung",
                     color = Color.White.copy(alpha = 0.8f),
@@ -225,6 +250,53 @@ fun ScanScreen(
                 results = uiState.results,
                 inferenceTimeMs = uiState.inferenceTimeMs
             )
+        }
+
+        AnimatedVisibility(
+            visible = uiState.results.isEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 34.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Món ăn", "Barcode", "Nhãn").forEachIndexed { index, label ->
+                        Surface(
+                            shape = RoundedCornerShape(999.dp),
+                            color = if (index == 0) Color.White else Color.Black.copy(alpha = 0.42f)
+                        ) {
+                            Text(
+                                label,
+                                color = if (index == 0) Color.Black else Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .padding(6.dp)
+                        .clip(CircleShape)
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .border(2.dp, Color.Black.copy(alpha = 0.12f), CircleShape)
+                    )
+                }
+            }
         }
     }
 }

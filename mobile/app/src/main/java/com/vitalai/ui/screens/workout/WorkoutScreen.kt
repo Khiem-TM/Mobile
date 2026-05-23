@@ -33,12 +33,12 @@ import com.vitalai.ui.theme.*
 data class WorkoutCategory(val emoji: String, val name: String, val muscleGroup: String)
 
 val workoutCategories = listOf(
-    WorkoutCategory("🏋️", "Ngực", "chest"),
-    WorkoutCategory("🔙", "Lưng", "back"),
-    WorkoutCategory("🦵", "Chân", "legs"),
-    WorkoutCategory("💪", "Tay", "arms"),
-    WorkoutCategory("🔥", "Cardio", "cardio"),
-    WorkoutCategory("🧘", "Core", "core")
+    WorkoutCategory("🏋️", "Ngực", "CHEST"),
+    WorkoutCategory("🔙", "Lưng", "BACK"),
+    WorkoutCategory("🦵", "Chân", "LEGS"),
+    WorkoutCategory("💪", "Tay", "ARMS"),
+    WorkoutCategory("🔥", "Cardio", "CARDIO"),
+    WorkoutCategory("🧘", "Core", "CORE")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,7 +75,7 @@ fun WorkoutScreen(
                 Icon(Icons.Default.Add, contentDescription = "Bắt đầu tập")
             }
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -97,7 +97,7 @@ fun WorkoutScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(VitalRadius.Xl))
                             .background(Brush.horizontalGradient(listOf(Mint500, Mint700)))
                             .padding(20.dp)
                     ) {
@@ -123,7 +123,7 @@ fun WorkoutScreen(
                         OutlinedButton(
                             onClick = { navController.navigate(Screen.ExerciseLibrary) },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(VitalRadius.Md),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
                         ) {
                             Text("Thư viện bài tập", color = Mint500, fontSize = 13.sp)
@@ -131,7 +131,7 @@ fun WorkoutScreen(
                         OutlinedButton(
                             onClick = { navController.navigate(Screen.WorkoutBuilder) },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(VitalRadius.Md),
                             border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
                         ) {
                             Text("Bắt đầu tập", color = Mint500, fontSize = 13.sp)
@@ -231,11 +231,12 @@ private fun CategoryGrid(
                             .weight(1f)
                             .height(80.dp)
                             .clickable { onSelect(if (isSelected) null else cat.muscleGroup) },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(VitalRadius.Lg),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isSelected) Mint500 else AppSurface
                         ),
-                        elevation = CardDefaults.cardElevation(2.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Mint500 else AppLine),
+                        elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -265,9 +266,10 @@ private fun ExerciseItem(exercise: ExerciseDto) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -305,9 +307,10 @@ private fun SessionItem(session: WorkoutSessionDto) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
             modifier = Modifier

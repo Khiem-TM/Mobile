@@ -26,6 +26,10 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.theme.Ink700
+import com.vitalai.ui.theme.MacroCarbs
+import com.vitalai.ui.theme.MacroProtein
+import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.VitalAITheme
 
 @Composable
@@ -47,7 +51,7 @@ fun WelcomeScreen(navController: NavController) {
         // Salmon
         FoodTag(
             text = "Salmon · 280 kcal",
-            dotColor = Color(0xFF10B981), // Green
+            dotColor = Mint500,
             modifier = Modifier
                 .offset(x = 32.dp, y = 100.dp)
         )
@@ -55,7 +59,7 @@ fun WelcomeScreen(navController: NavController) {
         // Avocado
         FoodTag(
             text = "Avocado · 160 kcal",
-            dotColor = Color(0xFFF59E0B), // Orange
+            dotColor = MacroCarbs,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = (-32).dp, y = 220.dp)
@@ -64,7 +68,7 @@ fun WelcomeScreen(navController: NavController) {
         // Greens
         FoodTag(
             text = "Greens · 45 kcal",
-            dotColor = Color(0xFFEF4444), // Red
+            dotColor = MacroProtein,
             modifier = Modifier
                 .offset(x = 48.dp, y = 320.dp)
         )
@@ -137,10 +141,9 @@ fun WelcomeScreen(navController: NavController) {
             )
 
             // Button
-            val primaryGreen = Color(0xFF38C182) // Mint green matching the image
             Button(
                 onClick = { navController.navigate(Screen.SignUp) },
-                colors = ButtonDefaults.buttonColors(containerColor = primaryGreen),
+                colors = ButtonDefaults.buttonColors(containerColor = Mint500),
                 shape = RoundedCornerShape(100),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 18.dp),
                 modifier = Modifier
@@ -176,7 +179,7 @@ fun WelcomeScreen(navController: NavController) {
                         withStyle(style = SpanStyle(color = Color.White.copy(alpha = 0.8f))) {
                             append("Đã có tài khoản? ")
                         }
-                        withStyle(style = SpanStyle(color = primaryGreen, fontWeight = FontWeight.Bold)) {
+                        withStyle(style = SpanStyle(color = Mint500, fontWeight = FontWeight.Bold)) {
                             append("Đăng nhập")
                         }
                     },
@@ -210,7 +213,7 @@ fun FoodTag(text: String, dotColor: Color, modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = text,
-                color = Color.DarkGray,
+                color = Ink700,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )

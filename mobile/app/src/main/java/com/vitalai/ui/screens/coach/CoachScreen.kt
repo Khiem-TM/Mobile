@@ -119,7 +119,7 @@ fun CoachScreen(
                 )
             },
             bottomBar = { VitalBottomNavBar(navController = navController) },
-            containerColor = AppBackground
+            containerColor = AppMutedBackground
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -459,4 +459,3 @@ private fun TypingIndicator() {
         }
     }
 }
-

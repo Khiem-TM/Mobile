@@ -35,6 +35,17 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.vitalai.R
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.components.VitalButton
+import com.vitalai.ui.components.VitalIconButton
+import com.vitalai.ui.theme.AppLine
+import com.vitalai.ui.theme.AppSurface2
+import com.vitalai.ui.theme.Ink300
+import com.vitalai.ui.theme.Ink500
+import com.vitalai.ui.theme.Ink700
+import com.vitalai.ui.theme.Ink900
+import com.vitalai.ui.theme.Mint50
+import com.vitalai.ui.theme.Mint500
+import com.vitalai.ui.theme.VitalRadius
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,31 +93,24 @@ fun SignInScreen(
         }
     }
 
-    val primaryGreen = Color(0xFF38C182)
-    val surfaceColor = Color(0xFFF9FAFB)
-    val surface2Color = Color(0xFFF3F4F6)
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(
+                androidx.compose.ui.graphics.Brush.radialGradient(
+                    colors = listOf(Mint50, Color.White),
+                    radius = 900f
+                )
+            )
             .padding(horizontal = 28.dp)
             .padding(top = 60.dp, bottom = 28.dp)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Back button
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(surface2Color)
-                    .clickable { navController.popBackStack() },
-                contentAlignment = Alignment.Center
-            ) {
+            VitalIconButton(onClick = { navController.popBackStack() }) {
                 Icon(
                     imageVector = Icons.Default.ChevronLeft,
                     contentDescription = "Back",
-                    tint = Color.DarkGray
+                    tint = Ink700
                 )
             }
 
@@ -117,13 +121,13 @@ fun SignInScreen(
                 text = "Chào mừng trở lại \uD83D\uDC4B",
                 fontSize = 30.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = Ink900
             )
             
             Text(
                 text = "Đăng nhập để tiếp tục hành trình của bạn",
                 fontSize = 15.sp,
-                color = Color.Gray,
+                color = Ink500,
                 modifier = Modifier.padding(top = 8.dp, bottom = 32.dp)
             )
 
@@ -132,7 +136,7 @@ fun SignInScreen(
                 text = "EMAIL",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Gray,
+                color = Ink500,
                 letterSpacing = 0.5.sp
             )
             OutlinedTextField(
@@ -141,17 +145,17 @@ fun SignInScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp, bottom = 14.dp),
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Color.Gray) },
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = Ink500) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(VitalRadius.Md),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = surfaceColor,
-                    focusedContainerColor = surfaceColor,
-                    unfocusedBorderColor = Color(0xFFE5E7EB),
-                    focusedBorderColor = primaryGreen
+                    unfocusedContainerColor = AppSurface2,
+                    focusedContainerColor = AppSurface2,
+                    unfocusedBorderColor = AppLine,
+                    focusedBorderColor = Mint500
                 ),
-                placeholder = { Text("email@example.com", color = Color.LightGray) }
+                placeholder = { Text("email@example.com", color = Ink300) }
             )
 
             // Password input
@@ -159,7 +163,7 @@ fun SignInScreen(
                 text = "PASSWORD",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Gray,
+                color = Ink500,
                 letterSpacing = 0.5.sp
             )
             OutlinedTextField(
@@ -168,23 +172,23 @@ fun SignInScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp, bottom = 8.dp),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.Gray) },
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Ink500) },
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(VitalRadius.Md),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedContainerColor = surfaceColor,
-                    focusedContainerColor = surfaceColor,
-                    unfocusedBorderColor = Color(0xFFE5E7EB),
-                    focusedBorderColor = primaryGreen
+                    unfocusedContainerColor = AppSurface2,
+                    focusedContainerColor = AppSurface2,
+                    unfocusedBorderColor = AppLine,
+                    focusedBorderColor = Mint500
                 ),
-                placeholder = { Text("••••••••", color = Color.LightGray) }
+                placeholder = { Text("••••••••", color = Ink300) }
             )
 
             Text(
                 text = "Quên mật khẩu?",
-                color = primaryGreen,
+                color = Mint500,
                 fontWeight = FontWeight.Medium,
                 fontSize = 13.sp,
                 modifier = Modifier
@@ -202,10 +206,9 @@ fun SignInScreen(
                 )
             }
 
-            // Login Button
             Button(
                 onClick = { viewModel.login(email, password) },
-                colors = ButtonDefaults.buttonColors(containerColor = primaryGreen),
+                colors = ButtonDefaults.buttonColors(containerColor = Ink900),
                 shape = RoundedCornerShape(100),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                 modifier = Modifier.fillMaxWidth(),
@@ -227,14 +230,14 @@ fun SignInScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(vertical = 28.dp)
             ) {
-                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE5E7EB))
+                HorizontalDivider(modifier = Modifier.weight(1f), color = AppLine)
                 Text(
                     "Hoặc tiếp tục với",
                     modifier = Modifier.padding(horizontal = 12.dp),
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = Ink500
                 )
-                HorizontalDivider(modifier = Modifier.weight(1f), color = Color(0xFFE5E7EB))
+                HorizontalDivider(modifier = Modifier.weight(1f), color = AppLine)
             }
 
             // Social Buttons
@@ -247,9 +250,9 @@ fun SignInScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.DarkGray)
+                    shape = RoundedCornerShape(VitalRadius.Md),
+                    border = BorderStroke(1.dp, AppLine),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink700)
                 ) {
                     Text("Apple", fontWeight = FontWeight.Medium)
                 }
@@ -263,9 +266,9 @@ fun SignInScreen(
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.DarkGray)
+                    shape = RoundedCornerShape(VitalRadius.Md),
+                    border = BorderStroke(1.dp, AppLine),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Ink700)
                 ) {
                     Text("Google", fontWeight = FontWeight.Medium)
                 }
@@ -280,10 +283,10 @@ fun SignInScreen(
             ) {
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(style = SpanStyle(color = Color.Gray)) {
+                        withStyle(style = SpanStyle(color = Ink500)) {
                             append("Chưa có tài khoản? ")
                         }
-                        withStyle(style = SpanStyle(color = primaryGreen, fontWeight = FontWeight.Bold)) {
+                        withStyle(style = SpanStyle(color = Mint500, fontWeight = FontWeight.Bold)) {
                             append("Đăng ký")
                         }
                     },

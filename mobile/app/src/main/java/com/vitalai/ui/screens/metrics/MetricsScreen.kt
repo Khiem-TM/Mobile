@@ -26,6 +26,7 @@ import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.SegmentedPills
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,7 +54,7 @@ fun MetricsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -67,7 +68,7 @@ fun MetricsScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
+                    .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // Latest metrics summary
@@ -87,30 +88,21 @@ fun MetricsScreen(
                 }
 
                 // Period selector
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf("1W" to "1 tuần", "1M" to "1 tháng", "3M" to "3 tháng").forEach { (key, label) ->
-                        FilterChip(
-                            selected = uiState.selectedPeriod == key,
-                            onClick = { viewModel.selectPeriod(key) },
-                            label = { Text(label, fontSize = 12.sp) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Mint500,
-                                selectedLabelColor = Color.White
-                            )
-                        )
-                    }
-                }
+                SegmentedPills(
+                    options = listOf("1W" to "1 tuần", "1M" to "1 tháng", "3M" to "3 tháng"),
+                    selected = uiState.selectedPeriod,
+                    onSelected = viewModel::selectPeriod,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 // Weight chart
                 uiState.periodData?.let { period ->
                     if (period.data.isNotEmpty()) {
                         Card(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(VitalRadius.Xl),
                             colors = CardDefaults.cardColors(containerColor = AppSurface),
-                            elevation = CardDefaults.cardElevation(2.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                            elevation = CardDefaults.cardElevation(0.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -140,9 +132,10 @@ fun MetricsScreen(
                 // BMI info card
                 uiState.latest?.bmi?.let { bmi ->
                     Card(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(VitalRadius.Xl),
                         colors = CardDefaults.cardColors(containerColor = AppSurface),
-                        elevation = CardDefaults.cardElevation(2.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                        elevation = CardDefaults.cardElevation(0.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -184,8 +177,9 @@ fun MetricsScreen(
 private fun MetricCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.18f)),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(

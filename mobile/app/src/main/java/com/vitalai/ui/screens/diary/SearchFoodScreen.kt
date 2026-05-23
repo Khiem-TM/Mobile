@@ -32,6 +32,7 @@ import coil.compose.SubcomposeAsyncImage
 import com.vitalai.data.remote.model.FoodDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,7 +62,7 @@ fun SearchFoodScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = AppMutedBackground
     ) { padding ->
         Column(
             modifier = Modifier
@@ -79,26 +80,26 @@ fun SearchFoodScreen(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF3F4F6))
+                        .background(AppSurface2)
                         .clickable { navController.popBackStack() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Ink900)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 TextField(
                     value = uiState.query,
                     onValueChange = viewModel::search,
-                    placeholder = { Text("Tìm món ăn, thương hiệu...", color = Color.Gray, fontSize = 14.sp) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Gray) },
-                    trailingIcon = { Icon(Icons.Default.Mic, contentDescription = null, tint = Color.Gray) },
+                    placeholder = { Text("Tìm món ăn, thương hiệu...", color = Ink500, fontSize = 14.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Ink500) },
+                    trailingIcon = { Icon(Icons.Default.Mic, contentDescription = null, tint = Ink500) },
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
-                        .clip(RoundedCornerShape(25.dp)),
+                        .clip(RoundedCornerShape(VitalRadius.Pill)),
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFFF3F4F6),
-                        unfocusedContainerColor = Color(0xFFF3F4F6),
+                        focusedContainerColor = AppSurface2,
+                        unfocusedContainerColor = AppSurface2,
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent
                     ),
@@ -116,16 +117,16 @@ fun SearchFoodScreen(
                     val isSelected = selectedTab == i
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (isSelected) Color(0xFF1E293B) else Color.White)
-                            .border(1.dp, if (isSelected) Color.Transparent else Color.Black, RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(VitalRadius.Pill))
+                            .background(if (isSelected) Ink900 else AppSurface)
+                            .border(1.dp, if (isSelected) Color.Transparent else AppLine, RoundedCornerShape(VitalRadius.Pill))
                             .clickable { selectedTab = i }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = tabs[i],
-                            color = if (isSelected) Color.White else Color.Black,
+                            color = if (isSelected) Color.White else Ink900,
                             fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                             fontSize = 14.sp
                         )
@@ -146,8 +147,8 @@ fun SearchFoodScreen(
                         .weight(1f)
                         .height(80.dp)
                         .clickable { navController.navigate(Screen.Scan) },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF38C182))
+                    shape = RoundedCornerShape(VitalRadius.Lg),
+                    colors = CardDefaults.cardColors(containerColor = Mint500)
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -166,9 +167,9 @@ fun SearchFoodScreen(
                         .weight(1f)
                         .height(80.dp)
                         .clickable { navController.navigate(Screen.CreateFood) },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+                    shape = RoundedCornerShape(VitalRadius.Lg),
+                    colors = CardDefaults.cardColors(containerColor = AppSurface),
+                    border = BorderStroke(1.dp, AppLine)
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -176,8 +177,8 @@ fun SearchFoodScreen(
                     ) {
                         Text("✏️", fontSize = 20.sp)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Tạo món mới", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                        Text("Thêm vào My Foods", fontSize = 11.sp, color = Color.Gray)
+                        Text("Tạo món mới", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                        Text("Thêm vào My Foods", fontSize = 11.sp, color = Ink500)
                     }
                 }
             }
@@ -186,7 +187,7 @@ fun SearchFoodScreen(
                 text = "GẦN ĐÂY",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Gray,
+                color = Ink500,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
@@ -203,7 +204,7 @@ fun SearchFoodScreen(
 
                 displayItems.isEmpty() && uiState.query.isNotBlank() ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Không tìm thấy kết quả", color = Color.Gray)
+                        Text("Không tìm thấy kết quả", color = Ink500)
                     }
 
                 else ->
@@ -234,9 +235,9 @@ fun FoodSearchCard(food: FoodDto, onClick: () -> Unit, onQuickAdd: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+        shape = RoundedCornerShape(VitalRadius.Xl),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLineSoft)
     ) {
         Row(
             modifier = Modifier
@@ -249,14 +250,14 @@ fun FoodSearchCard(food: FoodDto, onClick: () -> Unit, onQuickAdd: () -> Unit) {
                 contentDescription = food.name,
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(16.dp)),
+                            .clip(RoundedCornerShape(VitalRadius.Lg)),
                 contentScale = ContentScale.Crop,
                 error = {
                     Box(
                         modifier = Modifier
                             .size(56.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFF3F4F6)),
+                            .clip(RoundedCornerShape(VitalRadius.Lg))
+                            .background(AppSurface2),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("🍽️", fontSize = 24.sp)
@@ -269,14 +270,14 @@ fun FoodSearchCard(food: FoodDto, onClick: () -> Unit, onQuickAdd: () -> Unit) {
                     text = food.name,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    color = Color.Black,
+                    color = Ink900,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "1 phần (${food.servingSizeG.toInt()}g) · ${food.caloriesPer100g.toInt()} kcal",
                     fontSize = 13.sp,
-                    color = Color.Gray
+                    color = Ink500
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -284,7 +285,7 @@ fun FoodSearchCard(food: FoodDto, onClick: () -> Unit, onQuickAdd: () -> Unit) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF38C182))
+                    .background(Mint500)
                     .clickable { onQuickAdd() },
                 contentAlignment = Alignment.Center
             ) {

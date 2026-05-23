@@ -1,7 +1,6 @@
 package com.vitalai.ui.screens.home
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,8 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -36,19 +33,30 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.components.ArcGauge
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.VitalBottomNavBar
+import com.vitalai.ui.theme.AppLine
+import com.vitalai.ui.theme.AppMutedBackground
+import com.vitalai.ui.theme.AppSurface
+import com.vitalai.ui.theme.AppSurface2
 import com.vitalai.ui.theme.AmberContainer
 import com.vitalai.ui.theme.AmberOnContainer
 import com.vitalai.ui.theme.AmberTint
+import com.vitalai.ui.theme.Ink400
+import com.vitalai.ui.theme.Ink500
+import com.vitalai.ui.theme.Ink700
+import com.vitalai.ui.theme.Ink900
 import com.vitalai.ui.theme.MacroCarbs
 import com.vitalai.ui.theme.MacroFat
 import com.vitalai.ui.theme.MacroProtein
 import com.vitalai.ui.theme.MealTimeBg
 import com.vitalai.ui.theme.MealTimeText
-import com.vitalai.ui.theme.Slate900
+import com.vitalai.ui.theme.Mint100
+import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.WaterBlue
 import com.vitalai.ui.theme.WaterBlueTint
+import com.vitalai.ui.theme.VitalRadius
 
 @Composable
 fun HomeScreen(
@@ -59,7 +67,7 @@ fun HomeScreen(
 
     Scaffold(
         bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = AppMutedBackground
     ) { padding ->
         when {
             uiState.isLoading && uiState.dashboard == null -> LoadingState(
@@ -128,14 +136,14 @@ fun HomeHeader(navController: NavController, uiState: HomeUiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .border(1.dp, MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                .size(44.dp)
+                .clip(CircleShape)
+                    .background(AppSurface)
+                    .border(1.dp, AppLine, CircleShape)
                     .clickable { navController.navigate(Screen.Notifications) },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Notifications, contentDescription = "Notification", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(22.dp))
+                Icon(Icons.Default.Notifications, contentDescription = "Notification", tint = Ink900, modifier = Modifier.size(22.dp))
                 if (uiState.unreadCount > 0) {
                     Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color.Red).align(Alignment.TopEnd).offset((-10).dp, 10.dp))
                 }
@@ -144,10 +152,10 @@ fun HomeHeader(navController: NavController, uiState: HomeUiState) {
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(Slate900),
+                    .background(Ink900),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add", tint = MaterialTheme.colorScheme.surface)
+                Icon(Icons.Default.Add, contentDescription = "Add", tint = AppSurface)
             }
         }
     }
@@ -180,10 +188,10 @@ fun WeekStrip(selectedDate: String, onDateSelected: (String) -> Unit) {
                     .width(46.dp)
                     .height(68.dp)
                     .clip(RoundedCornerShape(30.dp))
-                    .background(if (isSelected) Slate900 else MaterialTheme.colorScheme.surface)
+                    .background(if (isSelected) Ink900 else AppSurface)
                     .border(
                         1.dp,
-                        if (isSelected) Color.Transparent else if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        if (isSelected) Color.Transparent else if (isToday) Mint500 else AppLine,
                         RoundedCornerShape(30.dp)
                     )
                     .clickable { onDateSelected(day.format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE)) }
@@ -192,19 +200,19 @@ fun WeekStrip(selectedDate: String, onDateSelected: (String) -> Unit) {
                 Text(
                     text = dayNames[dayOfWeek],
                     fontSize = 12.sp,
-                    color = if (isSelected) Color.White.copy(alpha = 0.7f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isSelected) Color.White.copy(alpha = 0.7f) else Ink500,
                     fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "${day.dayOfMonth}",
                     fontSize = 16.sp,
-                    color = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface,
+                    color = if (isSelected) AppSurface else Ink900,
                     fontWeight = FontWeight.Bold
                 )
                 if (isSelected) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
+                    Box(modifier = Modifier.size(4.dp).clip(CircleShape).background(Mint500))
                 }
             }
         }
@@ -224,9 +232,9 @@ fun DailyCaloriesCard(uiState: HomeUiState) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondaryContainer)
+        shape = RoundedCornerShape(VitalRadius.Xl),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(
@@ -235,11 +243,11 @@ fun DailyCaloriesCard(uiState: HomeUiState) {
                 verticalAlignment = Alignment.Top
             ) {
                 Column {
-                    Text("Calo hôm nay", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("Mục tiêu: $goal kcal", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Calo hôm nay", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                    Text("Mục tiêu: $goal kcal", fontSize = 13.sp, color = Ink500)
                 }
-                val statusContainerColor = if (isOnTrack) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
-                val statusContentColor = if (isOnTrack) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error
+                val statusContainerColor = if (isOnTrack) Mint100 else MaterialTheme.colorScheme.errorContainer
+                val statusContentColor = if (isOnTrack) Mint500 else MaterialTheme.colorScheme.error
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(100))
@@ -259,23 +267,13 @@ fun DailyCaloriesCard(uiState: HomeUiState) {
                 modifier = Modifier.fillMaxWidth().height(200.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val arcTrackColor = MaterialTheme.colorScheme.secondaryContainer
-                val arcProgressColor = MaterialTheme.colorScheme.primary
-                Canvas(modifier = Modifier.size(200.dp)) {
-                    drawArc(color = arcTrackColor, startAngle = 140f, sweepAngle = 260f, useCenter = false, style = Stroke(width = 45f, cap = StrokeCap.Round))
-                    drawArc(color = arcProgressColor, startAngle = 140f, sweepAngle = 260f * progress, useCenter = false, style = Stroke(width = 45f, cap = StrokeCap.Round))
-                }
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.offset(y = (-10).dp)) {
-                    Icon(Icons.Outlined.FlashOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp))
-                    Text(text = "%,d".format(consumed), fontSize = 48.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)) { append("kcal") }
-                            append(" · $remaining còn lại")
-                        },
-                        fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                ArcGauge(
+                    value = progress,
+                    label = "%,d".format(consumed),
+                    sublabel = "kcal · $remaining còn lại",
+                    size = 200.dp,
+                    stroke = 18.dp
+                )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -295,15 +293,15 @@ fun DailyCaloriesCard(uiState: HomeUiState) {
 @Composable
 fun MacroBar(label: String, value: String, progress: Float, color: Color) {
     Column(modifier = Modifier.width(85.dp)) {
-        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Ink900)
         Spacer(modifier = Modifier.height(8.dp))
         Box(
-            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(100)).background(MaterialTheme.colorScheme.secondaryContainer)
+            modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(100)).background(AppSurface2)
         ) {
             Box(modifier = Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(100)).background(color))
         }
         Spacer(modifier = Modifier.height(6.dp))
-        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink900)
     }
 }
 
@@ -336,28 +334,28 @@ fun WaterAndActivityCards(
                     onClick = { /* Có thể điều hướng đến chi tiết */ },
                     onDoubleClick = onAddWater
                 ),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondaryContainer)
+            shape = RoundedCornerShape(VitalRadius.Lg),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            border = BorderStroke(1.dp, AppLine)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(WaterBlueTint), contentAlignment = Alignment.Center) {
                         Icon(Icons.Outlined.LocalDrink, contentDescription = null, tint = WaterBlue, modifier = Modifier.size(20.dp))
                     }
-                    Text("${waterMl / 1000f}L / ${waterGoalMl / 1000f}L", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                    Text("${waterMl / 1000f}L / ${waterGoalMl / 1000f}L", fontSize = 11.sp, color = Ink500, fontWeight = FontWeight.Medium)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Nước uống", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Nước uống", fontSize = 13.sp, color = Ink500)
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text("$waterCups", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(" ly", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 3.dp))
+                    Text("$waterCups", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                    Text(" ly", fontSize = 14.sp, color = Ink500, modifier = Modifier.padding(bottom = 3.dp))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     val filled = (waterProgress * 10).toInt().coerceIn(0, 10)
                     repeat(filled) { Box(modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(100)).background(WaterBlue)) }
-                    repeat(10 - filled) { Box(modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(100)).background(MaterialTheme.colorScheme.secondaryContainer)) }
+                    repeat(10 - filled) { Box(modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) }
                 }
             }
         }
@@ -370,27 +368,27 @@ fun WaterAndActivityCards(
                     onClick = { /* Có thể điều hướng đến chi tiết */ },
                     onDoubleClick = onAddSteps
                 ),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondaryContainer)
+            shape = RoundedCornerShape(VitalRadius.Lg),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            border = BorderStroke(1.dp, AppLine)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(AmberTint), contentAlignment = Alignment.Center) {
                         Icon(Icons.Outlined.FlashOn, contentDescription = null, tint = MacroCarbs, modifier = Modifier.size(20.dp))
                     }
-                    Text("+$burnedKcal kcal", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                    Text("+$burnedKcal kcal", fontSize = 11.sp, color = Ink500, fontWeight = FontWeight.Medium)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Bước chân", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Bước chân", fontSize = 13.sp, color = Ink500)
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text("%,d".format(steps), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(" bước", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 3.dp))
+                    Text("%,d".format(steps), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                    Text(" bước", fontSize = 14.sp, color = Ink500, modifier = Modifier.padding(bottom = 3.dp))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 val stepsProgress = (steps.toFloat() / 10000f).coerceIn(0f, 1f)
-                Box(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(100)).background(MaterialTheme.colorScheme.secondaryContainer)) {
-                    Box(modifier = Modifier.fillMaxWidth(stepsProgress).fillMaxHeight().clip(RoundedCornerShape(100)).background(MaterialTheme.colorScheme.primary))
+                Box(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) {
+                    Box(modifier = Modifier.fillMaxWidth(stepsProgress).fillMaxHeight().clip(RoundedCornerShape(100)).background(Mint500))
                 }
             }
         }
@@ -405,12 +403,12 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Bữa ăn hôm nay", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text("Bữa ăn hôm nay", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink900)
             Text(
                 "Xem tất cả",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary,
+                color = Mint500,
                 modifier = Modifier.clickable { navController.navigate(Screen.Diary) }
             )
         }
@@ -424,7 +422,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
 
             MealOverviewCard(
                 mealType = "Breakfast",
-                imageUrl = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80",
+                imageUrl = breakfast?.items?.firstOrNull()?.imageUrl,
                 description = breakfast?.items?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                 time = "8:30 AM",
                 calories = breakfast?.totalCalories?.toInt() ?: 0,
@@ -439,7 +437,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
             ) {
                 MealOverviewCard(
                     mealType = "Lunch",
-                    imageUrl = "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&q=80",
+                    imageUrl = lunch?.items?.firstOrNull()?.imageUrl,
                     description = "12:45 · ${lunch?.totalCalories?.toInt() ?: 0} kcal",
                     time = "",
                     calories = lunch?.totalCalories?.toInt() ?: 0,
@@ -448,7 +446,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 )
                 MealOverviewCard(
                     mealType = "Snack",
-                    imageUrl = "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=500&q=80",
+                    imageUrl = snack?.items?.firstOrNull()?.imageUrl,
                     description = "15:20 · ${snack?.totalCalories?.toInt() ?: 0} kcal",
                     time = "",
                     calories = snack?.totalCalories?.toInt() ?: 0,
@@ -463,7 +461,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
 @Composable
 fun MealOverviewCard(
     mealType: String,
-    imageUrl: String,
+    imageUrl: String?,
     description: String,
     time: String,
     calories: Int,
@@ -472,19 +470,31 @@ fun MealOverviewCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondaryContainer)
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
     ) {
         Column {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = mealType,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(if (isSmall) 90.dp else 140.dp)
-            )
+            if (imageUrl != null) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = mealType,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().height(if (isSmall) 90.dp else 140.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (isSmall) 90.dp else 140.dp)
+                        .background(AppSurface2),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🍽️", fontSize = if (isSmall) 26.sp else 34.sp)
+                }
+            }
             Column(modifier = Modifier.padding(12.dp)) {
-                Text(mealType, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                Text(mealType, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
                 if (!isSmall) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Row(
@@ -492,7 +502,7 @@ fun MealOverviewCard(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, modifier = Modifier.weight(1f))
+                        Text(description, fontSize = 12.sp, color = Ink500, maxLines = 1, modifier = Modifier.weight(1f))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(
                                 modifier = Modifier.clip(RoundedCornerShape(100)).background(MealTimeBg).padding(horizontal = 8.dp, vertical = 4.dp),
@@ -514,7 +524,7 @@ fun MealOverviewCard(
                     }
                 } else {
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(description, fontSize = 12.sp, color = Ink500)
                 }
             }
         }
@@ -527,8 +537,8 @@ fun StreakBanner(streak: Int) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(24.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.secondary)
+            .clip(RoundedCornerShape(VitalRadius.Lg))
+            .background(Ink900)
             .padding(20.dp)
             .clickable { /* navigate to streaks */ }
     ) {

@@ -34,14 +34,14 @@ import com.vitalai.ui.theme.*
 
 private val muscleGroups = listOf(
     null to "Tất cả",
-    "chest" to "Ngực",
-    "back" to "Lưng",
-    "legs" to "Chân",
-    "shoulders" to "Vai",
-    "arms" to "Tay",
-    "core" to "Core",
-    "cardio" to "Cardio",
-    "full_body" to "Toàn thân"
+    "CHEST" to "Ngực",
+    "BACK" to "Lưng",
+    "LEGS" to "Chân",
+    "SHOULDERS" to "Vai",
+    "ARMS" to "Tay",
+    "CORE" to "Core",
+    "CARDIO" to "Cardio",
+    "FULL_BODY" to "Toàn thân"
 )
 
 private val intensities = listOf(
@@ -71,7 +71,7 @@ fun ExerciseLibraryScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         Column(
             modifier = Modifier
@@ -87,7 +87,7 @@ fun ExerciseLibraryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(VitalRadius.Pill),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Mint500,
                     unfocusedBorderColor = Ink200,
@@ -103,7 +103,7 @@ fun ExerciseLibraryScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppSurface)
+                    .background(AppMutedBackground)
                     .padding(vertical = 6.dp)
             ) {
                 items(muscleGroups) { (key, label) ->
@@ -210,9 +210,10 @@ private fun ExerciseCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -226,7 +227,7 @@ private fun ExerciseCard(
                 modifier = Modifier
                     .size(72.dp)
                     .background(Mint50)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .clip(RoundedCornerShape(VitalRadius.Md)),
                 contentScale = ContentScale.Crop
             )
             Spacer(Modifier.width(12.dp))
@@ -281,7 +282,7 @@ private fun ExerciseCard(
 private fun MuscleGroupPill(muscle: String) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(100))
+            .clip(RoundedCornerShape(VitalRadius.Pill))
             .background(Mint50)
             .padding(horizontal = 8.dp, vertical = 2.dp)
     ) {
@@ -293,12 +294,12 @@ private fun MuscleGroupPill(muscle: String) {
 private fun PillChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(100))
+            .clip(RoundedCornerShape(VitalRadius.Pill))
             .background(if (isSelected) Mint500 else AppSurface)
             .border(
                 width = 1.dp,
                 color = if (isSelected) Mint500 else Ink200,
-                shape = RoundedCornerShape(100)
+                shape = RoundedCornerShape(VitalRadius.Pill)
             )
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp)

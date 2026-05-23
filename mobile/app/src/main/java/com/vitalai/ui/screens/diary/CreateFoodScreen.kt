@@ -29,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.CreateFoodRequest
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.theme.*
 
 @Composable
 fun CreateFoodScreen(
@@ -51,7 +52,7 @@ fun CreateFoodScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = AppMutedBackground
     ) { padding ->
         if (uiState.isLoading) {
             LoadingState(modifier = Modifier.padding(padding))
@@ -74,17 +75,17 @@ fun CreateFoodScreen(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF3F4F6))
+                        .background(AppSurface2)
                         .clickable { navController.popBackStack() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Black)
+                    Icon(Icons.Default.Close, contentDescription = "Close", tint = Ink900)
                 }
-                Text("Món của tôi", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text("Món của tôi", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink900)
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF38C182))
+                        .clip(RoundedCornerShape(VitalRadius.Pill))
+                        .background(Mint500)
                         .clickable {
                             if (name.isNotBlank() && calories.isNotBlank()) {
                                 viewModel.createFood(
@@ -119,16 +120,16 @@ fun CreateFoodScreen(
                     modifier = Modifier
                         .size(100.dp)
                         .align(Alignment.CenterHorizontally)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White)
-                        .border(1.5.dp, Color(0xFF3B82F6), RoundedCornerShape(16.dp)) // Blue border
+                        .clip(RoundedCornerShape(VitalRadius.Lg))
+                        .background(AppSurface)
+                        .border(1.5.dp, Mint500, RoundedCornerShape(VitalRadius.Lg))
                         .clickable { /* Handle Image Upload */ },
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Image, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Default.Image, contentDescription = null, tint = Ink500, modifier = Modifier.size(28.dp))
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Thêm ảnh", fontSize = 12.sp, color = Color.Gray)
+                        Text("Thêm ảnh", fontSize = 12.sp, color = Ink500)
                     }
                 }
 
@@ -142,27 +143,27 @@ fun CreateFoodScreen(
                 FormField("KHẨU PHẦN", "VD: 1 phần · 250g", servingSize) { servingSize = it }
 
                 Spacer(modifier = Modifier.height(24.dp))
-                Text("THÔNG TIN DINH DƯỠNG", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                Text("THÔNG TIN DINH DƯỠNG", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink500)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Nutrition Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+                    shape = RoundedCornerShape(VitalRadius.Lg),
+                    colors = CardDefaults.cardColors(containerColor = AppSurface),
+                    border = BorderStroke(1.dp, AppLine)
                 ) {
                     Column(modifier = Modifier.padding(vertical = 8.dp)) {
                         NutritionField("Năng lượng", calories, "kcal") { calories = it }
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = AppLineSoft, thickness = 1.dp)
                         NutritionField("Carbs", carbs, "g") { carbs = it }
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = AppLineSoft, thickness = 1.dp)
                         NutritionField("Protein", protein, "g") { protein = it }
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = AppLineSoft, thickness = 1.dp)
                         NutritionField("Fat", fat, "g") { fat = it }
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = AppLineSoft, thickness = 1.dp)
                         NutritionField("Fiber", fiber, "g") { fiber = it }
-                        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp)
+                        HorizontalDivider(color = AppLineSoft, thickness = 1.dp)
                         NutritionField("Sugar", sugar, "g") { sugar = it }
                     }
                 }
@@ -181,21 +182,21 @@ fun CreateFoodScreen(
 @Composable
 fun FormField(label: String, placeholder: String, value: String, onValueChange: (String) -> Unit) {
     Column {
-        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink500)
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = Color.Gray) },
+            placeholder = { Text(placeholder, color = Ink500) },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(VitalRadius.Md),
             singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFFE5E7EB),
-                unfocusedBorderColor = Color(0xFFE5E7EB),
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White,
-                cursorColor = Color(0xFF38C182)
+                focusedBorderColor = Mint500,
+                unfocusedBorderColor = AppLine,
+                focusedContainerColor = AppSurface,
+                unfocusedContainerColor = AppSurface,
+                cursorColor = Mint500
             )
         )
     }
@@ -210,23 +211,23 @@ fun NutritionField(label: String, value: String, unit: String, onValueChange: (S
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 15.sp, color = Color.Black)
+        Text(label, fontSize = 15.sp, color = Ink900)
         Row(verticalAlignment = Alignment.CenterVertically) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = androidx.compose.ui.text.style.TextAlign.End),
+                textStyle = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Ink900, textAlign = androidx.compose.ui.text.style.TextAlign.End),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.width(60.dp),
                 decorationBox = { innerTextField ->
                     if (value.isEmpty()) {
-                        Text("0", color = Color.Gray, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.fillMaxWidth())
+                        Text("0", color = Ink500, fontSize = 15.sp, textAlign = androidx.compose.ui.text.style.TextAlign.End, modifier = Modifier.fillMaxWidth())
                     }
                     innerTextField()
                 }
             )
             Spacer(modifier = Modifier.width(4.dp))
-            Text(unit, fontSize = 13.sp, color = Color.Gray)
+            Text(unit, fontSize = 13.sp, color = Ink500)
         }
     }
 }

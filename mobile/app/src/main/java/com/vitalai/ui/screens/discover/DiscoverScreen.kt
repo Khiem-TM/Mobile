@@ -26,7 +26,6 @@ import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.VitalBottomNavBar
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,8 +49,7 @@ fun DiscoverScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         Column(
             modifier = Modifier
@@ -64,7 +62,7 @@ fun DiscoverScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppSurface)
+                    .background(AppMutedBackground)
                     .padding(vertical = 8.dp)
             ) {
                 items(tags) { (key, label) ->
@@ -102,7 +100,7 @@ fun DiscoverScreen(
                         Text("Chưa có bài viết nào", color = Ink500)
                     }
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
+                else -> LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
                     // Featured first item
                     item {
                         val featured = uiState.blogs.first()
@@ -132,7 +130,7 @@ private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
             .padding(16.dp)
             .height(200.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(VitalRadius.Xl),
         elevation = CardDefaults.cardElevation(3.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -167,7 +165,7 @@ private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
             ) {
                 blog.firstTag?.let {
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
+        shape = RoundedCornerShape(VitalRadius.Pill),
                         color = Mint500.copy(alpha = 0.9f)
                     ) {
                         Text(it, color = Color.White, fontSize = 11.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
@@ -202,14 +200,14 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
                 contentDescription = blog.title,
                 modifier = Modifier
                     .size(90.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .clip(RoundedCornerShape(VitalRadius.Md)),
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
                 modifier = Modifier
                     .size(90.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(VitalRadius.Md))
                     .background(Mint50),
                 contentAlignment = Alignment.Center
             ) { Text("📰", fontSize = 28.sp) }

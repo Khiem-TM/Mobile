@@ -62,27 +62,17 @@ fun ActivityScreen(
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi")))
 
     val rings = listOf(
-        RingData("Move", log?.caloriesBurned ?: 320f, 500f, MacroProtein, "kcal"),
-        RingData("Steps", (log?.steps ?: 6200).toFloat(), 10000f, Mint500, "bước"),
-        RingData("Water", (log?.waterMl ?: 1200).toFloat(), 2000f, MacroWater, "ml"),
-        RingData("Active", (log?.activeMinutes ?: 25).toFloat(), 60f, MacroCarbs, "phút")
+        RingData("Move", log?.caloriesBurned ?: 0f, 500f, MacroProtein, "kcal"),
+        RingData("Steps", (log?.steps ?: 0).toFloat(), 10000f, Mint500, "bước"),
+        RingData("Water", (log?.waterMl ?: 0).toFloat(), 2000f, MacroWater, "ml"),
+        RingData("Active", (log?.activeMinutes ?: 0).toFloat(), 60f, MacroCarbs, "phút")
     )
 
-    // Mock hourly steps data
     val hourlySteps = remember {
-        listOf(0, 0, 0, 0, 0, 0, 120, 450, 800, 650, 300, 900,
-            400, 1100, 500, 700, 350, 420, 200, 300, 180, 90, 0, 0)
+        List(24) { 0 }
     }
 
-    val activityLogs = remember {
-        listOf(
-            ActivityLogEntry("🏃", "Chạy bộ buổi sáng", "2.4 km • 22 phút", "06:30"),
-            ActivityLogEntry("🚶", "Đi bộ đến công ty", "1.1 km • 15 phút", "08:15"),
-            ActivityLogEntry("💧", "Uống nước", "+250ml", "10:00"),
-            ActivityLogEntry("🏋️", "Tập gym", "45 phút • 280 kcal", "17:30"),
-            ActivityLogEntry("💧", "Uống nước", "+500ml", "19:00")
-        )
-    }
+    val activityLogs = remember { emptyList<ActivityLogEntry>() }
 
     Scaffold(
         topBar = {
@@ -106,7 +96,7 @@ fun ActivityScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -120,9 +110,10 @@ fun ActivityScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(VitalRadius.Xl),
                     colors = CardDefaults.cardColors(containerColor = AppSurface),
-                    elevation = CardDefaults.cardElevation(2.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -147,9 +138,10 @@ fun ActivityScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(VitalRadius.Lg),
                     colors = CardDefaults.cardColors(containerColor = AppSurface),
-                    elevation = CardDefaults.cardElevation(1.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                    elevation = CardDefaults.cardElevation(0.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
@@ -205,9 +197,25 @@ fun ActivityScreen(
             }
 
             // Activity log items
-            items(activityLogs.size) { idx ->
-                val entry = activityLogs[idx]
-                ActivityLogItem(entry = entry)
+            if (activityLogs.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .clip(RoundedCornerShape(VitalRadius.Lg))
+                            .background(AppSurface)
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Chưa có nhật ký hoạt động chi tiết", color = Ink500, fontSize = 13.sp)
+                    }
+                }
+            } else {
+                items(activityLogs.size) { idx ->
+                    val entry = activityLogs[idx]
+                    ActivityLogItem(entry = entry)
+                }
             }
         }
     }
@@ -276,6 +284,28 @@ private fun RingLegendItem(ring: RingData) {
 @Composable
 private fun HourlyStepsChart(hourlyData: List<Int>) {
     val maxVal = hourlyData.maxOrNull()?.toFloat() ?: 1f
+    if (hourlyData.all { it <= 0 }) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .clip(RoundedCornerShape(VitalRadius.Md))
+                .background(AppSurface2),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Chưa có dữ liệu theo giờ", fontSize = 12.sp, color = Ink500)
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            listOf("0h", "6h", "12h", "18h", "23h").forEach { label ->
+                Text(label, fontSize = 10.sp, color = Ink500)
+            }
+        }
+        return
+    }
     val threshold = maxVal * 0.7f
 
     Canvas(
@@ -323,9 +353,10 @@ private fun QuickActionButton(
 ) {
     Card(
         modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(VitalRadius.Md),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(
             modifier = Modifier

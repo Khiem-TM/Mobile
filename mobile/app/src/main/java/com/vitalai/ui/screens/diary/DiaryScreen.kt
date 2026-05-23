@@ -36,6 +36,7 @@ import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.VitalBottomNavBar
+import com.vitalai.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -49,7 +50,7 @@ fun DiaryScreen(
 
     Scaffold(
         bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = AppMutedBackground
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -125,22 +126,22 @@ fun DiaryHeader(navController: NavController) {
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF3F4F6))
+                .background(AppSurface2)
                 .clickable { navController.popBackStack() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Back", tint = Color.Black)
+            Icon(Icons.Default.ChevronLeft, contentDescription = "Back", tint = Ink900)
         }
-        Text("Nhật ký bữa ăn", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Text("Nhật ký bữa ăn", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink900)
         Box(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF3F4F6))
+                .background(AppSurface2)
                 .clickable { /* Handle Search */ },
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Black)
+            Icon(Icons.Default.Search, contentDescription = "Search", tint = Ink900)
         }
     }
 }
@@ -165,16 +166,16 @@ fun DateSwitcher(selectedDateStr: String, onPrevDate: () -> Unit, onNextDate: ()
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onPrevDate) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = Color.Gray)
+            Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = Ink400)
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (isToday) {
-                Text("Hôm nay", fontSize = 12.sp, color = Color.Gray)
+                Text("Hôm nay", fontSize = 12.sp, color = Ink500)
             }
-            Text(dateText, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+            Text(dateText, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
         }
         IconButton(onClick = onNextDate) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = Color.Gray)
+            Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = Ink400)
         }
     }
 }
@@ -187,8 +188,8 @@ fun DiarySummaryCard(consumed: Float, goal: Float, remaining: Float) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)) // Light greenish background
+        shape = RoundedCornerShape(VitalRadius.Xl),
+        colors = CardDefaults.cardColors(containerColor = Mint50)
     ) {
         Row(
             modifier = Modifier
@@ -203,14 +204,14 @@ fun DiarySummaryCard(consumed: Float, goal: Float, remaining: Float) {
                         text = "%,d".format(consumed.toInt()),
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF047857)
+                        color = Mint700
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "kcal đã nạp",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF047857),
+                        color = Mint700,
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
                 }
@@ -218,21 +219,21 @@ fun DiarySummaryCard(consumed: Float, goal: Float, remaining: Float) {
                 Text(
                     text = "còn lại %,d / %,d kcal".format(remaining.toInt(), goal.toInt()),
                     fontSize = 13.sp,
-                    color = Color(0xFF047857).copy(alpha = 0.8f)
+                    color = Mint700.copy(alpha = 0.8f)
                 )
             }
             
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(56.dp)) {
                 Canvas(modifier = Modifier.size(56.dp)) {
                     drawArc(
-                        color = Color(0xFFD1FAE5),
+                        color = Mint100,
                         startAngle = -90f,
                         sweepAngle = 360f,
                         useCenter = false,
                         style = Stroke(width = 16f, cap = StrokeCap.Round)
                     )
                     drawArc(
-                        color = Color(0xFF10B981),
+                        color = Mint500,
                         startAngle = -90f,
                         sweepAngle = 360f * progress,
                         useCenter = false,
@@ -253,16 +254,15 @@ fun DiaryMealSection(
     onItemClick: () -> Unit
 ) {
     val totalCalories = mealLog?.totalCalories?.toInt() ?: 0
-    val targetCalories = 484 // Mock target for demonstration
-    val progress = (totalCalories.toFloat() / targetCalories.toFloat()).coerceIn(0f, 1f)
+    val progress = if (totalCalories > 0) 1f else 0f
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Section Header
@@ -272,17 +272,17 @@ fun DiaryMealSection(
                 verticalAlignment = Alignment.Top
             ) {
                 Column {
-                    Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                    Text(timeRange, fontSize = 12.sp, color = Color.Gray)
+                    Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                    Text(timeRange, fontSize = 12.sp, color = Ink500)
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text("$totalCalories", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                        Text(" / $targetCalories kcal", fontSize = 12.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 1.dp))
+                        Text("$totalCalories", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                        Text(" kcal", fontSize = 12.sp, color = Ink500, modifier = Modifier.padding(bottom = 1.dp))
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    Box(modifier = Modifier.width(80.dp).height(4.dp).clip(RoundedCornerShape(100)).background(Color(0xFFE5E7EB))) {
-                        Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().clip(RoundedCornerShape(100)).background(Color(0xFF10B981)))
+                    Box(modifier = Modifier.width(80.dp).height(4.dp).clip(RoundedCornerShape(100)).background(AppLine)) {
+                        Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().clip(RoundedCornerShape(100)).background(Mint500))
                     }
                 }
             }
@@ -298,21 +298,32 @@ fun DiaryMealSection(
                         .clickable { onItemClick() },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Item image placeholder (using solid color if no image available, but using AsyncImage here)
-                    AsyncImage(
-                        model = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=100&q=80", // Using placeholder image for now
-                        contentDescription = item.foodName,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                    )
+                    if (item.imageUrl != null) {
+                        AsyncImage(
+                            model = item.imageUrl,
+                            contentDescription = item.foodName,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RoundedCornerShape(VitalRadius.Md))
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(RoundedCornerShape(VitalRadius.Md))
+                                .background(AppSurface2),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🍽️", fontSize = 20.sp)
+                        }
+                    }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(item.foodName, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color.Black)
-                        Text("${item.quantity} ${item.servingUnit}", fontSize = 13.sp, color = Color.Gray)
+                        Text(item.foodName, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Ink900)
+                        Text("${item.quantity} ${item.servingUnit}", fontSize = 13.sp, color = Ink500)
                     }
-                    Text("${item.calories.toInt()} kcal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.DarkGray)
+                    Text("${item.calories.toInt()} kcal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink700)
                 }
             }
             
@@ -322,14 +333,14 @@ fun DiaryMealSection(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(100))
-                    .background(Color(0xFFECFDF5))
+                    .background(Mint50)
                     .clickable { onAddClick() }
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Thêm món", tint = Color(0xFF10B981), modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Add, contentDescription = "Thêm món", tint = Mint500, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Thêm món", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Color(0xFF10B981))
+                Text("Thêm món", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Mint500)
             }
         }
     }
