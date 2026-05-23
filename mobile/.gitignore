@@ -1,4 +1,6 @@
+*.hprof
 *.iml
+.claude
 .gradle
 /local.properties
 /.idea/caches

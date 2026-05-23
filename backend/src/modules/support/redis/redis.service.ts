@@ -12,7 +12,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.client = new Redis({
       host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
+      port: this.configService.get<number>('REDIS_PORT', 6380),
       lazyConnect: true,
       retryStrategy: (times) => Math.min(times * 100, 3000),
     });

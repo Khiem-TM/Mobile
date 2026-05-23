@@ -13,30 +13,53 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = GreenAccent,
-    secondary = GreenMid,
-    tertiary = Orange,
-    background = GreenDark,
-    surface = GreenDark,
+    primary = Mint500,
     onPrimary = Color.White,
+    primaryContainer = Mint700,
+    onPrimaryContainer = Mint100,
+    secondary = Mint500,
     onSecondary = Color.White,
+    secondaryContainer = Mint900,
+    onSecondaryContainer = Mint100,
+    tertiary = MacroCarbs,
     onTertiary = Color.White,
+    tertiaryContainer = Color(0xFF78350F),
+    onTertiaryContainer = AmberContainer,
+    background = GreenDark,
     onBackground = GreenLight,
+    surface = GreenDark,
     onSurface = GreenLight,
+    surfaceVariant = Mint700,
+    onSurfaceVariant = Mint200,
+    outline = Mint700,
+    error = Color(0xFFFF6B6B),
+    errorContainer = ErrorContainerDark,
+    onError = Color.Black,
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = GreenAccent,
-    secondary = GreenMid,
-    tertiary = Orange,
-    background = Background,
-    surface = CardBackground,
+    primary = Mint500,
     onPrimary = Color.White,
+    primaryContainer = Mint50,
+    onPrimaryContainer = Mint700,
+    secondary = Mint600,
     onSecondary = Color.White,
+    secondaryContainer = AppSurface2,
+    onSecondaryContainer = Ink700,
+    tertiary = MacroCarbs,
     onTertiary = Color.White,
-    onBackground = TextBody,
-    onSurface = TextBody,
-    outline = BorderColor
+    tertiaryContainer = AmberContainer,
+    onTertiaryContainer = AmberOnContainer,
+    background = AppBackground,
+    onBackground = Ink900,
+    surface = AppSurface,
+    onSurface = Ink900,
+    surfaceVariant = AppSurface2,
+    onSurfaceVariant = TextMuted,
+    outline = AppLine,
+    error = MacroProtein,
+    errorContainer = ErrorContainerLight,
+    onError = Color.White,
 )
 
 @Composable
@@ -50,7 +73,9 @@ fun VitalAITheme(
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
 

@@ -78,6 +78,22 @@ class HomeViewModel @Inject constructor(
         loadData()
     }
 
+    fun addWater(ml: Int = 250) {
+        viewModelScope.launch {
+            dashboardRepository.addWater(ml).onSuccess { updatedDashboard ->
+                _uiState.update { it.copy(dashboard = updatedDashboard) }
+            }
+        }
+    }
+
+    fun addSteps(steps: Int = 500) {
+        viewModelScope.launch {
+            dashboardRepository.addSteps(steps).onSuccess { updatedDashboard ->
+                _uiState.update { it.copy(dashboard = updatedDashboard) }
+            }
+        }
+    }
+
     fun deleteMealItem(mealLogId: String, itemId: String) {
         viewModelScope.launch {
             mealLogRepository.deleteItem(mealLogId, itemId).onSuccess {

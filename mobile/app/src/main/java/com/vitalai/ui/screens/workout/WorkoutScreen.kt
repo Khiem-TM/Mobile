@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,14 +16,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
+import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.*
@@ -30,10 +34,12 @@ import com.vitalai.ui.theme.*
 data class WorkoutCategory(val emoji: String, val name: String, val muscleGroup: String)
 
 val workoutCategories = listOf(
-    WorkoutCategory("🏃", "Cardio", "Cardio"),
-    WorkoutCategory("🏋️", "Sức mạnh", "Strength"),
-    WorkoutCategory("⚡", "HIIT", "HIIT"),
-    WorkoutCategory("🧘", "Yoga", "Yoga")
+    WorkoutCategory("🏋️", "Ngực", "CHEST"),
+    WorkoutCategory("🔙", "Lưng", "BACK"),
+    WorkoutCategory("🦵", "Chân", "LEGS"),
+    WorkoutCategory("💪", "Tay", "ARMS"),
+    WorkoutCategory("🔥", "Cardio", "CARDIO"),
+    WorkoutCategory("🧘", "Core", "CORE")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,10 +59,24 @@ fun WorkoutScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
+                actions = {
+                    TextButton(onClick = { navController.navigate(Screen.Activity) }) {
+                        Text("Hoạt động", color = Mint500, fontSize = 13.sp)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Screen.WorkoutBuilder) },
+                containerColor = Mint500,
+                contentColor = Color.White
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Bắt đầu tập")
+            }
+        },
+        containerColor = AppMutedBackground
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -78,7 +98,7 @@ fun WorkoutScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
-                            .clip(RoundedCornerShape(20.dp))
+                            .clip(RoundedCornerShape(VitalRadius.Xl))
                             .background(Brush.horizontalGradient(listOf(Mint500, Mint700)))
                             .padding(20.dp)
                     ) {
@@ -87,8 +107,35 @@ fun WorkoutScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             WorkoutStat("🔥", "${activity?.caloriesBurned?.toInt() ?: 0}", "kcal")
-                            WorkoutStat("⏱️", "${activity?.activeMins ?: 0}", "phút")
+                            WorkoutStat("⏱️", "${activity?.activeMinutes ?: 0}", "phút")
                             WorkoutStat("👟", "${activity?.steps ?: 0}", "bước")
+                        }
+                    }
+                }
+
+                // Quick actions
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { navController.navigate(Screen.ExerciseLibrary) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(VitalRadius.Md),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
+                        ) {
+                            Text("Thư viện bài tập", color = Mint500, fontSize = 13.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { navController.navigate(Screen.WorkoutBuilder) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(VitalRadius.Md),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
+                        ) {
+                            Text("Bắt đầu tập", color = Mint500, fontSize = 13.sp)
                         }
                     }
                 }
@@ -185,11 +232,12 @@ private fun CategoryGrid(
                             .weight(1f)
                             .height(80.dp)
                             .clickable { onSelect(if (isSelected) null else cat.muscleGroup) },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(VitalRadius.Lg),
                         colors = CardDefaults.cardColors(
                             containerColor = if (isSelected) Mint500 else AppSurface
                         ),
-                        elevation = CardDefaults.cardElevation(2.dp)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Mint500 else AppLine),
+                        elevation = CardDefaults.cardElevation(0.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -219,9 +267,10 @@ private fun ExerciseItem(exercise: ExerciseDto) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -235,7 +284,14 @@ private fun ExerciseItem(exercise: ExerciseDto) {
                     .clip(RoundedCornerShape(10.dp))
                     .background(Mint50),
                 contentAlignment = Alignment.Center
-            ) { Text("💪", fontSize = 20.sp) }
+            ) {
+                AsyncImage(
+                    model = exercise.displayImageUrl,
+                    contentDescription = exercise.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(exercise.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink900)
@@ -252,9 +308,10 @@ private fun SessionItem(session: WorkoutSessionDto) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -271,10 +328,10 @@ private fun SessionItem(session: WorkoutSessionDto) {
             ) { Text("🏃", fontSize = 20.sp) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(session.name ?: "Phiên tập", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink900)
-                Text("${session.durationMin} phút", fontSize = 12.sp, color = Ink500)
+                Text(session.sessionName ?: "Phiên tập", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink900)
+                Text("${session.totalDurationMinutes} phút", fontSize = 12.sp, color = Ink500)
             }
-            Text("${session.totalCalories.toInt()} kcal", fontSize = 12.sp, color = Mint500, fontWeight = FontWeight.SemiBold)
+            Text("${session.totalCaloriesBurned.toInt()} kcal", fontSize = 12.sp, color = Mint500, fontWeight = FontWeight.SemiBold)
         }
     }
 }

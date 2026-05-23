@@ -1,18 +1,17 @@
 package com.vitalai.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -29,6 +28,14 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.theme.AppLine
+import com.vitalai.ui.theme.AppSurface
+import com.vitalai.ui.theme.Ink400
+import com.vitalai.ui.theme.Mint100
+import com.vitalai.ui.theme.Mint400
+import com.vitalai.ui.theme.Mint600
+import com.vitalai.ui.theme.VitalElevation
+import com.vitalai.ui.theme.VitalRadius
 
 data class BottomNavItem(
     val label: String,
@@ -51,71 +58,64 @@ fun VitalBottomNavBar(navController: NavController) {
     val navBackStackEntry = navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry.value?.destination?.route
 
-    val primaryGreen = Color(0xFF38C182)
-    val activeBorderBlue = Color(0xFF2563EB)
-    val inactiveGray = Color(0xFF9CA3AF)
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp)
+            .height(88.dp)
             .background(Color.Transparent)
     ) {
-        // Bottom bar background
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(70.dp)
+                .height(72.dp)
                 .align(Alignment.BottomCenter)
-                .shadow(elevation = 16.dp, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .shadow(elevation = VitalElevation.Level3, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color.White)
+                .background(AppSurface.copy(alpha = 0.96f))
         ) {
+            HorizontalDivider(color = AppLine, thickness = 1.dp, modifier = Modifier.align(Alignment.TopCenter))
             Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 18.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left items
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                     bottomNavItemsLeft.forEach { item ->
-                        NavBarItem(item, currentRoute, navController, primaryGreen, activeBorderBlue, inactiveGray)
+                        NavBarItem(item, currentRoute, navController)
                     }
                 }
 
-                // Spacer for FAB
-                Spacer(modifier = Modifier.width(64.dp))
+                Spacer(modifier = Modifier.width(68.dp))
 
-                // Right items
                 Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
                     bottomNavItemsRight.forEach { item ->
-                        NavBarItem(item, currentRoute, navController, primaryGreen, activeBorderBlue, inactiveGray)
+                        NavBarItem(item, currentRoute, navController)
                     }
                 }
             }
         }
 
-        // Center FAB
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .padding(top = 4.dp)
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(Color.White) // Outer white ring
+                .background(AppSurface)
                 .padding(6.dp)
                 .clip(CircleShape)
-                .background(primaryGreen)
+                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Mint400, Mint600)))
+                .shadow(VitalElevation.Fab, CircleShape, clip = false)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
-                    // Navigate to scan
                     navController.navigate(Screen.Scan)
                 },
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Star, contentDescription = "Scan", tint = Color.White, modifier = Modifier.size(32.dp))
+            Icon(Icons.Default.AutoAwesome, contentDescription = "Scan", tint = Color.White, modifier = Modifier.size(28.dp))
         }
     }
 }
@@ -124,21 +124,9 @@ fun VitalBottomNavBar(navController: NavController) {
 fun NavBarItem(
     item: BottomNavItem,
     currentRoute: String?,
-    navController: NavController,
-    activeColor: Color,
-    activeBorderColor: Color,
-    inactiveColor: Color
+    navController: NavController
 ) {
     val isSelected = currentRoute == item.route::class.qualifiedName
-
-    val modifier = if (isSelected) {
-        Modifier
-            .border(1.5.dp, activeBorderColor, RoundedCornerShape(12.dp))
-            .background(Color(0xFFF0FDF4), RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-    } else {
-        Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -156,23 +144,29 @@ fun NavBarItem(
             }
         }
     ) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = item.icon,
-                    contentDescription = item.label,
-                    tint = if (isSelected) activeColor else inactiveColor,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = item.label,
-                    fontSize = 11.sp,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (isSelected) activeBorderColor else inactiveColor
-                )
-            }
+        Box(
+            modifier = Modifier
+                .width(44.dp)
+                .height(28.dp)
+                .clip(RoundedCornerShape(VitalRadius.Pill))
+                .background(if (isSelected) Mint100 else Color.Transparent),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.label,
+                tint = if (isSelected) Mint600 else Ink400,
+                modifier = Modifier.size(22.dp)
+            )
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = item.label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isSelected) Mint600 else Ink400,
+            maxLines = 1
+        )
     }
 }
 

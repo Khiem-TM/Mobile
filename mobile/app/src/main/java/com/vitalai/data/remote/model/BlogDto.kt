@@ -34,7 +34,7 @@ data class BlogDto(
     @Json(name = "authorUser") val authorUser: AuthorUserDto? = null,
     @Json(name = "blocks") val blocks: List<BlogBlockDto>? = null
 ) {
-    val displayAuthor: String get() = authorUser?.displayName ?: author ?: "VitalAI"
+    val displayAuthor: String get() = authorUser?.displayName ?: author ?: "Tracker"
     val firstTag: String? get() = tags?.firstOrNull()
 }
 
