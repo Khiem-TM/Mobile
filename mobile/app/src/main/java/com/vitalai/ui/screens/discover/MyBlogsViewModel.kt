@@ -22,9 +22,7 @@ data class MyBlogsUiState(
 
     val statusCounts: Map<String, Int> get() = mapOf(
         "approved" to allBlogs.count { it.status == "approved" },
-        "pending" to allBlogs.count { it.status == "pending" },
-        "draft" to allBlogs.count { it.status == "draft" },
-        "rejected" to allBlogs.count { it.status == "rejected" }
+        "draft" to allBlogs.count { it.status == "draft" }
     )
 
     val totalViews: Int get() = allBlogs.sumOf { it.viewCount }
@@ -45,7 +43,7 @@ class MyBlogsViewModel @Inject constructor(
     fun loadMyBlogs() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            blogRepository.getBlogs(page = 1, limit = 50).fold(
+            blogRepository.getMyBlogs(page = 1, limit = 50).fold(
                 onSuccess = { page ->
                     _uiState.update { it.copy(allBlogs = page.items, isLoading = false) }
                 },
@@ -64,5 +62,20 @@ class MyBlogsViewModel @Inject constructor(
 
     fun setStatusFilter(status: String?) = _uiState.update { it.copy(statusFilter = status) }
 
-    fun deleteBlog(id: String) = _uiState.update { it.copy(allBlogs = it.allBlogs.filter { b -> b.id != id }) }
+    fun deleteBlog(id: String) {
+        viewModelScope.launch {
+            blogRepository.deleteMyBlog(id).fold(
+                onSuccess = {
+                    _uiState.update { state ->
+                        state.copy(allBlogs = state.allBlogs.filter { blog -> blog.id != id })
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(error = error.message ?: "Không xóa được bài viết")
+                    }
+                }
+            )
+        }
+    }
 }

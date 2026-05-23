@@ -19,8 +19,6 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
-import { RejectBlogDto } from './dto/reject-blog.dto';
-import { BatchBlogActionDto, BatchRejectBlogDto } from './dto/batch-blog.dto';
 
 @ApiTags('admin-blogs')
 @ApiBearerAuth()
@@ -33,7 +31,7 @@ export class AdminBlogController {
   @ApiOperation({ summary: 'List all blog posts (filterable by status and tag)' })
   @ApiQuery({ name: 'page', required: false })
   @ApiQuery({ name: 'limit', required: false })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'approved', 'rejected', 'draft'] })
+  @ApiQuery({ name: 'status', required: false, enum: ['approved', 'draft'] })
   @ApiQuery({ name: 'tag', required: false })
   @Get()
   getBlogs(
@@ -50,25 +48,6 @@ export class AdminBlogController {
     );
   }
 
-  @ApiOperation({ summary: 'Get pending blogs count' })
-  @Get('pending-count')
-  getPendingCount() {
-    return this.blogService.getPendingCount();
-  }
-
-  // Feature 5: batch endpoints — MUST be declared before @Patch(':id')
-  @ApiOperation({ summary: 'Batch approve blog posts' })
-  @Patch('batch-approve')
-  batchApprove(@Body() dto: BatchBlogActionDto) {
-    return this.blogService.adminBatchApprove(dto);
-  }
-
-  @ApiOperation({ summary: 'Batch reject blog posts' })
-  @Patch('batch-reject')
-  batchReject(@Body() dto: BatchRejectBlogDto) {
-    return this.blogService.adminBatchReject(dto);
-  }
-
   @ApiOperation({ summary: 'Create a blog post (published immediately)' })
   @Post()
   createBlog(@Body() dto: CreateBlogDto) {
@@ -79,18 +58,6 @@ export class AdminBlogController {
   @Patch(':id')
   updateBlog(@Param('id') id: string, @Body() dto: UpdateBlogDto) {
     return this.blogService.adminUpdateBlog(id, dto);
-  }
-
-  @ApiOperation({ summary: 'Approve a blog post' })
-  @Patch(':id/approve')
-  approveBlog(@Param('id') id: string) {
-    return this.blogService.adminApproveBlog(id);
-  }
-
-  @ApiOperation({ summary: 'Reject a blog post' })
-  @Patch(':id/reject')
-  rejectBlog(@Param('id') id: string, @Body() dto: RejectBlogDto) {
-    return this.blogService.adminRejectBlog(id, dto);
   }
 
   @ApiOperation({ summary: 'Delete any blog post' })

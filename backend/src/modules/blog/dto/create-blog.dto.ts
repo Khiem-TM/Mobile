@@ -39,11 +39,11 @@ export class CreateBlogDto {
   @IsOptional()
   tags?: string[];
 
-  /** Users may set 'draft' to save without publishing. Omit to publish immediately (approved). */
-  @ApiProperty({ required: false, enum: ['draft'] })
-  @IsIn(['draft'])
+  /** Users may set 'draft' to save without publishing or 'approved' to publish immediately. Omit to default to approved. */
+  @ApiProperty({ required: false, enum: ['draft', 'approved'] })
+  @IsIn(['draft', 'approved'])
   @IsOptional()
-  status?: 'draft';
+  status?: 'draft' | 'approved';
 
   @ApiProperty({ required: false })
   @IsArray()
