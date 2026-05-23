@@ -12,7 +12,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +27,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -81,69 +86,6 @@ fun MetricsHistoryScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Tab switcher
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AppMutedBackground)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("Tổng quan", "Lịch sử").forEachIndexed { i, label ->
-                    val isSelected = uiState.selectedTab == i
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(100))
-                            .background(if (isSelected) Mint500 else Ink100)
-                            .clickable { viewModel.setTab(i) }
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            label,
-                            fontSize = 13.sp,
-                            color = if (isSelected) Color.White else Ink700,
-                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                    }
-                }
-            }
-
-            // Summary card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(VitalRadius.Xl),
-                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-                elevation = CardDefaults.cardElevation(0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    SummaryStatItem(
-                        label = "Cân nặng hiện tại",
-                        value = if (uiState.totalEvents > 0) "%.1f kg".format(uiState.currentWeightKg) else "--",
-                        color = Mint500
-                    )
-                    VerticalDivider(modifier = Modifier.height(40.dp), color = Ink200)
-                    SummaryStatItem(
-                        label = "90 ngày qua",
-                        value = if (uiState.totalEvents > 0) "${if (uiState.delta90Days < 0) "" else "+"}${"%.1f".format(uiState.delta90Days)} kg" else "--",
-                        color = if (uiState.delta90Days < 0) Mint500 else MacroProtein
-                    )
-                    VerticalDivider(modifier = Modifier.height(40.dp), color = Ink200)
-                    SummaryStatItem(
-                        label = "Sự kiện",
-                        value = "${uiState.totalEvents}",
-                        color = MacroCarbs
-                    )
-                }
-            }
-
             if (uiState.isLoading) {
                 // Skeleton shimmer
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
@@ -229,11 +171,11 @@ private fun TimelineEventCard(
         MetricEventType.BADGE -> Color(0xFFD97706)
     }
     val nodeIcon = when (event.type) {
-        MetricEventType.WEIGHT -> "⚖️"
-        MetricEventType.PHOTO -> "📷"
-        MetricEventType.MEASUREMENT -> "📏"
-        MetricEventType.WORKOUT -> "🏋️"
-        MetricEventType.BADGE -> "🏆"
+        MetricEventType.WEIGHT -> Icons.Default.AccessibilityNew
+        MetricEventType.PHOTO -> Icons.Default.CameraAlt
+        MetricEventType.MEASUREMENT -> Icons.Default.FilterList
+        MetricEventType.WORKOUT -> Icons.Default.FitnessCenter
+        MetricEventType.BADGE -> Icons.Default.Star
     }
 
     Row(
@@ -254,14 +196,19 @@ private fun TimelineEventCard(
             // Node
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
-                    .background(nodeColor.copy(alpha = 0.12f))
+                    .background(nodeColor.copy(alpha = 0.15f))
                     .align(Alignment.TopCenter)
-                    .padding(top = 8.dp),
+                    .padding(top = 0.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(nodeIcon, fontSize = 14.sp)
+                Icon(
+                    imageVector = nodeIcon,
+                    contentDescription = null,
+                    tint = nodeColor,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
 
@@ -321,6 +268,106 @@ private fun SkeletonRow() {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Box(modifier = Modifier.fillMaxWidth(0.6f).height(12.dp).clip(RoundedCornerShape(6.dp)).background(Ink200))
             Box(modifier = Modifier.fillMaxWidth(0.3f).height(10.dp).clip(RoundedCornerShape(5.dp)).background(Ink100))
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun MetricsHistoryScreenPreview() {
+    val mockEvents = listOf(
+        MetricTimelineEvent(
+            id = "1",
+            type = MetricEventType.WEIGHT,
+            title = "Cập nhật cân nặng",
+            value = "77.1 kg",
+            note = "Giảm mỡ tốt",
+            photoUrl = null,
+            date = "10 Thg 5, 2026",
+            monthGroup = "Tháng 5, 2026"
+        ),
+        MetricTimelineEvent(
+            id = "2",
+            type = MetricEventType.PHOTO,
+            title = "Ảnh tiến độ",
+            value = "Mặt trước",
+            note = null,
+            photoUrl = "https://example.com/photo.jpg",
+            date = "05 Thg 5, 2026",
+            monthGroup = "Tháng 5, 2026"
+        ),
+        MetricTimelineEvent(
+            id = "3",
+            type = MetricEventType.WEIGHT,
+            title = "Cập nhật cân nặng",
+            value = "78.5 kg",
+            note = "Bắt đầu chu trình cắt mỡ",
+            photoUrl = null,
+            date = "01 Thg 5, 2026",
+            monthGroup = "Tháng 5, 2026"
+        )
+    )
+
+    val grouped = mockEvents.groupBy { it.monthGroup }
+
+    VitalAITheme {
+        Scaffold(
+            topBar = {
+                @OptIn(ExperimentalMaterial3Api::class)
+                TopAppBar(
+                    title = { Text("Lịch sử thay đổi", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = {}) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = {}) {
+                            Icon(Icons.Default.FilterList, contentDescription = "Lọc", tint = Ink700)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+                )
+            },
+            containerColor = AppMutedBackground
+        ) { padding ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    grouped.forEach { (month, events) ->
+                        // Sticky month header
+                        @OptIn(ExperimentalFoundationApi::class)
+                        stickyHeader {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(AppMutedBackground)
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    month,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Ink700
+                                )
+                            }
+                        }
+
+                        items(events.size) { idx ->
+                            TimelineEventCard(
+                                event = events[idx],
+                                isFirst = idx == 0,
+                                isLast = idx == events.size - 1
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
