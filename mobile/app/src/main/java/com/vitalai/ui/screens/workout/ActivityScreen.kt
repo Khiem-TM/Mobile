@@ -28,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.ui.theme.*
@@ -57,6 +58,23 @@ fun ActivityScreen(
     viewModel: ActivityViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    ActivityScreenContent(
+        uiState = uiState,
+        onBackClick = { navController.popBackStack() },
+        onUpdateSteps = { viewModel.updateSteps(it) },
+        onUpdateWater = { viewModel.updateWater(it) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ActivityScreenContent(
+    uiState: ActivityUiState,
+    onBackClick: () -> Unit,
+    onUpdateSteps: (Int) -> Unit,
+    onUpdateWater: (Int) -> Unit
+) {
     val log = uiState.log
 
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi")))
@@ -84,7 +102,7 @@ fun ActivityScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
@@ -168,13 +186,13 @@ fun ActivityScreen(
                         icon = { Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = Mint500, modifier = Modifier.size(18.dp)) },
                         label = "Cập nhật bước",
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.updateSteps((log?.steps ?: 0) + 500) }
+                        onClick = { onUpdateSteps((log?.steps ?: 0) + 500) }
                     )
                     QuickActionButton(
                         icon = { Icon(Icons.Default.WaterDrop, contentDescription = null, tint = MacroWater, modifier = Modifier.size(18.dp)) },
                         label = "+250ml nước",
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.updateWater((log?.waterMl ?: 0) + 250) }
+                        onClick = { onUpdateWater((log?.waterMl ?: 0) + 250) }
                     )
                     QuickActionButton(
                         icon = { Icon(Icons.Default.Edit, contentDescription = null, tint = MacroCarbs, modifier = Modifier.size(18.dp)) },
@@ -218,6 +236,31 @@ fun ActivityScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ActivityScreenPreview() {
+    val mockState = ActivityUiState(
+        log = com.vitalai.data.remote.model.ActivityLogDto(
+            id = "mock-id",
+            logDate = "2026-05-23",
+            steps = 4500,
+            caloriesBurned = 250f,
+            activeMinutes = 45,
+            waterMl = 1250
+        ),
+        isLoading = false,
+        error = null
+    )
+    VitalAITheme {
+        ActivityScreenContent(
+            uiState = mockState,
+            onBackClick = {},
+            onUpdateSteps = {},
+            onUpdateWater = {}
+        )
     }
 }
 
