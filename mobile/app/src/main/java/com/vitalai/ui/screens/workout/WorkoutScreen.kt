@@ -345,19 +345,19 @@ fun WorkoutScreenPreview() {
         ExerciseDto(
             id = "1",
             name = "Chạy bộ",
-            muscleGroup = "Cardio",
+            primaryMuscleGroup = "Cardio",
             equipment = null,
             description = null,
-            imageUrl = null,
+            imageAvtUrl = null,
             caloriesPerMin = 10f
         ),
         ExerciseDto(
             id = "2",
             name = "Push Up",
-            muscleGroup = "Strength",
+            primaryMuscleGroup = "Strength",
             equipment = null,
             description = null,
-            imageUrl = null,
+            imageAvtUrl = null,
             caloriesPerMin = 8f
         )
     )
@@ -365,11 +365,11 @@ fun WorkoutScreenPreview() {
     val sessions = listOf(
         WorkoutSessionDto(
             id = "1",
-            name = "Morning Cardio",
-            date = "2026-05-13",
-            durationMin = 35,
-            totalCalories = 320f,
-            exercises = emptyList()
+            sessionName = "Morning Cardio",
+            sessionDate = "2026-05-13",
+            totalDurationMinutes = 35,
+            totalCaloriesBurned = 320f,
+            details = emptyList()
         )
     )
 
