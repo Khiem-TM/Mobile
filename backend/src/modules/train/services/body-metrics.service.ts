@@ -13,6 +13,7 @@ import { UsersService } from '../../user/services/users.service';
 import { BMIUtil } from '../../../common/utils/bmi.util';
 import { TDEEUtil } from '../../../common/utils/tdee.util';
 import { CloudinaryService } from '../../support/cloudinary/cloudinary.service';
+import { RagEmbedService } from '../../support/rag/rag-embed.service';
 
 interface MetricCalculated extends UpsertBodyMetricDto {
   bmi?: number;
@@ -28,6 +29,7 @@ export class BodyMetricsService {
     @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly ragEmbedService: RagEmbedService,
   ) {}
 
   async upsert(userId: string, dto: UpsertBodyMetricDto) {
@@ -58,7 +60,9 @@ export class BodyMetricsService {
       }
     }
 
-    return this.repository.upsert(userId, metric);
+    const saved = await this.repository.upsert(userId, metric);
+    this.ragEmbedService.triggerUserEmbed(userId);
+    return saved;
   }
 
   async getHistory(userId: string, query: BodyMetricQueryDto) {

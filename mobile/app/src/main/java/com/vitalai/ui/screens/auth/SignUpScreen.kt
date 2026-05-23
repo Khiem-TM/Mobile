@@ -112,7 +112,7 @@ fun SignUpScreen(
             )
 
             Text(
-                text = "Bắt đầu hành trình chăm sóc sức khỏe thông minh cùng VitalAI",
+                text = "Bắt đầu hành trình chăm sóc sức khỏe thông minh cùng Tracker",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.Start).padding(top = 8.dp, bottom = 32.dp)

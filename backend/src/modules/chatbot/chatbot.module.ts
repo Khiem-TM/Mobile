@@ -1,23 +1,14 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChatbotController } from './chatbot.controller';
 import { ChatbotService } from './chatbot.service';
 import { ChatSession } from './entities/chat-session.entity';
 import { ChatMessage } from './entities/chat-message.entity';
-import { FoodModule } from '../food/food.module';
-import { TrainModule } from '../train/train.module';
-import { UserModule } from '../user/user.module';
-import { SupportModule } from '../support/support.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([ChatSession, ChatMessage]),
-    SupportModule,
-    forwardRef(() => UserModule),
-    forwardRef(() => FoodModule),
-    forwardRef(() => TrainModule),
-  ],
+  imports: [TypeOrmModule.forFeature([ChatSession, ChatMessage])],
   controllers: [ChatbotController],
   providers: [ChatbotService],
+  exports: [ChatbotService],
 })
 export class ChatbotModule {}

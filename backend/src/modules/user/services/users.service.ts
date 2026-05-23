@@ -5,6 +5,7 @@ import { User } from '../entities/user.entity';
 import { UserHealthProfile } from '../entities/user-health-profile.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { BodyMetricsService } from '../../train/services/body-metrics.service';
+import { RagEmbedService } from '../../support/rag/rag-embed.service';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +18,7 @@ export class UsersService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     @Inject(forwardRef(() => BodyMetricsService))
     private readonly bodyMetricsService: BodyMetricsService,
+    private readonly ragEmbedService: RagEmbedService,
   ) {}
 
   async findById(id: string): Promise<User> {
@@ -97,14 +99,19 @@ export class UsersService {
       }
     }
 
+    let saved: UserHealthProfile;
     if (profile) {
       Object.assign(profile, merged);
-      return this.healthProfileRepository.save(profile);
+      saved = await this.healthProfileRepository.save(profile);
+    } else {
+      const newProfile = this.healthProfileRepository.create({
+        user: { id: userId },
+        ...merged,
+      });
+      saved = await this.healthProfileRepository.save(newProfile);
     }
-    const newProfile = this.healthProfileRepository.create({
-      user: { id: userId },
-      ...merged,
-    });
-    return this.healthProfileRepository.save(newProfile);
+
+    this.ragEmbedService.triggerUserEmbed(userId);
+    return saved;
   }
 }

@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.theme.Mint200
+import com.vitalai.ui.theme.Mint700
 
 @Composable
 fun OnboardingScreen(
@@ -59,10 +61,10 @@ fun OnboardingScreen(
         }
     }
 
-    val primaryGreen = Color(0xFF38C182)
-    val surface2Color = Color(0xFFF3F4F6)
+    val primaryGreen = MaterialTheme.colorScheme.primary
+    val surface2Color = MaterialTheme.colorScheme.secondaryContainer
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -92,7 +94,7 @@ fun OnboardingScreen(
                     Icon(
                         imageVector = Icons.Default.ChevronLeft,
                         contentDescription = "Back",
-                        tint = Color.DarkGray
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -104,7 +106,7 @@ fun OnboardingScreen(
                         .weight(1f)
                         .height(6.dp)
                         .clip(RoundedCornerShape(100))
-                        .background(Color(0xFFF3F4F6))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
                 ) {
                     Box(
                         modifier = Modifier
@@ -121,7 +123,7 @@ fun OnboardingScreen(
                     text = "$step/4",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -145,13 +147,13 @@ fun OnboardingScreen(
                 text = title,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Text(
                 text = subtitle,
                 fontSize = 15.sp,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 28.dp)
             )
 
@@ -255,9 +257,9 @@ fun OnboardingScreen(
 
 @Composable
 fun Step1Gender(viewModel: OnboardingViewModel) {
-    val primaryGreen = Color(0xFF38C182)
-    val lightGreen = Color(0xFFECFDF5)
-    val surface2Color = Color(0xFFF3F4F6)
+    val primaryGreen = MaterialTheme.colorScheme.primary
+    val lightGreen = MaterialTheme.colorScheme.primaryContainer
+    val surface2Color = MaterialTheme.colorScheme.secondaryContainer
 
     val options = listOf(
         Triple("male", "Nam", "👨"),
@@ -291,7 +293,7 @@ fun Step1Gender(viewModel: OnboardingViewModel) {
                         text = label,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -310,7 +312,7 @@ fun Step1Gender(viewModel: OnboardingViewModel) {
         text = "NĂM SINH",
         fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
-        color = Color.Gray,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         letterSpacing = 0.5.sp
     )
     Row(
@@ -327,7 +329,7 @@ fun Step1Gender(viewModel: OnboardingViewModel) {
             text = year.toString(),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             // Minus button
@@ -335,8 +337,8 @@ fun Step1Gender(viewModel: OnboardingViewModel) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFE5E7EB), CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                     .clickable { if (year > 1900) year-- },
                 contentAlignment = Alignment.Center
             ) {
@@ -347,11 +349,11 @@ fun Step1Gender(viewModel: OnboardingViewModel) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color.Black)
+                    .background(MaterialTheme.colorScheme.onBackground)
                     .clickable { if (year < 2020) year++ },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Plus", tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Add, contentDescription = "Plus", tint = MaterialTheme.colorScheme.background, modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -359,14 +361,14 @@ fun Step1Gender(viewModel: OnboardingViewModel) {
 
 @Composable
 fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
-    val primaryGreen = Color(0xFF38C182)
+    val primaryGreen = MaterialTheme.colorScheme.primary
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         // Height Card
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(22.dp)) {
@@ -379,10 +381,10 @@ fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(100))
-                            .background(Color(0xFFF3F4F6))
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("cm", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        Text("cm", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 
@@ -398,7 +400,7 @@ fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
                     Text(
                         text = "cm",
                         fontSize = 20.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
                     )
                 }
@@ -418,9 +420,9 @@ fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("140", fontSize = 11.sp, color = Color.Gray)
-                    Text("175", fontSize = 11.sp, color = Color.Gray)
-                    Text("210", fontSize = 11.sp, color = Color.Gray)
+                    Text("140", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("175", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("210", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -428,8 +430,8 @@ fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
         // Weight Card
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(22.dp)) {
@@ -442,10 +444,10 @@ fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(100))
-                            .background(Color(0xFFF3F4F6))
+                            .background(MaterialTheme.colorScheme.secondaryContainer)
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text("kg", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                        Text("kg", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 
@@ -461,7 +463,7 @@ fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
                     Text(
                         text = "kg",
                         fontSize = 20.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 4.dp, bottom = 12.dp)
                     )
                 }
@@ -484,9 +486,9 @@ fun Step2BodyMetrics(viewModel: OnboardingViewModel) {
 // In the JSX, Step 3 is "Mục tiêu chính", which corresponds to Goal (viewModel.goalType).
 @Composable
 fun Step3Activity(viewModel: OnboardingViewModel) {
-    val primaryGreen = Color(0xFF38C182)
-    val lightGreen = Color(0xFFECFDF5)
-    val surface2Color = Color(0xFFF3F4F6)
+    val primaryGreen = MaterialTheme.colorScheme.primary
+    val lightGreen = MaterialTheme.colorScheme.primaryContainer
+    val surface2Color = MaterialTheme.colorScheme.secondaryContainer
 
     val goals = listOf(
         Triple("lose_weight", "Giảm cân", "🎯" to "Burn fat, get lean"),
@@ -516,13 +518,13 @@ fun Step3Activity(viewModel: OnboardingViewModel) {
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Text(text = sub, fontSize = 13.sp, color = Color.Gray)
+                        Text(text = sub, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Box(
                         modifier = Modifier
                             .size(24.dp)
                             .clip(CircleShape)
-                            .border(2.dp, if (isSelected) primaryGreen else Color(0xFFD1D5DB), CircleShape)
+                            .border(2.dp, if (isSelected) primaryGreen else MaterialTheme.colorScheme.outline, CircleShape)
                             .background(if (isSelected) primaryGreen else Color.Transparent),
                         contentAlignment = Alignment.Center
                     ) {
@@ -539,9 +541,9 @@ fun Step3Activity(viewModel: OnboardingViewModel) {
 // In the JSX, Step 4 is "Mức độ vận động", which corresponds to Activity (viewModel.activityLevel).
 @Composable
 fun Step4Goal(viewModel: OnboardingViewModel) {
-    val primaryGreen = Color(0xFF38C182)
-    val lightGreen = Color(0xFFECFDF5)
-    val surface2Color = Color(0xFFF3F4F6)
+    val primaryGreen = MaterialTheme.colorScheme.primary
+    val lightGreen = MaterialTheme.colorScheme.primaryContainer
+    val surface2Color = MaterialTheme.colorScheme.secondaryContainer
 
     val opts = listOf(
         Triple("sedentary", "Ít vận động", "Văn phòng, ít đi lại"),
@@ -583,7 +585,7 @@ fun Step4Goal(viewModel: OnboardingViewModel) {
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(text = title, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Text(text = sub, fontSize = 12.sp, color = Color.Gray)
+                            Text(text = sub, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -596,7 +598,7 @@ fun Step4Goal(viewModel: OnboardingViewModel) {
         Card(
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = lightGreen),
-            border = BorderStroke(1.dp, Color(0xFFA7F3D0)),
+            border = BorderStroke(1.dp, Mint200),
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -604,7 +606,7 @@ fun Step4Goal(viewModel: OnboardingViewModel) {
                     text = "KẾ HOẠCH ĐỀ XUẤT",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF047857),
+                    color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
                 Row(
@@ -612,16 +614,16 @@ fun Step4Goal(viewModel: OnboardingViewModel) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text("1,938", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
-                        Text("kcal / ngày", fontSize = 12.sp, color = Color(0xFF047857))
+                        Text("1,938", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                        Text("kcal / ngày", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     }
                     Column {
-                        Text("110g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
-                        Text("protein", fontSize = 12.sp, color = Color(0xFF047857))
+                        Text("110g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                        Text("protein", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     }
                     Column {
-                        Text("240g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
-                        Text("carbs", fontSize = 12.sp, color = Color(0xFF047857))
+                        Text("240g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
+                        Text("carbs", fontSize = 12.sp, color = MaterialTheme.colorScheme.secondary)
                     }
                 }
             }

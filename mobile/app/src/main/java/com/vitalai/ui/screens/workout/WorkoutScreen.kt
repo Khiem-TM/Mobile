@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
+import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.*
@@ -53,8 +55,22 @@ fun WorkoutScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
+                actions = {
+                    TextButton(onClick = { navController.navigate(Screen.Activity) }) {
+                        Text("Hoạt động", color = Mint500, fontSize = 13.sp)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Screen.WorkoutBuilder) },
+                containerColor = Mint500,
+                contentColor = Color.White
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Bắt đầu tập")
+            }
         },
         containerColor = AppBackground
     ) { padding ->
@@ -89,6 +105,33 @@ fun WorkoutScreen(
                             WorkoutStat("🔥", "${activity?.caloriesBurned?.toInt() ?: 0}", "kcal")
                             WorkoutStat("⏱️", "${activity?.activeMins ?: 0}", "phút")
                             WorkoutStat("👟", "${activity?.steps ?: 0}", "bước")
+                        }
+                    }
+                }
+
+                // Quick actions
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { navController.navigate(Screen.ExerciseLibrary) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
+                        ) {
+                            Text("Thư viện bài tập", color = Mint500, fontSize = 13.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { navController.navigate(Screen.WorkoutBuilder) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
+                        ) {
+                            Text("Bắt đầu tập", color = Mint500, fontSize = 13.sp)
                         }
                     }
                 }

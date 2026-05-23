@@ -13,14 +13,21 @@ import com.vitalai.ui.screens.diary.CreateFoodScreen
 import com.vitalai.ui.screens.diary.DiaryScreen
 import com.vitalai.ui.screens.diary.FoodDetailScreen
 import com.vitalai.ui.screens.diary.SearchFoodScreen
+import com.vitalai.ui.screens.discover.BlogComposerScreen
 import com.vitalai.ui.screens.discover.BlogDetailScreen
 import com.vitalai.ui.screens.discover.DiscoverScreen
+import com.vitalai.ui.screens.discover.MyBlogsScreen
 import com.vitalai.ui.screens.home.HomeScreen
+import com.vitalai.ui.screens.metrics.MetricsHistoryScreen
 import com.vitalai.ui.screens.metrics.MetricsScreen
 import com.vitalai.ui.screens.notifications.NotificationsScreen
 import com.vitalai.ui.screens.onboarding.OnboardingScreen
 import com.vitalai.ui.screens.profile.ProfileScreen
 import com.vitalai.ui.screens.scan.ScanScreen
+import com.vitalai.ui.screens.workout.ActivityScreen
+import com.vitalai.ui.screens.workout.ExerciseDetailScreen
+import com.vitalai.ui.screens.workout.ExerciseLibraryScreen
+import com.vitalai.ui.screens.workout.WorkoutBuilderScreen
 import com.vitalai.ui.screens.workout.WorkoutScreen
 
 @Composable
@@ -101,6 +108,34 @@ fun VitalNavGraph(navController: NavHostController) {
         // ── AI Scan ───────────────────────────────────────────
         composable<Screen.Scan> {
             ScanScreen(navController)
+        }
+
+        // ── Training sub-screens ──────────────────────────────
+        composable<Screen.Activity> {
+            ActivityScreen(navController)
+        }
+        composable<Screen.ExerciseLibrary> {
+            ExerciseLibraryScreen(navController)
+        }
+        composable<Screen.ExerciseDetail> { backStackEntry ->
+            val route: Screen.ExerciseDetail = backStackEntry.toRoute()
+            ExerciseDetailScreen(id = route.id, navController = navController)
+        }
+        composable<Screen.WorkoutBuilder> {
+            WorkoutBuilderScreen(navController)
+        }
+
+        // ── Metrics sub-screens ───────────────────────────────
+        composable<Screen.MetricsHistory> {
+            MetricsHistoryScreen(navController)
+        }
+
+        // ── Blog sub-screens ──────────────────────────────────
+        composable<Screen.BlogComposer> {
+            BlogComposerScreen(navController)
+        }
+        composable<Screen.MyBlogs> {
+            MyBlogsScreen(navController)
         }
     }
 }
