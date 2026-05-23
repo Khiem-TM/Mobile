@@ -105,6 +105,7 @@ fun SignInScreen(
         authState = authState,
         onBackClick = { navController.popBackStack() },
         onSignInClick = { viewModel.login(email.trim(), password) },
+        onForgotPasswordClick = { navController.navigate(Screen.ForgotPassword) },
         onGoogleClick = {
             googleSignInClient.signOut().addOnCompleteListener {
                 googleLauncher.launch(googleSignInClient.signInIntent)
@@ -123,6 +124,7 @@ private fun SignInContent(
     authState: AuthState,
     onBackClick: () -> Unit,
     onSignInClick: () -> Unit,
+    onForgotPasswordClick: () -> Unit,
     onGoogleClick: () -> Unit,
     onSignUpClick: () -> Unit
 ) {
@@ -225,7 +227,7 @@ private fun SignInContent(
                 modifier = Modifier
                     .align(Alignment.End)
                     .padding(top = 12.dp, bottom = 24.dp)
-                    .clickable { /* TODO */ }
+                    .clickable(onClick = onForgotPasswordClick)
             )
 
             if (authState is AuthState.Error) {
@@ -374,6 +376,7 @@ private fun SignInContentPreview() {
             authState = AuthState.Idle,
             onBackClick = {},
             onSignInClick = {},
+            onForgotPasswordClick = {},
             onGoogleClick = {},
             onSignUpClick = {}
         )
