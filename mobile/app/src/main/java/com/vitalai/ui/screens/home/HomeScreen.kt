@@ -30,11 +30,19 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
+import com.vitalai.data.remote.model.DashboardDto
+import com.vitalai.data.remote.model.FoodBriefDto
+import com.vitalai.data.remote.model.MealLogDto
+import com.vitalai.data.remote.model.MealLogItemDto
+import com.vitalai.data.remote.model.StreakDto
+import com.vitalai.data.remote.model.UserDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.VitalBottomNavBar
@@ -48,6 +56,7 @@ import com.vitalai.ui.theme.MealTimeBg
 import com.vitalai.ui.theme.MealTimeText
 import com.vitalai.ui.theme.Mint700
 import com.vitalai.ui.theme.Slate900
+import com.vitalai.ui.theme.VitalAITheme
 import com.vitalai.ui.theme.WaterBlue
 import com.vitalai.ui.theme.WaterBlueTint
 
@@ -58,6 +67,19 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    HomeScreenContent(
+        navController = navController,
+        uiState = uiState,
+        onDateSelected = viewModel::selectDate
+    )
+}
+
+@Composable
+private fun HomeScreenContent(
+    navController: NavController,
+    uiState: HomeUiState,
+    onDateSelected: (String) -> Unit
+) {
     Scaffold(
         bottomBar = { VitalBottomNavBar(navController = navController) },
         containerColor = MaterialTheme.colorScheme.background
@@ -73,7 +95,7 @@ fun HomeScreen(
                 contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
             ) {
                 item { HomeHeader(navController, uiState) }
-                item { WeekStrip(uiState.selectedDate) { date -> viewModel.selectDate(date) } }
+                item { WeekStrip(uiState.selectedDate, onDateSelected) }
                 item { DailyCaloriesCard(uiState) }
                 item { WaterAndActivityCards(uiState) }
                 item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
@@ -85,6 +107,203 @@ fun HomeScreen(
         }
     }
 }
+
+@Preview(name = "Home Screen", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun HomeScreenPreview() {
+    VitalAITheme(darkTheme = false) {
+        HomeScreenContent(
+            navController = rememberNavController(),
+            uiState = previewHomeUiState(),
+            onDateSelected = {}
+        )
+    }
+}
+
+@Preview(name = "Home Screen Dark", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun HomeScreenDarkPreview() {
+    VitalAITheme(darkTheme = true) {
+        HomeScreenContent(
+            navController = rememberNavController(),
+            uiState = previewHomeUiState(),
+            onDateSelected = {}
+        )
+    }
+}
+
+@Preview(name = "Home Header", showBackground = true, widthDp = 390)
+@Composable
+private fun HomeHeaderPreview() {
+    VitalAITheme {
+        HomeHeader(
+            navController = rememberNavController(),
+            uiState = previewHomeUiState()
+        )
+    }
+}
+
+@Preview(name = "Week Strip", showBackground = true, widthDp = 390)
+@Composable
+private fun WeekStripPreview() {
+    VitalAITheme {
+        WeekStrip(
+            selectedDate = previewHomeUiState().selectedDate,
+            onDateSelected = {}
+        )
+    }
+}
+
+@Preview(name = "Daily Calories Card", showBackground = true, widthDp = 390)
+@Composable
+private fun DailyCaloriesCardPreview() {
+    VitalAITheme {
+        DailyCaloriesCard(uiState = previewHomeUiState())
+    }
+}
+
+@Preview(name = "Water And Activity Cards", showBackground = true, widthDp = 390)
+@Composable
+private fun WaterAndActivityCardsPreview() {
+    VitalAITheme {
+        WaterAndActivityCards(uiState = previewHomeUiState())
+    }
+}
+
+@Preview(name = "Meals Section", showBackground = true, widthDp = 390)
+@Composable
+private fun MealsSectionPreview() {
+    VitalAITheme {
+        MealsSection(
+            mealLogs = previewHomeUiState().mealLogs,
+            navController = rememberNavController(),
+            selectedDate = previewHomeUiState().selectedDate
+        )
+    }
+}
+
+@Preview(name = "Meal Overview Card", showBackground = true, widthDp = 390)
+@Composable
+private fun MealOverviewCardPreview() {
+    VitalAITheme {
+        Box(modifier = Modifier.padding(24.dp)) {
+            MealOverviewCard(
+                mealType = "Breakfast",
+                imageUrl = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&q=80",
+                description = "Yến mạch chuối · Sữa chua Hy Lạp",
+                time = "8:30 AM",
+                calories = 460,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Preview(name = "Small Meal Overview Card", showBackground = true, widthDp = 190)
+@Composable
+private fun SmallMealOverviewCardPreview() {
+    VitalAITheme {
+        Box(modifier = Modifier.padding(24.dp)) {
+            MealOverviewCard(
+                mealType = "Snack",
+                imageUrl = "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?w=500&q=80",
+                description = "15:20 · 280 kcal",
+                time = "",
+                calories = 280,
+                modifier = Modifier.fillMaxWidth(),
+                isSmall = true
+            )
+        }
+    }
+}
+
+@Preview(name = "Streak Banner", showBackground = true, widthDp = 390)
+@Composable
+private fun StreakBannerPreview() {
+    VitalAITheme {
+        StreakBanner(streak = 8)
+    }
+}
+
+private fun previewHomeUiState() = HomeUiState(
+    dashboard = DashboardDto(
+        calorieGoal = 2200,
+        caloriesConsumed = 1380f,
+        caloriesBurned = 360f,
+        carbsG = 168f,
+        carbsGoal = 275f,
+        proteinG = 92f,
+        proteinGoal = 140f,
+        fatG = 42f,
+        fatGoal = 73f,
+        waterMl = 1750,
+        waterGoalMl = 2500,
+        steps = 7420
+    ),
+    streaks = StreakDto(
+        loginStreak = 8,
+        mealLogStreak = 5,
+        workoutStreak = 3
+    ),
+    mealLogs = listOf(
+        previewMealLog(
+            id = "breakfast-preview",
+            mealType = "breakfast",
+            foodNames = listOf("Yến mạch chuối", "Sữa chua Hy Lạp"),
+            calories = listOf(320f, 140f)
+        ),
+        previewMealLog(
+            id = "lunch-preview",
+            mealType = "lunch",
+            foodNames = listOf("Cơm gạo lứt", "Ức gà áp chảo"),
+            calories = listOf(260f, 380f)
+        ),
+        previewMealLog(
+            id = "snack-preview",
+            mealType = "snack",
+            foodNames = listOf("Táo", "Hạnh nhân"),
+            calories = listOf(95f, 185f)
+        )
+    ),
+    unreadCount = 2,
+    user = UserDto(
+        id = "preview-user",
+        email = "linh@example.com",
+        displayName = "Linh",
+        avatarUrl = "https://i.pravatar.cc/150?img=11",
+        role = "user",
+        isVerified = true
+    ),
+    selectedDate = "2026-05-23"
+)
+
+private fun previewMealLog(
+    id: String,
+    mealType: String,
+    foodNames: List<String>,
+    calories: List<Float>
+) = MealLogDto(
+    id = id,
+    mealType = mealType,
+    date = "2026-05-23",
+    items = foodNames.mapIndexed { index, foodName ->
+        MealLogItemDto(
+            id = "$id-item-$index",
+            foodId = "$id-food-$index",
+            food = FoodBriefDto(
+                id = "$id-food-$index",
+                name = foodName,
+                imageUrls = null
+            ),
+            quantity = 1f,
+            servingUnit = "phần",
+            calories = calories.getOrElse(index) { 0f },
+            carbsG = 20f,
+            proteinG = 12f,
+            fatG = 8f
+        )
+    }
+)
 
 @Composable
 fun HomeHeader(navController: NavController, uiState: HomeUiState) {
