@@ -123,7 +123,7 @@ private fun BlogContent(blog: BlogDto, paddingValues: PaddingValues, onBack: () 
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(horizontal = 20.dp, vertical = 24.dp)
+                    .padding(horizontal = 20.dp, vertical = 50.dp)
             ) {
                 blog.firstTag?.let {
                     Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Mint500.copy(alpha = 0.92f)) {
@@ -325,13 +325,15 @@ fun BlogDetailScreenPreview() {
         )
     )
 
-    Scaffold(
-        containerColor = AppBackground
-    ) { padding ->
-        BlogContent(
-            blog = mockBlog,
-            paddingValues = padding,
-            onBack = {}
-        )
+    VitalAITheme {
+        Scaffold(
+            containerColor = AppBackground
+        ) { padding ->
+            BlogContent(
+                blog = mockBlog,
+                paddingValues = padding,
+                onBack = {}
+            )
+        }
     }
 }

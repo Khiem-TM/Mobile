@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -535,6 +536,62 @@ private fun BlockTypeOption(
             icon()
             Spacer(Modifier.height(8.dp))
             Text(label, fontSize = 13.sp, color = Ink900, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun BlogComposerScreenPreview() {
+    val uiState = BlogComposerUiState(
+        title = "Bài viết mới về sức khỏe",
+        coverUrl = "",
+        tags = listOf("Dinh dưỡng", "Tập luyện"),
+        blocks = listOf(
+            ContentBlock(id = "1", type = ContentBlockType.TEXT, text = "Nội dung bài viết mẫu..."),
+            ContentBlock(id = "2", type = ContentBlockType.IMAGE, imageUrl = "", caption = "Ảnh minh họa")
+        ),
+        savedDraft = true
+    )
+    
+    VitalAITheme {
+        Scaffold(
+            containerColor = AppMutedBackground,
+            topBar = {
+                @OptIn(ExperimentalMaterial3Api::class)
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text("Bài viết mới", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink900)
+                            Text("Soạn nội dung cộng đồng", fontSize = 12.sp, color = Ink500)
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+                )
+            }
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                item { ComposerStatusStrip(uiState = uiState) }
+                item {
+                    ContentBlockCard(
+                        block = uiState.blocks[0],
+                        index = 0, total = 2,
+                        onTextChange = {}, onImageChange = { _, _ -> },
+                        onMoveUp = {}, onMoveDown = {}, onDelete = {}
+                    )
+                }
+                item {
+                    ContentBlockCard(
+                        block = uiState.blocks[1],
+                        index = 1, total = 2,
+                        onTextChange = {}, onImageChange = { _, _ -> },
+                        onMoveUp = {}, onMoveDown = {}, onDelete = {}
+                    )
+                }
+            }
         }
     }
 }
