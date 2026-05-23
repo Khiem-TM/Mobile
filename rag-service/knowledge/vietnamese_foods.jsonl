@@ -1,0 +1,50 @@
+{"name": "Phở bò tái (tô lớn)", "category": "Món nước", "serving_g": 500, "calories": 540, "protein_g": 32, "carbs_g": 65, "fat_g": 14, "fiber_g": 2, "notes": "Món sáng phổ biến, giàu protein từ thịt bò"}
+{"name": "Phở gà (tô lớn)", "category": "Món nước", "serving_g": 500, "calories": 480, "protein_g": 28, "carbs_g": 65, "fat_g": 10, "fiber_g": 2, "notes": "Ít calo hơn phở bò"}
+{"name": "Bún bò Huế (tô lớn)", "category": "Món nước", "serving_g": 550, "calories": 520, "protein_g": 30, "carbs_g": 60, "fat_g": 14, "fiber_g": 3, "notes": "Cay, giàu protein"}
+{"name": "Bún chả (1 suất)", "category": "Món chính", "serving_g": 450, "calories": 580, "protein_g": 35, "carbs_g": 60, "fat_g": 18, "fiber_g": 3, "notes": "Chả nướng giàu protein"}
+{"name": "Bánh mì thịt nguội", "category": "Bánh mì", "serving_g": 200, "calories": 420, "protein_g": 22, "carbs_g": 48, "fat_g": 14, "fiber_g": 3, "notes": "Bữa sáng nhanh phổ biến"}
+{"name": "Bánh mì trứng", "category": "Bánh mì", "serving_g": 180, "calories": 380, "protein_g": 18, "carbs_g": 45, "fat_g": 14, "fiber_g": 2, "notes": "Bổ dưỡng, tiện lợi"}
+{"name": "Cơm tấm sườn bì chả", "category": "Cơm", "serving_g": 500, "calories": 750, "protein_g": 38, "carbs_g": 85, "fat_g": 22, "fiber_g": 3, "notes": "Nhiều calo, phổ biến bữa trưa"}
+{"name": "Cơm gà xối mỡ (1 suất)", "category": "Cơm", "serving_g": 450, "calories": 620, "protein_g": 40, "carbs_g": 70, "fat_g": 18, "fiber_g": 2, "notes": "Giàu protein từ gà"}
+{"name": "Cơm rang dưa bò (1 đĩa)", "category": "Cơm", "serving_g": 400, "calories": 580, "protein_g": 28, "carbs_g": 70, "fat_g": 18, "fiber_g": 2, "notes": "Phổ biến, năng lượng cao"}
+{"name": "Gỏi cuốn tôm thịt (2 cuốn)", "category": "Cuốn", "serving_g": 160, "calories": 180, "protein_g": 12, "carbs_g": 22, "fat_g": 4, "fiber_g": 2, "notes": "Ít calo, lành mạnh"}
+{"name": "Chả giò (3 cái)", "category": "Chiên rán", "serving_g": 150, "calories": 320, "protein_g": 14, "carbs_g": 28, "fat_g": 16, "fiber_g": 2, "notes": "Nhiều calo do chiên dầu"}
+{"name": "Xôi gà (1 phần)", "category": "Xôi", "serving_g": 300, "calories": 480, "protein_g": 28, "carbs_g": 65, "fat_g": 12, "fiber_g": 2, "notes": "Bữa sáng no lâu"}
+{"name": "Xôi đậu xanh (1 phần)", "category": "Xôi", "serving_g": 250, "calories": 380, "protein_g": 12, "carbs_g": 72, "fat_g": 6, "fiber_g": 5, "notes": "Nhiều carb, chất xơ"}
+{"name": "Bánh cuốn (1 phần)", "category": "Bánh cuốn", "serving_g": 200, "calories": 280, "protein_g": 15, "carbs_g": 40, "fat_g": 6, "fiber_g": 1, "notes": "Ít calo, nhẹ bụng"}
+{"name": "Bún thịt nướng (1 tô)", "category": "Bún", "serving_g": 400, "calories": 480, "protein_g": 30, "carbs_g": 55, "fat_g": 14, "fiber_g": 3, "notes": "Cân bằng dinh dưỡng"}
+{"name": "Hủ tiếu Nam Vang (1 tô)", "category": "Món nước", "serving_g": 500, "calories": 500, "protein_g": 28, "carbs_g": 60, "fat_g": 14, "fiber_g": 2, "notes": "Ngon, cân bằng"}
+{"name": "Cháo lòng heo (1 tô)", "category": "Cháo", "serving_g": 400, "calories": 300, "protein_g": 22, "carbs_g": 35, "fat_g": 8, "fiber_g": 1, "notes": "Ít calo, dễ tiêu"}
+{"name": "Cháo trắng (1 tô)", "category": "Cháo", "serving_g": 350, "calories": 180, "protein_g": 4, "carbs_g": 38, "fat_g": 1, "fiber_g": 0, "notes": "Rất ít calo, dễ tiêu"}
+{"name": "Canh chua cá basa (1 tô)", "category": "Canh", "serving_g": 400, "calories": 220, "protein_g": 25, "carbs_g": 15, "fat_g": 6, "fiber_g": 3, "notes": "Giàu protein, ít calo"}
+{"name": "Canh khổ qua hầm thịt (1 tô)", "category": "Canh", "serving_g": 350, "calories": 200, "protein_g": 20, "carbs_g": 12, "fat_g": 7, "fiber_g": 4, "notes": "Tốt cho tiêu hóa"}
+{"name": "Rau muống xào tỏi (1 đĩa)", "category": "Rau xào", "serving_g": 200, "calories": 120, "protein_g": 4, "carbs_g": 10, "fat_g": 7, "fiber_g": 3, "notes": "Ít calo, giàu vi chất"}
+{"name": "Cải xanh xào tỏi (1 đĩa)", "category": "Rau xào", "serving_g": 200, "calories": 110, "protein_g": 4, "carbs_g": 8, "fat_g": 7, "fiber_g": 3, "notes": "Giàu canxi, ít calo"}
+{"name": "Đậu hũ chiên sả ớt (1 đĩa)", "category": "Đậu hũ", "serving_g": 200, "calories": 280, "protein_g": 16, "carbs_g": 8, "fat_g": 20, "fiber_g": 2, "notes": "Protein thực vật, chiên dầu"}
+{"name": "Ức gà nướng (100g)", "category": "Thịt gà", "serving_g": 100, "calories": 165, "protein_g": 31, "carbs_g": 0, "fat_g": 3.6, "fiber_g": 0, "notes": "Nguồn protein nạc tốt nhất"}
+{"name": "Đùi gà nướng (100g)", "category": "Thịt gà", "serving_g": 100, "calories": 209, "protein_g": 26, "carbs_g": 0, "fat_g": 11, "fiber_g": 0, "notes": "Ngon hơn ức, nhiều béo hơn"}
+{"name": "Thịt bò thăn (100g)", "category": "Thịt bò", "serving_g": 100, "calories": 215, "protein_g": 26, "carbs_g": 0, "fat_g": 12, "fiber_g": 0, "notes": "Giàu sắt, protein chất lượng cao"}
+{"name": "Thịt heo nạc (100g)", "category": "Thịt heo", "serving_g": 100, "calories": 143, "protein_g": 26, "carbs_g": 0, "fat_g": 4, "fiber_g": 0, "notes": "Ít béo, nhiều protein"}
+{"name": "Cá basa phi lê (100g)", "category": "Cá", "serving_g": 100, "calories": 90, "protein_g": 18, "carbs_g": 0, "fat_g": 2, "fiber_g": 0, "notes": "Cá rẻ, ít béo, phổ biến Việt Nam"}
+{"name": "Cá hồi (100g)", "category": "Cá", "serving_g": 100, "calories": 208, "protein_g": 20, "carbs_g": 0, "fat_g": 13, "fiber_g": 0, "notes": "Omega-3 cao, tốt cho tim mạch"}
+{"name": "Tôm (100g)", "category": "Hải sản", "serving_g": 100, "calories": 99, "protein_g": 21, "carbs_g": 0, "fat_g": 1.1, "fiber_g": 0, "notes": "Protein cao, calo rất thấp"}
+{"name": "Trứng gà (1 quả 60g)", "category": "Trứng", "serving_g": 60, "calories": 78, "protein_g": 6.3, "carbs_g": 0.6, "fat_g": 5.3, "fiber_g": 0, "notes": "Dinh dưỡng toàn diện, rẻ"}
+{"name": "Lòng trắng trứng (1 quả)", "category": "Trứng", "serving_g": 33, "calories": 17, "protein_g": 3.6, "carbs_g": 0.2, "fat_g": 0.1, "fiber_g": 0, "notes": "Protein thuần, không calo béo"}
+{"name": "Sữa tươi không đường (200ml)", "category": "Sữa", "serving_g": 200, "calories": 128, "protein_g": 6.8, "carbs_g": 9.6, "fat_g": 7, "fiber_g": 0, "notes": "Canxi cao, protein"}
+{"name": "Sữa chua không đường (100g)", "category": "Sữa", "serving_g": 100, "calories": 61, "protein_g": 3.5, "carbs_g": 4.7, "fat_g": 3.3, "fiber_g": 0, "notes": "Probiotic, tốt tiêu hóa"}
+{"name": "Gạo tẻ nấu chín (100g)", "category": "Ngũ cốc", "serving_g": 100, "calories": 130, "protein_g": 2.7, "carbs_g": 28, "fat_g": 0.3, "fiber_g": 0.4, "notes": "Carb chính trong bữa ăn Việt"}
+{"name": "Gạo lứt nấu chín (100g)", "category": "Ngũ cốc", "serving_g": 100, "calories": 123, "protein_g": 2.6, "carbs_g": 26, "fat_g": 0.9, "fiber_g": 1.8, "notes": "Nhiều chất xơ hơn gạo trắng"}
+{"name": "Bún tươi (100g)", "category": "Ngũ cốc", "serving_g": 100, "calories": 109, "protein_g": 2.3, "carbs_g": 24, "fat_g": 0.3, "fiber_g": 0.3, "notes": "Carb tinh chế"}
+{"name": "Khoai lang (100g)", "category": "Củ", "serving_g": 100, "calories": 86, "protein_g": 1.6, "carbs_g": 20, "fat_g": 0.1, "fiber_g": 3, "notes": "Carb chất lượng, chất xơ cao"}
+{"name": "Khoai tây (100g)", "category": "Củ", "serving_g": 100, "calories": 77, "protein_g": 2, "carbs_g": 17, "fat_g": 0.1, "fiber_g": 2.2, "notes": "Nguồn carb phổ biến"}
+{"name": "Chuối (1 quả 120g)", "category": "Trái cây", "serving_g": 120, "calories": 107, "protein_g": 1.3, "carbs_g": 27, "fat_g": 0.4, "fiber_g": 3.1, "notes": "Kali cao, tốt trước tập"}
+{"name": "Táo (1 quả 180g)", "category": "Trái cây", "serving_g": 180, "calories": 94, "protein_g": 0.5, "carbs_g": 25, "fat_g": 0.3, "fiber_g": 4.4, "notes": "Chất xơ cao, ít calo"}
+{"name": "Bơ (100g)", "category": "Trái cây", "serving_g": 100, "calories": 160, "protein_g": 2, "carbs_g": 9, "fat_g": 15, "fiber_g": 7, "notes": "Chất béo tốt, chất xơ cao"}
+{"name": "Đậu lăng nấu chín (100g)", "category": "Đậu", "serving_g": 100, "calories": 116, "protein_g": 9, "carbs_g": 20, "fat_g": 0.4, "fiber_g": 8, "notes": "Protein thực vật, chất xơ cao"}
+{"name": "Đậu phụ cứng (100g)", "category": "Đậu phụ", "serving_g": 100, "calories": 76, "protein_g": 8, "carbs_g": 1.9, "fat_g": 4.8, "fiber_g": 0.3, "notes": "Protein thực vật dễ chế biến"}
+{"name": "Yến mạch khô (100g)", "category": "Ngũ cốc", "serving_g": 100, "calories": 389, "protein_g": 17, "carbs_g": 66, "fat_g": 7, "fiber_g": 11, "notes": "Chất xơ cao, giảm cholesterol"}
+{"name": "Hạnh nhân (30g)", "category": "Hạt", "serving_g": 30, "calories": 173, "protein_g": 6, "carbs_g": 6, "fat_g": 15, "fiber_g": 3.5, "notes": "Chất béo tốt, protein, vitamin E"}
+{"name": "Cà phê đen không đường (200ml)", "category": "Đồ uống", "serving_g": 200, "calories": 5, "protein_g": 0.3, "carbs_g": 0, "fat_g": 0, "fiber_g": 0, "notes": "Gần như không calo"}
+{"name": "Cà phê sữa đá (ly 300ml)", "category": "Đồ uống", "serving_g": 300, "calories": 180, "protein_g": 3, "carbs_g": 30, "fat_g": 6, "fiber_g": 0, "notes": "Nhiều đường từ sữa đặc"}
+{"name": "Trà sữa trân châu (ly 500ml)", "category": "Đồ uống", "serving_g": 500, "calories": 420, "protein_g": 5, "carbs_g": 72, "fat_g": 12, "fiber_g": 0, "notes": "Rất nhiều đường, không khuyến nghị"}
+{"name": "Nước dừa tươi (300ml)", "category": "Đồ uống", "serving_g": 300, "calories": 66, "protein_g": 0.6, "carbs_g": 15, "fat_g": 0.6, "fiber_g": 0, "notes": "Kali cao, điện giải tự nhiên"}

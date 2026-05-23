@@ -3,6 +3,7 @@ package com.vitalai.ui.screens.metrics
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -73,7 +74,7 @@ fun MetricsHistoryScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         Column(
             modifier = Modifier
@@ -84,7 +85,7 @@ fun MetricsHistoryScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppSurface)
+                    .background(AppMutedBackground)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -94,6 +95,7 @@ fun MetricsHistoryScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(100))
                             .background(if (isSelected) Mint500 else Ink100)
+                            .clickable { viewModel.setTab(i) }
                             .padding(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Text(
@@ -111,9 +113,10 @@ fun MetricsHistoryScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(VitalRadius.Xl),
                 colors = CardDefaults.cardColors(containerColor = AppSurface),
-                elevation = CardDefaults.cardElevation(2.dp)
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -123,13 +126,13 @@ fun MetricsHistoryScreen(
                 ) {
                     SummaryStatItem(
                         label = "Cân nặng hiện tại",
-                        value = "${uiState.currentWeightKg} kg",
+                        value = if (uiState.totalEvents > 0) "%.1f kg".format(uiState.currentWeightKg) else "--",
                         color = Mint500
                     )
                     VerticalDivider(modifier = Modifier.height(40.dp), color = Ink200)
                     SummaryStatItem(
                         label = "90 ngày qua",
-                        value = "${if (uiState.delta90Days < 0) "" else "+"}${uiState.delta90Days} kg",
+                        value = if (uiState.totalEvents > 0) "${if (uiState.delta90Days < 0) "" else "+"}${"%.1f".format(uiState.delta90Days)} kg" else "--",
                         color = if (uiState.delta90Days < 0) Mint500 else MacroProtein
                     )
                     VerticalDivider(modifier = Modifier.height(40.dp), color = Ink200)
@@ -148,6 +151,13 @@ fun MetricsHistoryScreen(
                         SkeletonRow()
                     }
                 }
+            } else if (uiState.events.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(uiState.error ?: "Chưa có lịch sử số liệu", color = Ink500, fontSize = 14.sp)
+                }
             } else {
                 LazyColumn(
                     state = listState,
@@ -159,7 +169,7 @@ fun MetricsHistoryScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(AppBackground)
+                                    .background(AppMutedBackground)
                                     .padding(horizontal = 16.dp, vertical = 6.dp)
                             ) {
                                 Text(
@@ -262,9 +272,10 @@ private fun TimelineEventCard(
             modifier = Modifier
                 .weight(1f)
                 .padding(bottom = 6.dp),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(VitalRadius.Lg),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
-            elevation = CardDefaults.cardElevation(1.dp)
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(

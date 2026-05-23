@@ -47,8 +47,32 @@ export class TrainingService {
 
   // ─── Exercises ────────────────────────────────────────────────────────────
 
+  private _withExerciseComputedFields(exercise: Exercise) {
+    const metValue = Number(exercise.metValue ?? 0);
+    return {
+      ...exercise,
+      metValue,
+      caloriesPerMin: Number(((metValue / 60) * 70).toFixed(2)),
+    };
+  }
+
+  private _withSessionComputedFields(session: WorkoutSession) {
+    return {
+      ...session,
+      totalCaloriesBurned: Number(session.totalCaloriesBurned ?? 0),
+      details: (session.details ?? []).map((detail) => ({
+        ...detail,
+        weightKg: detail.weightKg === null ? null : Number(detail.weightKg),
+        caloriesBurned: Number(detail.caloriesBurned ?? 0),
+        exerciseName: detail.exercise?.name ?? null,
+        exercise: detail.exercise ? this._withExerciseComputedFields(detail.exercise) : detail.exercise,
+      })),
+    };
+  }
+
   async getExercises(query: ExerciseQueryDto) {
-    return this.exerciseRepo.findAll(query);
+    const exercises = await this.exerciseRepo.findAll(query);
+    return exercises.map((exercise) => this._withExerciseComputedFields(exercise));
   }
 
   async uploadExerciseAvtImage(exerciseId: string, file: Express.Multer.File) {
@@ -113,13 +137,13 @@ export class TrainingService {
     await this.activityLogsService.setWorkoutCalories(userId, date, total);
   }
 
-  async createWorkoutSession(userId: string, dto: CreateWorkoutSessionDto): Promise<WorkoutSession> {
+  async createWorkoutSession(userId: string, dto: CreateWorkoutSessionDto): Promise<any> {
     // Build details with calorie calculations
     const detailData: Array<Partial<WorkoutSessionDetail>> = [];
     let totalDurationMinutes = 0;
     let totalCaloriesBurned = 0;
 
-    for (const d of dto.details) {
+    for (const d of dto.details ?? []) {
       const calories = await this._calcCalories(userId, d.exerciseId, d.durationMinutes);
       detailData.push({
         exerciseId: d.exerciseId,
@@ -151,14 +175,15 @@ export class TrainingService {
     await this._syncActivityLog(userId, dto.sessionDate);
     await this.streaksService.updateActivity(userId, StreakType.WORKOUT, dto.sessionDate);
 
-    return this.sessionRepo.findById(session.id) as Promise<WorkoutSession>;
+    const saved = await this.sessionRepo.findById(session.id);
+    return this._withSessionComputedFields(saved as WorkoutSession);
   }
 
   async addExerciseToSession(
     userId: string,
     sessionId: string,
     dto: AddWorkoutDetailDto,
-  ): Promise<WorkoutSession> {
+  ): Promise<any> {
     const session = await this.sessionRepo.findById(sessionId);
     if (!session || session.userId !== userId) {
       throw new NotFoundException('Workout session not found');
@@ -181,7 +206,8 @@ export class TrainingService {
     await this.sessionRepo.updateTotals(sessionId, totals.totalDurationMinutes, totals.totalCaloriesBurned);
     await this._syncActivityLog(userId, session.sessionDate);
 
-    return this.sessionRepo.findById(sessionId) as Promise<WorkoutSession>;
+    const updated = await this.sessionRepo.findById(sessionId);
+    return this._withSessionComputedFields(updated as WorkoutSession);
   }
 
   async removeExerciseFromSession(
@@ -209,15 +235,16 @@ export class TrainingService {
     userId: string,
     sessionId: string,
     dto: UpdateWorkoutSessionDto,
-  ): Promise<WorkoutSession> {
+  ): Promise<any> {
     const session = await this.sessionRepo.findById(sessionId);
     if (!session || session.userId !== userId) {
       throw new NotFoundException('Workout session not found');
     }
-    return this.sessionRepo.updateSession(sessionId, {
+    const updated = await this.sessionRepo.updateSession(sessionId, {
       sessionName: dto.sessionName,
       notes: dto.notes,
     });
+    return this._withSessionComputedFields(updated);
   }
 
   async deleteWorkoutSession(userId: string, sessionId: string): Promise<void> {
@@ -230,21 +257,24 @@ export class TrainingService {
     await this._syncActivityLog(userId, date);
   }
 
-  async getWorkoutHistory(userId: string, limit = 20): Promise<WorkoutSession[]> {
-    return this.sessionRepo.findByUser(userId, limit);
+  async getWorkoutHistory(userId: string, limit = 20): Promise<any[]> {
+    const sessions = await this.sessionRepo.findByUser(userId, limit);
+    return sessions.map((session) => this._withSessionComputedFields(session));
   }
 
   async getWorkoutHistoryRange(
     userId: string,
     fromDate?: string,
     toDate?: string,
-  ): Promise<WorkoutSession[]> {
+  ): Promise<any[]> {
     const today = new Date().toISOString().split('T')[0];
-    return this.sessionRepo.findByDateRange(userId, fromDate || today, toDate || today);
+    const sessions = await this.sessionRepo.findByDateRange(userId, fromDate || today, toDate || today);
+    return sessions.map((session) => this._withSessionComputedFields(session));
   }
 
-  async getWorkoutSessionsByDate(userId: string, date: string): Promise<WorkoutSession[]> {
-    return this.sessionRepo.findByDateRange(userId, date, date);
+  async getWorkoutSessionsByDate(userId: string, date: string): Promise<any[]> {
+    const sessions = await this.sessionRepo.findByDateRange(userId, date, date);
+    return sessions.map((session) => this._withSessionComputedFields(session));
   }
 
   // ─── Exercise Favorites ───────────────────────────────────────────────────
@@ -254,7 +284,7 @@ export class TrainingService {
       where: { user_id: userId },
       relations: ['exercise'],
     });
-    return favs.map((f) => f.exercise);
+    return favs.map((f) => this._withExerciseComputedFields(f.exercise) as Exercise);
   }
 
   async addExerciseFavorite(userId: string, exerciseId: string): Promise<void> {

@@ -3,6 +3,8 @@ package com.vitalai.di
 import android.content.Context
 import androidx.room.Room
 import com.vitalai.data.local.AppDatabase
+import com.vitalai.data.local.dao.MealLogDao
+import com.vitalai.data.local.dao.PendingSyncActionDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -23,4 +25,12 @@ object DatabaseModule {
             "vital_ai_db"
         ).fallbackToDestructiveMigration().build()
     }
+
+    @Provides
+    @Singleton
+    fun providePendingSyncActionDao(db: AppDatabase): PendingSyncActionDao = db.pendingSyncActionDao()
+
+    @Provides
+    @Singleton
+    fun provideMealLogDao(db: AppDatabase): MealLogDao = db.mealLogDao()
 }

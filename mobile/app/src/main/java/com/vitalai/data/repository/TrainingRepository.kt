@@ -3,7 +3,7 @@ package com.vitalai.data.repository
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.remote.model.AddExerciseRequest
-import com.vitalai.data.remote.model.CreateSessionRequest
+import com.vitalai.data.remote.model.CreateWorkoutSessionDto
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.SessionExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
@@ -16,7 +16,11 @@ class TrainingRepository @Inject constructor(
 ) {
     suspend fun getSessions(date: String? = null): Result<List<WorkoutSessionDto>> {
         return try {
-            val response = trainingApi.getSessions(date)
+            val response = if (date == null) {
+                trainingApi.getSessionHistory()
+            } else {
+                trainingApi.getSessionsByDate(date)
+            }
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.success(emptyList())
@@ -36,12 +40,53 @@ class TrainingRepository @Inject constructor(
         }
     }
 
-    suspend fun createSession(request: CreateSessionRequest): Result<WorkoutSessionDto> {
+    suspend fun getFavorites(): Result<List<ExerciseDto>> {
+        return try {
+            val response = trainingApi.getFavoriteExercises()
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addFavorite(id: String): Result<Unit> {
+        return try {
+            val response = trainingApi.addFavorite(id)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi thêm yêu thích (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeFavorite(id: String): Result<Unit> {
+        return try {
+            val response = trainingApi.removeFavorite(id)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi bỏ yêu thích (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun createSession(request: CreateWorkoutSessionDto): Result<WorkoutSessionDto> {
         return try {
             val response = trainingApi.createSession(request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi tạo phiên tập (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteSession(id: String): Result<Unit> {
+        return try {
+            val response = trainingApi.deleteSession(id)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi xóa phiên tập (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

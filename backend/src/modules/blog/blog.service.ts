@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Blog } from './entities/blog.entity';
 import { BlogBlock } from './entities/blog-block.entity';
 import { BlogLike } from './entities/blog-like.entity';
@@ -12,10 +12,8 @@ import { BlogComment } from './entities/blog-comment.entity';
 import { CloudinaryService } from '../support/cloudinary/cloudinary.service';
 import { CreateBlogDto } from './dto/create-blog.dto';
 import { UpdateBlogDto } from './dto/update-blog.dto';
-import { RejectBlogDto } from './dto/reject-blog.dto';
 import { CreateBlogBlockDto } from './dto/create-blog-block.dto';
 import { CreateCommentDto } from './dto/create-comment.dto';
-import { BatchBlogActionDto, BatchRejectBlogDto } from './dto/batch-blog.dto';
 
 @Injectable()
 export class BlogService {
@@ -153,6 +151,12 @@ export class BlogService {
         );
         blog.thumbnailUrl = result.url;
         blog.thumbnailPublicId = result.publicId;
+      } else if (dto.thumbnailUrl !== undefined) {
+        if (blog.thumbnailPublicId) {
+          await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
+          blog.thumbnailPublicId = null;
+        }
+        blog.thumbnailUrl = dto.thumbnailUrl || null;
       }
 
       if (dto.title) blog.title = dto.title;
@@ -162,12 +166,9 @@ export class BlogService {
         blog.tags = dto.tags.length ? dto.tags : null;
       }
 
-      const isDraft = (blog.status as string) === 'draft';
       const keepAsDraft = (dto.status as string) === 'draft';
-      if (isDraft && !keepAsDraft) {
-        blog.status = 'approved';
-        blog.rejectionReason = null;
-      }
+      blog.status = keepAsDraft ? 'draft' : 'approved';
+      blog.rejectionReason = null;
 
       await manager.save(Blog, blog);
 
@@ -298,6 +299,10 @@ export class BlogService {
   // ─── Admin ─────────────────────────────────────────────────────────────────
 
   async adminGetBlogs(page = 1, limit = 20, status?: string, tag?: string) {
+    if (status && !['approved', 'draft'].includes(status)) {
+      return { items: [], total: 0, page, limit };
+    }
+
     const qb = this.blogRepo
       .createQueryBuilder('blog')
       .leftJoinAndSelect('blog.authorUser', 'author')
@@ -366,6 +371,12 @@ export class BlogService {
         );
         blog.thumbnailUrl = result.url;
         blog.thumbnailPublicId = result.publicId;
+      } else if (dto.thumbnailUrl !== undefined) {
+        if (blog.thumbnailPublicId) {
+          await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
+          blog.thumbnailPublicId = null;
+        }
+        blog.thumbnailUrl = dto.thumbnailUrl || null;
       }
 
       if (dto.title) blog.title = dto.title;
@@ -391,48 +402,11 @@ export class BlogService {
     return this.findWithBlocks(id);
   }
 
-  async adminApproveBlog(id: string) {
-    const blog = await this.blogRepo.findOne({ where: { id } });
-    if (!blog) throw new NotFoundException('Blog not found');
-    blog.status = 'approved';
-    blog.rejectionReason = null;
-    return this.blogRepo.save(blog);
-  }
-
-  async adminRejectBlog(id: string, dto: RejectBlogDto) {
-    const blog = await this.blogRepo.findOne({ where: { id } });
-    if (!blog) throw new NotFoundException('Blog not found');
-    blog.status = 'rejected';
-    blog.rejectionReason = dto.reason ?? null;
-    return this.blogRepo.save(blog);
-  }
-
   async adminDeleteBlog(id: string) {
     const blog = await this.blogRepo.findOne({ where: { id }, relations: ['blocks'] });
     if (!blog) throw new NotFoundException('Blog not found');
     await this.cleanupBlogAssets(blog);
     await this.blogRepo.delete(id);
-  }
-
-  async getPendingCount() {
-    return this.blogRepo.count({ where: { status: 'pending' } });
-  }
-
-  // Feature 5: batch approve/reject
-  async adminBatchApprove(dto: BatchBlogActionDto) {
-    await this.blogRepo.update(
-      { id: In(dto.ids) },
-      { status: 'approved', rejectionReason: null },
-    );
-    return { updated: dto.ids.length };
-  }
-
-  async adminBatchReject(dto: BatchRejectBlogDto) {
-    await this.blogRepo.update(
-      { id: In(dto.ids) },
-      { status: 'rejected', rejectionReason: dto.reason ?? null },
-    );
-    return { updated: dto.ids.length };
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

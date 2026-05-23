@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
@@ -13,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -28,6 +30,13 @@ import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.vitalai.R
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.theme.AppLine
+import com.vitalai.ui.theme.AppSurface2
+import com.vitalai.ui.theme.Ink500
+import com.vitalai.ui.theme.Ink900
+import com.vitalai.ui.theme.Mint50
+import com.vitalai.ui.theme.Mint500
+import com.vitalai.ui.theme.VitalRadius
 import com.vitalai.ui.theme.VitalAITheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,16 +91,17 @@ fun SignUpScreen(
     }
 
     Scaffold(
+        containerColor = Mint50,
         topBar = {
             TopAppBar(
-                title = { Text("Đăng ký", style = MaterialTheme.typography.titleLarge) },
+                title = { Text("Đăng ký", style = MaterialTheme.typography.titleLarge, color = Ink900) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Text("←", fontSize = 24.sp)
+                        Text("←", fontSize = 24.sp, color = Ink900)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Mint50
                 )
             )
         }
@@ -105,16 +115,16 @@ fun SignUpScreen(
         ) {
             Text(
                 text = "Tạo tài khoản mới",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
+                color = Ink900,
                 modifier = Modifier.align(Alignment.Start)
             )
 
             Text(
                 text = "Bắt đầu hành trình chăm sóc sức khỏe thông minh cùng Tracker",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = Ink500,
                 modifier = Modifier.align(Alignment.Start).padding(top = 8.dp, bottom = 32.dp)
             )
 
@@ -127,8 +137,9 @@ fun SignUpScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                shape = MaterialTheme.shapes.medium,
+                border = BorderStroke(1.dp, AppLine),
+                shape = RoundedCornerShape(VitalRadius.Pill),
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White, contentColor = Ink900),
                 enabled = authState !is AuthState.Loading
             ) {
                 Row(
@@ -137,7 +148,7 @@ fun SignUpScreen(
                 ) {
                     Text("G", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Đăng ký với Google", style = MaterialTheme.typography.titleMedium)
+                    Text("Đăng ký với Google", style = MaterialTheme.typography.titleMedium, color = Ink900)
                 }
             }
 
@@ -145,7 +156,7 @@ fun SignUpScreen(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 HorizontalDivider(modifier = Modifier.weight(1f))
-                Text(" Hoặc đăng ký bằng email ", modifier = Modifier.padding(horizontal = 8.dp), style = MaterialTheme.typography.bodySmall)
+                Text(" Hoặc đăng ký bằng email ", modifier = Modifier.padding(horizontal = 8.dp), style = MaterialTheme.typography.bodySmall, color = Ink500)
                 HorizontalDivider(modifier = Modifier.weight(1f))
             }
 
@@ -158,7 +169,17 @@ fun SignUpScreen(
                 modifier = Modifier.fillMaxWidth(),
                 leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
                 singleLine = true,
-                shape = MaterialTheme.shapes.medium,
+                shape = RoundedCornerShape(VitalRadius.Md),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = AppSurface2,
+                    focusedContainerColor = AppSurface2,
+                    unfocusedBorderColor = AppLine,
+                    focusedBorderColor = Mint500,
+                    unfocusedLabelColor = Ink500,
+                    focusedLabelColor = Mint500,
+                    unfocusedLeadingIconColor = Ink500,
+                    focusedLeadingIconColor = Mint500
+                ),
                 isError = authState is AuthState.Error && name.isBlank()
             )
 
@@ -172,7 +193,17 @@ fun SignUpScreen(
                 leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(VitalRadius.Md),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = AppSurface2,
+                    focusedContainerColor = AppSurface2,
+                    unfocusedBorderColor = AppLine,
+                    focusedBorderColor = Mint500,
+                    unfocusedLabelColor = Ink500,
+                    focusedLabelColor = Mint500,
+                    unfocusedLeadingIconColor = Ink500,
+                    focusedLeadingIconColor = Mint500
+                )
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -186,7 +217,17 @@ fun SignUpScreen(
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                shape = MaterialTheme.shapes.medium
+                shape = RoundedCornerShape(VitalRadius.Md),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = AppSurface2,
+                    focusedContainerColor = AppSurface2,
+                    unfocusedBorderColor = AppLine,
+                    focusedBorderColor = Mint500,
+                    unfocusedLabelColor = Ink500,
+                    focusedLabelColor = Mint500,
+                    unfocusedLeadingIconColor = Ink500,
+                    focusedLeadingIconColor = Mint500
+                )
             )
 
             if (authState is AuthState.Error) {
@@ -209,7 +250,8 @@ fun SignUpScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = MaterialTheme.shapes.medium,
+                shape = RoundedCornerShape(VitalRadius.Pill),
+                colors = ButtonDefaults.buttonColors(containerColor = Ink900, contentColor = Color.White),
                 enabled = authState !is AuthState.Loading
             ) {
                 if (authState is AuthState.Loading) {
@@ -229,19 +271,112 @@ fun SignUpScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Đã có tài khoản?", style = MaterialTheme.typography.bodyMedium)
+                Text("Đã có tài khoản?", style = MaterialTheme.typography.bodyMedium, color = Ink500)
                 TextButton(onClick = { navController.navigate(Screen.SignIn) }) {
-                    Text("Đăng nhập", fontWeight = FontWeight.Bold)
+                    Text("Đăng nhập", fontWeight = FontWeight.Bold, color = Mint500)
                 }
             }
         }
     }
 }
 
-@Preview(showBackground = true, name = "Đăng ký")
+//@Preview(showBackground = true, name = "Đăng ký")
+//@Composable
+//fun SignUpScreenPreview() {
+//    VitalAITheme {
+//        SignUpScreen(rememberNavController())
+//    }
+//}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun SignUpScreenPreview() {
+
     VitalAITheme {
-        SignUpScreen(rememberNavController())
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text("Đăng ký")
+                    }
+                )
+            }
+        ) { padding ->
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Text(
+                    text = "Tạo tài khoản mới",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
+                Text(
+                    text = "Bắt đầu hành trình chăm sóc sức khỏe thông minh cùng VitalAI",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                        .padding(top = 8.dp, bottom = 32.dp)
+                )
+
+                OutlinedTextField(
+                    value = "a",
+                    onValueChange = {},
+                    label = { Text("Họ và tên") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Person, null)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = "demo@gmail.com",
+                    onValueChange = {},
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Email, null)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = "12345678",
+                    onValueChange = {},
+                    label = { Text("Mật khẩu") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, null)
+                    },
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(
+                        "Đăng ký",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
     }
 }

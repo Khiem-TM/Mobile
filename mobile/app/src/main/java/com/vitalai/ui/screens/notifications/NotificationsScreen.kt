@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -45,7 +46,8 @@ fun NotificationsScreen(
                 title = { Text("Thông báo", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Quay lại")
                     }
                 },
                 actions = {
@@ -56,7 +58,7 @@ fun NotificationsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -79,7 +81,7 @@ fun NotificationsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(vertical = 12.dp)
             ) {
                 items(uiState.notifications, key = { it.id }) { notification ->
                     NotificationItem(
@@ -104,6 +106,8 @@ private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit)
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(VitalRadius.Lg))
             .clickable(onClick = onClick)
             .background(if (!notification.isRead) Mint50 else AppSurface)
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -116,7 +120,10 @@ private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit)
                 .background(iconColor.copy(alpha = 0.15f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
+            Icon(icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -147,5 +154,71 @@ private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit)
             )
         }
     }
-    HorizontalDivider(color = Ink200, thickness = 0.5.dp)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun NotificationsScreenPreview() {
+
+    val notifications = listOf(
+        NotificationDto(
+            id = "1",
+            title = "Đã ghi nhận bữa sáng",
+            message = "Bạn đã nạp 450 kcal cho bữa sáng hôm nay.",
+            type = "meal",
+            isRead = false,
+            createdAt = "2026-05-13T08:00:00"
+        ),
+        NotificationDto(
+            id = "2",
+            title = "Workout hoàn thành",
+            message = "Bạn vừa đốt cháy 320 kcal 🔥",
+            type = "workout",
+            isRead = true,
+            createdAt = "2026-05-13T10:30:00"
+        ),
+        NotificationDto(
+            id = "3",
+            title = "Streak 7 ngày",
+            message = "Bạn đã duy trì chuỗi hoạt động 7 ngày liên tiếp!",
+            type = "streak",
+            isRead = false,
+            createdAt = "2026-05-13T12:15:00"
+        )
+    )
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Thông báo",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurface
+                )
+            )
+        },
+        containerColor = AppBackground
+    ) { padding ->
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(vertical = 8.dp)
+        ) {
+
+            items(notifications) { notification ->
+
+                NotificationItem(
+                    notification = notification,
+                    onClick = {}
+                )
+            }
+        }
+    }
 }

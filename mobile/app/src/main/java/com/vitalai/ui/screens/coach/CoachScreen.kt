@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -119,7 +120,7 @@ fun CoachScreen(
                 )
             },
             bottomBar = { VitalBottomNavBar(navController = navController) },
-            containerColor = AppBackground
+            containerColor = AppMutedBackground
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -459,4 +460,3 @@ private fun TypingIndicator() {
         }
     }
 }
-

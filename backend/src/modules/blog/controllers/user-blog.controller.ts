@@ -26,7 +26,7 @@ import { UpdateBlogDto } from '../dto/update-blog.dto';
 export class UserBlogController {
   constructor(private readonly blogService: BlogService) {}
 
-  @ApiOperation({ summary: 'Create a blog post (submitted for approval)' })
+  @ApiOperation({ summary: 'Create a blog post (auto-published unless saved as draft)' })
   @Post()
   createBlog(@CurrentUser() user: JwtPayload, @Body() dto: CreateBlogDto) {
     return this.blogService.createUserBlog(user.sub, dto);
@@ -48,7 +48,7 @@ export class UserBlogController {
     );
   }
 
-  @ApiOperation({ summary: 'Update my blog post (re-submits for approval)' })
+  @ApiOperation({ summary: 'Update my blog post (auto-published unless saved as draft)' })
   @Patch(':id')
   updateBlog(
     @CurrentUser() user: JwtPayload,
