@@ -1,6 +1,7 @@
 package com.vitalai.ui.screens.discover
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -8,6 +9,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +32,7 @@ import com.vitalai.data.remote.model.BlogBlockDto
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.VitalIconButton
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,24 +48,7 @@ fun BlogDetailScreen(
         viewModel.loadBlog(blogId)
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Quay lại",
-                            tint = if (uiState.blog?.thumbnailUrl != null) Color.White else Ink900
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
-            )
-        },
-        containerColor = AppBackground
-    ) { padding ->
+    Scaffold(containerColor = AppMutedBackground) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
             uiState.error != null -> ErrorState(
@@ -68,21 +56,24 @@ fun BlogDetailScreen(
                 onRetry = { viewModel.loadBlog(blogId) },
                 modifier = Modifier.padding(padding)
             )
-            uiState.blog != null -> BlogContent(blog = uiState.blog!!, paddingValues = padding)
+            uiState.blog != null -> BlogContent(
+                blog = uiState.blog!!,
+                paddingValues = padding,
+                onBack = { navController.popBackStack() }
+            )
         }
     }
 }
 
 @Composable
-private fun BlogContent(blog: BlogDto, paddingValues: PaddingValues) {
+private fun BlogContent(blog: BlogDto, paddingValues: PaddingValues, onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
     ) {
-        // Hero image
-        Box(modifier = Modifier.fillMaxWidth().height(280.dp)) {
+        Box(modifier = Modifier.fillMaxWidth().height(328.dp)) {
             if (blog.thumbnailUrl != null) {
                 AsyncImage(
                     model = blog.thumbnailUrl,
@@ -94,94 +85,126 @@ private fun BlogContent(blog: BlogDto, paddingValues: PaddingValues) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Brush.linearGradient(listOf(Mint500, Mint700)))
-                )
+                        .background(Brush.linearGradient(listOf(Mint300, Mint700))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Article, contentDescription = null, tint = Color.White.copy(alpha = 0.86f), modifier = Modifier.size(54.dp))
+                }
             }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f)))
+                        Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = 0.42f),
+                            0.45f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.58f)
+                        )
                     )
             )
-        }
-
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-            // Tags
-            val tags = blog.tags
-            if (!tags.isNullOrEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    tags.take(3).forEach { tag ->
-                        Surface(shape = RoundedCornerShape(999.dp), color = Mint50) {
-                            Text(
-                                tag,
-                                color = Mint700,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(10.dp))
-            }
-
-            // Title
-            Text(blog.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink900, lineHeight = 30.sp)
-
-            Spacer(Modifier.height(12.dp))
-
-            // Author + meta
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier.size(36.dp).clip(CircleShape).background(Mint100),
-                    contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                VitalIconButton(
+                    onClick = onBack,
+                    containerColor = Color.Black.copy(alpha = 0.36f)
                 ) {
-                    Text(
-                        blog.displayAuthor.firstOrNull()?.uppercaseChar()?.toString() ?: "V",
-                        fontWeight = FontWeight.Bold,
-                        color = Mint700,
-                        fontSize = 14.sp
-                    )
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Color.White)
                 }
-                Spacer(Modifier.width(8.dp))
-                Column {
-                    Text(blog.displayAuthor, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
-                    Row {
-                        Text(blog.createdAt.take(10), fontSize = 11.sp, color = Ink500)
-                        if (blog.viewCount > 0) {
-                            Text(" · ${blog.viewCount} lượt xem", fontSize = 11.sp, color = Ink500)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HeroStatPill(icon = Icons.Default.Visibility, text = "${blog.viewCount}")
+                    HeroStatPill(icon = Icons.Default.Favorite, text = "${blog.likesCount}")
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(horizontal = 20.dp, vertical = 24.dp)
+            ) {
+                blog.firstTag?.let {
+                    Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Mint500.copy(alpha = 0.92f)) {
+                        Text(it, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
+                    }
+                    Spacer(Modifier.height(10.dp))
+                }
+                Text(blog.title, fontSize = 29.sp, fontWeight = FontWeight.Bold, color = Color.White, lineHeight = 33.sp)
+            }
+        }
+
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .offset(y = (-28).dp),
+            shape = RoundedCornerShape(VitalRadius.Xl),
+            color = AppSurface,
+            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+            shadowElevation = VitalElevation.Level1
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                val tags = blog.tags
+                if (!tags.isNullOrEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        tags.take(3).forEach { tag ->
+                            Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Mint50) {
+                                Text(
+                                    tag,
+                                    color = Mint700,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                                )
+                            }
                         }
                     }
+                    Spacer(Modifier.height(14.dp))
                 }
-                Spacer(Modifier.weight(1f))
-                if (blog.likesCount > 0) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("❤️", fontSize = 13.sp)
-                        Spacer(Modifier.width(3.dp))
-                        Text("${blog.likesCount}", fontSize = 12.sp, color = Ink500)
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier.size(42.dp).clip(CircleShape).background(Mint100),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            blog.displayAuthor.firstOrNull()?.uppercaseChar()?.toString() ?: "V",
+                            fontWeight = FontWeight.Bold,
+                            color = Mint700,
+                            fontSize = 15.sp
+                        )
                     }
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(blog.displayAuthor, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Ink900)
+                        Text(blog.createdAt.take(10), fontSize = 12.sp, color = Ink500)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    DetailStat(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
+                    Spacer(Modifier.width(8.dp))
+                    DetailStat(icon = Icons.Default.Favorite, value = "${blog.likesCount}", color = MacroProtein)
+                }
+
+                Spacer(Modifier.height(18.dp))
+                HorizontalDivider(color = AppLineSoft)
+                Spacer(Modifier.height(18.dp))
+
+                val blocks = blog.blocks
+                if (!blocks.isNullOrEmpty()) {
+                    blocks.sortedBy { it.order }.forEach { block ->
+                        BlogBlockView(block = block)
+                        Spacer(Modifier.height(14.dp))
+                    }
+                } else {
+                    val text = blog.content ?: "Nội dung đang được cập nhật..."
+                    Text(text = text, fontSize = 16.sp, color = Ink700, lineHeight = 25.sp)
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider(color = Ink200)
-            Spacer(Modifier.height(16.dp))
-
-            // Render blocks if available, else fall back to plain content
-            val blocks = blog.blocks
-            if (!blocks.isNullOrEmpty()) {
-                blocks.sortedBy { it.order }.forEach { block ->
-                    BlogBlockView(block = block)
-                    Spacer(Modifier.height(12.dp))
-                }
-            } else {
-                val text = blog.content ?: "Nội dung đang được cập nhật..."
-                Text(text = text, fontSize = 15.sp, color = Ink700, lineHeight = 24.sp)
-            }
-
-            Spacer(Modifier.height(40.dp))
         }
+        Spacer(Modifier.height(12.dp))
     }
 }
 
@@ -190,25 +213,58 @@ private fun BlogBlockView(block: BlogBlockDto) {
     when (block.type) {
         "text" -> {
             if (!block.textContent.isNullOrBlank()) {
-                Text(text = block.textContent, fontSize = 15.sp, color = Ink700, lineHeight = 24.sp)
+                Text(text = block.textContent, fontSize = 16.sp, color = Ink700, lineHeight = 25.sp)
             }
         }
         "image" -> {
             if (!block.imageUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = block.imageUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 160.dp, max = 320.dp)
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.FillWidth
-                )
+                Surface(
+                    shape = RoundedCornerShape(VitalRadius.Lg),
+                    color = AppSurface2
+                ) {
+                    AsyncImage(
+                        model = block.imageUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 180.dp, max = 340.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                }
             }
         }
     }
 }
 
+<<<<<<< HEAD
+@Composable
+private fun HeroStatPill(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .background(Color.Black.copy(alpha = 0.36f))
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Text(text, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun DetailStat(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, color: Color = Mint500) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .background(AppSurface2)
+            .padding(horizontal = 9.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
+        Text(value, color = Ink700, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+=======
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BlogDetailScreenPreview() {
@@ -282,5 +338,6 @@ fun BlogDetailScreenPreview() {
             blog = mockBlog,
             paddingValues = padding
         )
+>>>>>>> refs/remotes/origin/main
     }
 }

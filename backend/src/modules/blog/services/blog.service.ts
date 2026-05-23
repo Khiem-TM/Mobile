@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Blog } from '../entities/blog.entity';
 import { BlogBlock } from '../entities/blog-block.entity';
 import { BlogLike } from '../entities/blog-like.entity';
@@ -12,10 +12,8 @@ import { BlogComment } from '../entities/blog-comment.entity';
 import { CloudinaryService } from '../../support/cloudinary/cloudinary.service';
 import { CreateBlogDto } from '../dto/create-blog.dto';
 import { UpdateBlogDto } from '../dto/update-blog.dto';
-import { RejectBlogDto } from '../dto/reject-blog.dto';
 import { CreateBlogBlockDto } from '../dto/create-blog-block.dto';
 import { CreateCommentDto } from '../dto/create-comment.dto';
-import { BatchBlogActionDto, BatchRejectBlogDto } from '../dto/batch-blog.dto';
 import { RedisService } from '../../support/redis/redis.service';
 
 const TTL = {
@@ -125,7 +123,7 @@ export class BlogService {
     return tags;
   }
 
-  // Called internally after any approve/reject to keep cache consistent
+  // Called after any user/admin blog mutation to keep public cache consistent.
   private async invalidateBlogListCache(): Promise<void> {
     await Promise.all([
       this.redisService.delByPattern('cache:blogs:list:*'),
@@ -166,6 +164,9 @@ export class BlogService {
 
       return saved.id;
     });
+    if (dto.status !== 'draft') {
+      await this.invalidateBlogListCache();
+    }
     return this.findWithBlocks(savedId);
   }
 
@@ -185,6 +186,12 @@ export class BlogService {
         );
         blog.thumbnailUrl = result.url;
         blog.thumbnailPublicId = result.publicId;
+      } else if (dto.thumbnailUrl !== undefined) {
+        if (blog.thumbnailPublicId) {
+          await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
+          blog.thumbnailPublicId = null;
+        }
+        blog.thumbnailUrl = dto.thumbnailUrl || null;
       }
 
       if (dto.title) blog.title = dto.title;
@@ -193,12 +200,9 @@ export class BlogService {
         blog.tags = dto.tags.length ? dto.tags : null;
       }
 
-      const isDraft = (blog.status as string) === 'draft';
       const keepAsDraft = (dto.status as string) === 'draft';
-      if (isDraft && !keepAsDraft) {
-        blog.status = 'approved';
-        blog.rejectionReason = null;
-      }
+      blog.status = keepAsDraft ? 'draft' : 'approved';
+      blog.rejectionReason = null;
 
       await manager.save(Blog, blog);
 
@@ -217,6 +221,8 @@ export class BlogService {
         }
       }
     });
+    await this.invalidateBlogListCache();
+    await this.redisService.del(`cache:blogs:one:${blogId}`);
     return this.findWithBlocks(blogId);
   }
 
@@ -230,6 +236,8 @@ export class BlogService {
 
     await this.cleanupBlogAssets(blog);
     await this.blogRepo.delete(blogId);
+    await this.invalidateBlogListCache();
+    await this.redisService.del(`cache:blogs:one:${blogId}`);
   }
 
   async getUserBlogs(userId: string, page = 1, limit = 20) {
@@ -329,6 +337,10 @@ export class BlogService {
   // ─── Admin ─────────────────────────────────────────────────────────────────
 
   async adminGetBlogs(page = 1, limit = 20, status?: string, tag?: string) {
+    if (status && !['approved', 'draft'].includes(status)) {
+      return { items: [], total: 0, page, limit };
+    }
+
     const qb = this.blogRepo
       .createQueryBuilder('blog')
       .leftJoinAndSelect('blog.authorUser', 'author')
@@ -379,6 +391,7 @@ export class BlogService {
 
       return saved.id;
     });
+    await this.invalidateBlogListCache();
     return this.findWithBlocks(savedId);
   }
 
@@ -397,6 +410,12 @@ export class BlogService {
         );
         blog.thumbnailUrl = result.url;
         blog.thumbnailPublicId = result.publicId;
+      } else if (dto.thumbnailUrl !== undefined) {
+        if (blog.thumbnailPublicId) {
+          await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
+          blog.thumbnailPublicId = null;
+        }
+        blog.thumbnailUrl = dto.thumbnailUrl || null;
       }
 
       if (dto.title) blog.title = dto.title;
@@ -419,28 +438,9 @@ export class BlogService {
         }
       }
     });
-    return this.findWithBlocks(id);
-  }
-
-  async adminApproveBlog(id: string) {
-    const blog = await this.blogRepo.findOne({ where: { id } });
-    if (!blog) throw new NotFoundException('Blog not found');
-    blog.status = 'approved';
-    blog.rejectionReason = null;
-    const saved = await this.blogRepo.save(blog);
-    await this.invalidateBlogListCache();
-    return saved;
-  }
-
-  async adminRejectBlog(id: string, dto: RejectBlogDto) {
-    const blog = await this.blogRepo.findOne({ where: { id } });
-    if (!blog) throw new NotFoundException('Blog not found');
-    blog.status = 'rejected';
-    blog.rejectionReason = dto.reason ?? null;
-    const saved = await this.blogRepo.save(blog);
     await this.invalidateBlogListCache();
     await this.redisService.del(`cache:blogs:one:${id}`);
-    return saved;
+    return this.findWithBlocks(id);
   }
 
   async adminDeleteBlog(id: string) {
@@ -450,30 +450,6 @@ export class BlogService {
     await this.blogRepo.delete(id);
     await this.invalidateBlogListCache();
     await this.redisService.del(`cache:blogs:one:${id}`);
-  }
-
-  async getPendingCount() {
-    return this.blogRepo.count({ where: { status: 'pending' } });
-  }
-
-  // Feature 5: batch approve/reject
-  async adminBatchApprove(dto: BatchBlogActionDto) {
-    await this.blogRepo.update(
-      { id: In(dto.ids) },
-      { status: 'approved', rejectionReason: null },
-    );
-    await this.invalidateBlogListCache();
-    return { updated: dto.ids.length };
-  }
-
-  async adminBatchReject(dto: BatchRejectBlogDto) {
-    await this.blogRepo.update(
-      { id: In(dto.ids) },
-      { status: 'rejected', rejectionReason: dto.reason ?? null },
-    );
-    await this.invalidateBlogListCache();
-    await Promise.all(dto.ids.map((id) => this.redisService.del(`cache:blogs:one:${id}`)));
-    return { updated: dto.ids.length };
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────

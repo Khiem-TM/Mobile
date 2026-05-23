@@ -2,6 +2,8 @@ package com.vitalai.ui.screens.discover
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vitalai.data.remote.model.CreateBlogBlockRequest
+import com.vitalai.data.remote.model.CreateBlogRequest
 import com.vitalai.data.repository.BlogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,19 +91,86 @@ class BlogComposerViewModel @Inject constructor(
 
     fun saveDraft() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isSaving = true) }
-            // Simulated save — in real app would POST to API
-            kotlinx.coroutines.delay(800)
-            _uiState.update { it.copy(isSaving = false, savedDraft = true) }
+            val request = buildRequest(status = "draft") ?: return@launch
+            _uiState.update { it.copy(isSaving = true, error = null, savedDraft = false) }
+            blogRepository.createBlog(request).fold(
+                onSuccess = {
+                    _uiState.update { state ->
+                        state.copy(isSaving = false, savedDraft = true, error = null)
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            error = error.message ?: "Không lưu được bản nháp"
+                        )
+                    }
+                }
+            )
         }
     }
 
     fun publishPost() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isPublishing = true) }
-            // Simulated publish
-            kotlinx.coroutines.delay(1000)
-            _uiState.update { it.copy(isPublishing = false, published = true) }
+            val request = buildRequest(status = null) ?: return@launch
+            _uiState.update { it.copy(isPublishing = true, error = null, published = false) }
+            blogRepository.createBlog(request).fold(
+                onSuccess = {
+                    _uiState.update { state ->
+                        state.copy(isPublishing = false, published = true, error = null)
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isPublishing = false,
+                            error = error.message ?: "Không đăng được bài viết"
+                        )
+                    }
+                }
+            )
         }
+    }
+
+    private fun buildRequest(status: String?): CreateBlogRequest? {
+        val state = _uiState.value
+        val title = state.title.trim()
+        if (title.isBlank()) {
+            _uiState.update { it.copy(error = "Vui lòng nhập tiêu đề bài viết") }
+            return null
+        }
+
+        val blocks = state.blocks.mapIndexedNotNull { index, block ->
+            when (block.type) {
+                ContentBlockType.TEXT -> block.text.trim()
+                    .takeIf { it.isNotBlank() }
+                    ?.let {
+                        CreateBlogBlockRequest(
+                            order = index,
+                            type = "text",
+                            textContent = it
+                        )
+                    }
+
+                ContentBlockType.IMAGE -> block.imageUrl.trim()
+                    .takeIf { it.isNotBlank() }
+                    ?.let {
+                        CreateBlogBlockRequest(
+                            order = index,
+                            type = "image",
+                            imageUrl = it
+                        )
+                    }
+            }
+        }
+
+        return CreateBlogRequest(
+            title = title,
+            thumbnailUrl = state.coverUrl.trim().takeIf { it.isNotBlank() },
+            tags = state.tags.takeIf { it.isNotEmpty() },
+            status = status,
+            blocks = blocks.takeIf { it.isNotEmpty() }
+        )
     }
 }
