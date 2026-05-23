@@ -200,28 +200,53 @@ fun WorkoutBuilderScreen(
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Text("Chọn bài tập", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Ink900)
                 Spacer(Modifier.height(12.dp))
-                mockExercises().forEach { ex ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.addExercise(ex) }
-                            .padding(vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                when {
+                    uiState.isLoadingExercises -> {
                         Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Mint50),
+                            modifier = Modifier.fillMaxWidth().height(120.dp),
                             contentAlignment = Alignment.Center
-                        ) { Text("💪", fontSize = 18.sp) }
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(ex.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
-                            Text(ex.muscleGroup, fontSize = 11.sp, color = Ink500)
+                        ) {
+                            CircularProgressIndicator(color = Mint500)
                         }
                     }
-                    HorizontalDivider(color = Ink200, thickness = 0.5.dp)
+                    uiState.availableExercises.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(96.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Chưa có bài tập nào", fontSize = 13.sp, color = Ink500)
+                        }
+                    }
+                    else -> uiState.availableExercises.forEach { ex ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.addExercise(ex) }
+                                .padding(vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Mint50),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = ex.displayImageUrl,
+                                    contentDescription = ex.name,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(ex.name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
+                                Text(ex.muscleGroup, fontSize = 11.sp, color = Ink500)
+                            }
+                        }
+                        HorizontalDivider(color = Ink200, thickness = 0.5.dp)
+                    }
                 }
                 Spacer(Modifier.height(32.dp))
             }
@@ -255,12 +280,13 @@ private fun ExerciseBlock(
         Column(modifier = Modifier.padding(12.dp)) {
             // Exercise header
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val imgUrl = builderExercise.exercise.imageUrl
-                    ?: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=100"
                 AsyncImage(
-                    model = imgUrl,
+                    model = builderExercise.exercise.displayImageUrl,
                     contentDescription = builderExercise.exercise.name,
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Mint50),
                     contentScale = ContentScale.Crop
                 )
                 Spacer(Modifier.width(10.dp))

@@ -28,6 +28,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.components.ErrorState
+import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,15 +42,25 @@ fun ExerciseDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val exercise = uiState.exercises.firstOrNull { it.id == id }
         ?: uiState.filteredExercises.firstOrNull { it.id == id }
-        ?: mockExercises().firstOrNull { it.id == id }
-        ?: mockExercises().first()
+
+    if (uiState.isLoading && exercise == null) {
+        LoadingState()
+        return
+    }
+
+    if (exercise == null) {
+        ErrorState(
+            message = uiState.error ?: "Không tìm thấy bài tập",
+            onRetry = { viewModel.loadExercises() }
+        )
+        return
+    }
 
     val isFavorite = exercise.id in uiState.favorites
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Cách thực hiện", "Mẹo tập đúng", "Biến thể")
 
-    val heroImageUrl = exercise.imageUrl
-        ?: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=800&q=80"
+    val heroImageUrl = exercise.imageAvtUrl
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(AppBackground)
@@ -63,7 +75,7 @@ fun ExerciseDetailScreen(
                 AsyncImage(
                     model = heroImageUrl,
                     contentDescription = exercise.name,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().background(Mint50),
                     contentScale = ContentScale.Crop
                 )
                 // Gradient overlay
@@ -138,7 +150,7 @@ fun ExerciseDetailScreen(
                 // Tags
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TagPill(exercise.muscleGroup, Mint500, Color.White)
-                    TagPill("Vừa", MacroCarbs, Color.White)
+                    TagPill(exercise.intensity?.let(::formatIntensity) ?: "moderate", MacroCarbs, Color.White)
                     exercise.equipment?.let { TagPill(it, Ink100, Ink700) }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -146,7 +158,7 @@ fun ExerciseDetailScreen(
                 Text(exercise.name, fontWeight = FontWeight.Bold, fontSize = 24.sp, color = Ink900)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    exercise.description ?: "Bài tập hiệu quả giúp tăng cường sức mạnh và phát triển cơ bắp.",
+                    exercise.description ?: "Chưa có mô tả",
                     fontSize = 14.sp, color = Ink500, lineHeight = 20.sp
                 )
                 Spacer(Modifier.height(16.dp))
@@ -155,9 +167,9 @@ fun ExerciseDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    StatCard("MET", "5.0", "điểm", Mint500, Modifier.weight(1f))
+                    StatCard("MET", "${exercise.metValue}", "điểm", Mint500, Modifier.weight(1f))
                     StatCard("Năng lượng", "${(exercise.caloriesPerMin * 60).toInt()}", "kcal/h", MacroProtein, Modifier.weight(1f))
-                    StatCard("Khuyến nghị", "3×12", "sets×reps", MacroCarbs, Modifier.weight(1f))
+                    StatCard("Cường độ", exercise.intensity?.let(::formatIntensity) ?: "N/A", "", MacroCarbs, Modifier.weight(1f))
                 }
             }
         }
@@ -188,8 +200,8 @@ fun ExerciseDetailScreen(
         // Tab content
         item {
             when (selectedTab) {
-                0 -> StepsContent()
-                1 -> TipsContent()
+                0 -> StepsContent(exercise.instructions)
+                1 -> TipsContent(exercise.formTips)
                 2 -> VariantsContent()
             }
         }
@@ -264,52 +276,43 @@ private fun StatCard(label: String, value: String, unit: String, accentColor: Co
 }
 
 @Composable
-private fun StepsContent() {
-    val steps = listOf(
-        "Nằm ngửa trên ghế bench, lưng phẳng, hai chân chạm sàn.",
-        "Grip thanh tạ rộng hơn vai một chút.",
-        "Hạ thanh tạ xuống ngực một cách kiểm soát.",
-        "Đẩy thanh tạ lên đến khi tay duỗi thẳng hoàn toàn.",
-        "Giữ nhịp thở: hít vào khi hạ, thở ra khi đẩy.",
-        "Lặp lại theo số rep mong muốn."
-    )
+private fun StepsContent(instructions: String?) {
+    val steps = remember(instructions) { splitExerciseText(instructions) }
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        steps.forEachIndexed { i, step ->
-            Row(verticalAlignment = Alignment.Top) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(Mint500),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("${i + 1}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        if (steps.isEmpty()) {
+            Text("Chưa có hướng dẫn", fontSize = 13.sp, color = Ink500)
+        } else {
+            steps.forEachIndexed { i, step ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Mint500),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("${i + 1}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(step, fontSize = 13.sp, color = Ink700, lineHeight = 18.sp, modifier = Modifier.padding(top = 3.dp))
                 }
-                Spacer(Modifier.width(10.dp))
-                Text(step, fontSize = 13.sp, color = Ink700, lineHeight = 18.sp, modifier = Modifier.padding(top = 3.dp))
             }
         }
     }
 }
 
 @Composable
-private fun TipsContent() {
-    val dos = listOf("Giữ lưng phẳng trên bench", "Kiểm soát trọng lượng khi hạ", "Thở đúng nhịp")
-    val donts = listOf("Không nảy tạ trên ngực", "Tránh khóa khuỷu tay hoàn toàn", "Không dùng lưng để đẩy")
+private fun TipsContent(formTips: String?) {
+    val tips = remember(formTips) { splitExerciseText(formTips) }
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Nên làm", fontWeight = FontWeight.Bold, color = Mint500, fontSize = 13.sp)
-        dos.forEach { tip ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("✓", color = Mint500, fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp))
-                Text(tip, fontSize = 13.sp, color = Ink700)
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text("Không nên", fontWeight = FontWeight.Bold, color = MacroProtein, fontSize = 13.sp)
-        donts.forEach { tip ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("✗", color = MacroProtein, fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp))
-                Text(tip, fontSize = 13.sp, color = Ink700)
+        if (tips.isEmpty()) {
+            Text("Chưa có mẹo", fontSize = 13.sp, color = Ink500)
+        } else {
+            tips.forEach { tip ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Text("✓", color = Mint500, fontWeight = FontWeight.Bold, modifier = Modifier.width(20.dp))
+                    Text(tip, fontSize = 13.sp, color = Ink700, lineHeight = 18.sp)
+                }
             }
         }
     }
@@ -317,39 +320,31 @@ private fun TipsContent() {
 
 @Composable
 private fun VariantsContent() {
-    val variants = listOf(
-        "Incline Bench Press" to "Tập phần trên ngực",
-        "Decline Bench Press" to "Tập phần dưới ngực",
-        "Dumbbell Bench Press" to "Dùng tạ đơn linh hoạt hơn",
-        "Close-Grip Bench Press" to "Tập thêm cơ tay sau"
-    )
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        variants.forEach { (name, desc) ->
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                elevation = CardDefaults.cardElevation(1.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Mint50),
-                        contentAlignment = Alignment.Center
-                    ) { Text("💪", fontSize = 16.sp) }
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(name, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
-                        Text(desc, fontSize = 11.sp, color = Ink500)
-                    }
-                }
-            }
+        Text("Đang cập nhật...", fontSize = 13.sp, color = Ink500)
+    }
+}
+
+private fun splitExerciseText(text: String?): List<String> {
+    if (text.isNullOrBlank()) return emptyList()
+    return text
+        .replace(Regex("\\s+(?=\\d+[.)]\\s+)"), "\n")
+        .lines()
+        .map {
+            it.trim()
+                .replace(Regex("^\\d+[.)]\\s*"), "")
+                .removePrefix("-")
+                .removePrefix("•")
+                .trim()
         }
+        .filter { it.isNotBlank() }
+}
+
+private fun formatIntensity(intensity: String): String {
+    return when (intensity.lowercase()) {
+        "light" -> "Nhẹ"
+        "moderate" -> "Vừa"
+        "heavy" -> "Nặng"
+        else -> intensity
     }
 }

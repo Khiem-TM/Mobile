@@ -2,8 +2,9 @@ package com.vitalai.ui.screens.workout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vitalai.data.remote.model.CreateSessionRequest
+import com.vitalai.data.remote.model.CreateWorkoutSessionDto
 import com.vitalai.data.remote.model.ExerciseDto
+import com.vitalai.data.remote.model.WorkoutDetailDto
 import com.vitalai.data.repository.TrainingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -11,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.max
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -35,7 +37,9 @@ data class WorkoutBuilderUiState(
     val isSaving: Boolean = false,
     val savedSessionId: String? = null,
     val error: String? = null,
-    val showExercisePicker: Boolean = false
+    val showExercisePicker: Boolean = false,
+    val availableExercises: List<ExerciseDto> = emptyList(),
+    val isLoadingExercises: Boolean = false
 )
 
 @HiltViewModel
@@ -115,15 +119,60 @@ class WorkoutBuilderViewModel @Inject constructor(
 
     fun setShowExercisePicker(show: Boolean) {
         _uiState.update { it.copy(showExercisePicker = show) }
+        if (show && _uiState.value.availableExercises.isEmpty()) {
+            loadAvailableExercises()
+        }
+    }
+
+    private fun loadAvailableExercises() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingExercises = true, error = null) }
+            trainingRepository.getExercises(null).fold(
+                onSuccess = { exercises ->
+                    _uiState.update {
+                        it.copy(
+                            availableExercises = exercises,
+                            isLoadingExercises = false
+                        )
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingExercises = false,
+                            error = e.message ?: "Lỗi tải bài tập"
+                        )
+                    }
+                }
+            )
+        }
     }
 
     fun saveSession() {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             val state = _uiState.value
-            val request = CreateSessionRequest(
-                name = state.sessionName,
-                date = state.date
+            val durationPerExercise = max(
+                1,
+                state.elapsedSeconds / 60 / max(1, state.exercises.size)
+            )
+            val details = state.exercises.mapIndexed { index, builderExercise ->
+                val reps = builderExercise.sets.mapNotNull { it.reps.toIntOrNull() }
+                val weights = builderExercise.sets.mapNotNull { it.kg.toFloatOrNull() }
+                WorkoutDetailDto(
+                    exerciseId = builderExercise.exercise.id,
+                    durationMinutes = durationPerExercise,
+                    sets = builderExercise.sets.size,
+                    repsPerSet = reps.takeIf { it.isNotEmpty() }?.average()?.toInt()?.coerceAtLeast(1),
+                    weightKg = weights.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+                    orderIndex = index
+                )
+            }
+            val request = CreateWorkoutSessionDto(
+                sessionDate = state.date,
+                sessionName = state.sessionName,
+                notes = null,
+                details = details
             )
             trainingRepository.createSession(request).fold(
                 onSuccess = { session ->

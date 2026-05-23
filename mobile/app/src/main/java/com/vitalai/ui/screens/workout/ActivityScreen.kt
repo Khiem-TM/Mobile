@@ -65,7 +65,7 @@ fun ActivityScreen(
         RingData("Move", log?.caloriesBurned ?: 320f, 500f, MacroProtein, "kcal"),
         RingData("Steps", (log?.steps ?: 6200).toFloat(), 10000f, Mint500, "bước"),
         RingData("Water", (log?.waterMl ?: 1200).toFloat(), 2000f, MacroWater, "ml"),
-        RingData("Active", (log?.activeMins ?: 25).toFloat(), 60f, MacroCarbs, "phút")
+        RingData("Active", (log?.activeMinutes ?: 25).toFloat(), 60f, MacroCarbs, "phút")
     )
 
     // Mock hourly steps data

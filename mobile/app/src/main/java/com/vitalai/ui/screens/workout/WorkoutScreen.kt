@@ -16,11 +16,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.navigation.Screen
@@ -31,10 +33,12 @@ import com.vitalai.ui.theme.*
 data class WorkoutCategory(val emoji: String, val name: String, val muscleGroup: String)
 
 val workoutCategories = listOf(
-    WorkoutCategory("🏃", "Cardio", "Cardio"),
-    WorkoutCategory("🏋️", "Sức mạnh", "Strength"),
-    WorkoutCategory("⚡", "HIIT", "HIIT"),
-    WorkoutCategory("🧘", "Yoga", "Yoga")
+    WorkoutCategory("🏋️", "Ngực", "chest"),
+    WorkoutCategory("🔙", "Lưng", "back"),
+    WorkoutCategory("🦵", "Chân", "legs"),
+    WorkoutCategory("💪", "Tay", "arms"),
+    WorkoutCategory("🔥", "Cardio", "cardio"),
+    WorkoutCategory("🧘", "Core", "core")
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,7 +106,7 @@ fun WorkoutScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             WorkoutStat("🔥", "${activity?.caloriesBurned?.toInt() ?: 0}", "kcal")
-                            WorkoutStat("⏱️", "${activity?.activeMins ?: 0}", "phút")
+                            WorkoutStat("⏱️", "${activity?.activeMinutes ?: 0}", "phút")
                             WorkoutStat("👟", "${activity?.steps ?: 0}", "bước")
                         }
                     }
@@ -277,7 +281,14 @@ private fun ExerciseItem(exercise: ExerciseDto) {
                     .clip(RoundedCornerShape(10.dp))
                     .background(Mint50),
                 contentAlignment = Alignment.Center
-            ) { Text("💪", fontSize = 20.sp) }
+            ) {
+                AsyncImage(
+                    model = exercise.displayImageUrl,
+                    contentDescription = exercise.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(exercise.name, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink900)
@@ -313,10 +324,10 @@ private fun SessionItem(session: WorkoutSessionDto) {
             ) { Text("🏃", fontSize = 20.sp) }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(session.name ?: "Phiên tập", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink900)
-                Text("${session.durationMin} phút", fontSize = 12.sp, color = Ink500)
+                Text(session.sessionName ?: "Phiên tập", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink900)
+                Text("${session.totalDurationMinutes} phút", fontSize = 12.sp, color = Ink500)
             }
-            Text("${session.totalCalories.toInt()} kcal", fontSize = 12.sp, color = Mint500, fontWeight = FontWeight.SemiBold)
+            Text("${session.totalCaloriesBurned.toInt()} kcal", fontSize = 12.sp, color = Mint500, fontWeight = FontWeight.SemiBold)
         }
     }
 }

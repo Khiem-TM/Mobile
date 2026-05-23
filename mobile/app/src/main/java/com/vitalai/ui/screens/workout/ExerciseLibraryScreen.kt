@@ -29,21 +29,27 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.navigation.Screen
-import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.*
 
 private val muscleGroups = listOf(
     null to "Tất cả",
-    "Ngực" to "Ngực",
-    "Lưng" to "Lưng",
-    "Chân" to "Chân",
-    "Vai" to "Vai",
-    "Tay" to "Tay",
-    "Bụng" to "Bụng"
+    "chest" to "Ngực",
+    "back" to "Lưng",
+    "legs" to "Chân",
+    "shoulders" to "Vai",
+    "arms" to "Tay",
+    "core" to "Core",
+    "cardio" to "Cardio",
+    "full_body" to "Toàn thân"
 )
 
-private val intensities = listOf(null to "Tất cả", "Nhẹ" to "Nhẹ", "Vừa" to "Vừa", "Nặng" to "Nặng")
+private val intensities = listOf(
+    null to "Tất cả",
+    "light" to "Nhẹ",
+    "moderate" to "Vừa",
+    "heavy" to "Nặng"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,8 +126,8 @@ fun ExerciseLibraryScreen(
                 intensities.forEach { (key, label) ->
                     val isSelected = uiState.selectedIntensity == key
                     val color = when (key) {
-                        "Nặng" -> MacroProtein
-                        "Vừa" -> MacroCarbs
+                        "heavy" -> MacroProtein
+                        "moderate" -> MacroCarbs
                         else -> if (isSelected) Mint500 else Ink500
                     }
                     FilterChip(
@@ -148,22 +154,9 @@ fun ExerciseLibraryScreen(
 
             when {
                 uiState.isLoading -> LoadingState()
-                uiState.error != null -> {
-                    // Show mock exercises on error
-                    ExerciseListContent(
-                        exercises = mockExercises(),
-                        favorites = uiState.favorites,
-                        onExerciseClick = { navController.navigate(Screen.ExerciseDetail(it.id)) },
-                        onFavoriteToggle = { viewModel.toggleFavorite(it) }
-                    )
-                }
+                uiState.error != null -> EmptyState(message = uiState.error ?: "Không tải được bài tập")
                 uiState.filteredExercises.isEmpty() -> {
-                    ExerciseListContent(
-                        exercises = mockExercises(),
-                        favorites = uiState.favorites,
-                        onExerciseClick = { navController.navigate(Screen.ExerciseDetail(it.id)) },
-                        onFavoriteToggle = { viewModel.toggleFavorite(it) }
-                    )
+                    EmptyState(message = "Chưa có bài tập phù hợp")
                 }
                 else -> ExerciseListContent(
                     exercises = uiState.filteredExercises,
@@ -173,6 +166,16 @@ fun ExerciseLibraryScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyState(message: String, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxSize().padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(message, fontSize = 13.sp, color = Ink500)
     }
 }
 
@@ -217,14 +220,12 @@ private fun ExerciseCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Thumbnail
-            val imageUrl = exercise.imageUrl
-                ?: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=200&q=80"
             AsyncImage(
-                model = imageUrl,
+                model = exercise.displayImageUrl,
                 contentDescription = exercise.name,
                 modifier = Modifier
                     .size(72.dp)
+                    .background(Mint50)
                     .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
@@ -310,14 +311,3 @@ private fun PillChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
         )
     }
 }
-
-internal fun mockExercises(): List<ExerciseDto> = listOf(
-    ExerciseDto("1", "Bench Press", "Ngực", "Tạ đơn", "Bài tập ngực kinh điển", "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=200", 5.0f),
-    ExerciseDto("2", "Squat", "Chân", "Tạ đòn", "Bài tập toàn thân hiệu quả", "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=200", 6.0f),
-    ExerciseDto("3", "Pull-up", "Lưng", "Thanh xà", "Bài tập lưng và tay", "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=200", 4.5f),
-    ExerciseDto("4", "Shoulder Press", "Vai", "Tạ đơn", "Tăng sức mạnh vai", null, 4.0f),
-    ExerciseDto("5", "Plank", "Bụng", "Không cần", "Tăng sức bền lõi cơ", null, 3.5f),
-    ExerciseDto("6", "Bicep Curl", "Tay", "Tạ đơn", "Tập cơ tay trước", null, 3.0f),
-    ExerciseDto("7", "Deadlift", "Lưng", "Tạ đòn", "Bài tập toàn thân nặng", "https://images.unsplash.com/photo-1566241142559-40e1dab266c6?w=200", 7.0f),
-    ExerciseDto("8", "Chạy bộ", "Cardio", "Không cần", "Cardio cơ bản", null, 8.0f)
-)
