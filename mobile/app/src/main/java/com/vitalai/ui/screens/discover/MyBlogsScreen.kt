@@ -68,7 +68,7 @@ fun MyBlogsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         Column(
             modifier = Modifier
@@ -80,9 +80,10 @@ fun MyBlogsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(VitalRadius.Xl),
                 colors = CardDefaults.cardColors(containerColor = AppSurface),
-                elevation = CardDefaults.cardElevation(2.dp)
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                elevation = CardDefaults.cardElevation(0.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -104,7 +105,7 @@ fun MyBlogsScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppSurface)
+                    .background(AppMutedBackground)
                     .padding(vertical = 6.dp)
             ) {
                 items(statusTabs) { (key, label) ->
@@ -132,7 +133,7 @@ fun MyBlogsScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("📝", fontSize = 48.sp)
                         Spacer(Modifier.height(12.dp))
-                        Text("Chưa có bài viết nào", color = Ink500, fontSize = 15.sp)
+                        Text(uiState.error ?: "Chưa có bài viết nào", color = Ink500, fontSize = 15.sp)
                         Spacer(Modifier.height(8.dp))
                         Button(
                             onClick = { navController.navigate(Screen.BlogComposer) },
@@ -171,7 +172,7 @@ private fun StatsItem(label: String, value: String, color: Color) {
 private fun StatusTabChip(label: String, count: Int, isSelected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(100))
+            .clip(RoundedCornerShape(VitalRadius.Pill))
             .background(if (isSelected) Mint500 else AppSurface)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -187,7 +188,7 @@ private fun StatusTabChip(label: String, count: Int, isSelected: Boolean, onClic
         if (count > 0) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(100))
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
                     .background(if (isSelected) Color.White.copy(0.25f) else Ink200)
                     .padding(horizontal = 5.dp, vertical = 1.dp)
             ) {
@@ -227,9 +228,10 @@ private fun MyBlogCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 5.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column {
             // Rejection reason banner
@@ -260,14 +262,14 @@ private fun MyBlogCard(
                         contentDescription = blog.title,
                         modifier = Modifier
                             .size(72.dp)
-                            .clip(RoundedCornerShape(10.dp)),
+                            .clip(RoundedCornerShape(VitalRadius.Md)),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Box(
                         modifier = Modifier
                             .size(72.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(VitalRadius.Md))
                             .background(Mint50),
                         contentAlignment = Alignment.Center
                     ) { Text("📰", fontSize = 24.sp) }
@@ -278,7 +280,7 @@ private fun MyBlogCard(
                     // Status badge
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(100))
+                            .clip(RoundedCornerShape(VitalRadius.Pill))
                             .background(statusColor.copy(0.12f))
                             .padding(horizontal = 8.dp, vertical = 2.dp)
                     ) {

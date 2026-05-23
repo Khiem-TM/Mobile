@@ -40,7 +40,7 @@ fun BlogComposerScreen(
     }
 
     Scaffold(
-        containerColor = AppBackground,
+        containerColor = AppMutedBackground,
         topBar = {
             TopAppBar(
                 title = { Text("Bài viết mới", fontWeight = FontWeight.Bold) },
@@ -69,7 +69,7 @@ fun BlogComposerScreen(
                         onClick = viewModel::saveDraft,
                         modifier = Modifier.weight(1f),
                         enabled = !uiState.isSaving,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(VitalRadius.Pill),
                         border = ButtonDefaults.outlinedButtonBorder
                     ) {
                         if (uiState.isSaving) {
@@ -82,7 +82,7 @@ fun BlogComposerScreen(
                         onClick = viewModel::publishPost,
                         modifier = Modifier.weight(1f),
                         enabled = !uiState.isPublishing && uiState.title.isNotBlank(),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(VitalRadius.Pill),
                         colors = ButtonDefaults.buttonColors(containerColor = Mint500)
                     ) {
                         if (uiState.isPublishing) {
@@ -108,10 +108,10 @@ fun BlogComposerScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(VitalRadius.Xl))
                         .run {
                             if (uiState.coverUrl.isBlank()) {
-                                border(width = 1.5.dp, color = Ink200, shape = RoundedCornerShape(16.dp))
+                                border(width = 1.5.dp, color = AppLine, shape = RoundedCornerShape(VitalRadius.Xl))
                                     .background(AppSurface)
                             } else {
                                 this
@@ -173,7 +173,7 @@ fun BlogComposerScreen(
                             val tag = uiState.tags[i]
                             Row(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(100))
+                                    .clip(RoundedCornerShape(VitalRadius.Pill))
                                     .background(Mint50)
                                     .padding(horizontal = 10.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -198,7 +198,7 @@ fun BlogComposerScreen(
                                     placeholder = { Text("Thêm thẻ...", fontSize = 12.sp) },
                                     modifier = Modifier.width(120.dp),
                                     singleLine = true,
-                                    shape = RoundedCornerShape(100),
+                                    shape = RoundedCornerShape(VitalRadius.Pill),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = Mint500,
                                         unfocusedBorderColor = Ink200
@@ -247,8 +247,8 @@ fun BlogComposerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .border(width = 1.5.dp, color = Ink200, shape = RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(VitalRadius.Md))
+                        .border(width = 1.5.dp, color = AppLine, shape = RoundedCornerShape(VitalRadius.Md))
                         .clickable { viewModel.setShowAddBlockSheet(true) }
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
@@ -310,16 +310,17 @@ private fun ContentBlockCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column {
             // Block header bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Ink100)
+                    .background(AppSurface2)
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -372,7 +373,7 @@ private fun ContentBlockCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(160.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
+                                    .clip(RoundedCornerShape(VitalRadius.Md)),
                                 contentScale = ContentScale.Crop
                             )
                         } else {
@@ -380,9 +381,9 @@ private fun ContentBlockCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(120.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Ink100)
-                                    .border(width = 1.dp, color = Ink200, shape = RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(VitalRadius.Md))
+                                    .background(AppSurface2)
+                                    .border(width = 1.dp, color = AppLine, shape = RoundedCornerShape(VitalRadius.Md))
                                     .clickable { /* pick image */ },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -399,7 +400,7 @@ private fun ContentBlockCard(
                             placeholder = { Text("Chú thích ảnh...", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
+                            shape = RoundedCornerShape(VitalRadius.Md),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Mint500,
                                 unfocusedBorderColor = Ink200
@@ -421,8 +422,8 @@ private fun BlockTypeOption(
 ) {
     Card(
         modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Ink100),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface2),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(

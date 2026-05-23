@@ -30,7 +30,10 @@ class ExerciseLibraryViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ExerciseLibraryUiState())
     val uiState = _uiState.asStateFlow()
 
-    init { loadExercises() }
+    init {
+        loadExercises()
+        loadFavorites()
+    }
 
     fun loadExercises(muscleGroup: String? = null) {
         viewModelScope.launch {
@@ -71,12 +74,46 @@ class ExerciseLibraryViewModel @Inject constructor(
     }
 
     fun toggleFavorite(exerciseId: String) {
-        _uiState.update { state ->
-            val newFavs = if (exerciseId in state.favorites)
-                state.favorites - exerciseId
-            else
-                state.favorites + exerciseId
-            state.copy(favorites = newFavs)
+        viewModelScope.launch {
+            val isCurrentlyFavorite = exerciseId in _uiState.value.favorites
+            _uiState.update { state ->
+                val newFavorites = if (isCurrentlyFavorite) {
+                    state.favorites - exerciseId
+                } else {
+                    state.favorites + exerciseId
+                }
+                state.copy(favorites = newFavorites)
+            }
+
+            val result = if (isCurrentlyFavorite) {
+                trainingRepository.removeFavorite(exerciseId)
+            } else {
+                trainingRepository.addFavorite(exerciseId)
+            }
+
+            result.onFailure { e ->
+                _uiState.update { state ->
+                    val revertedFavorites = if (isCurrentlyFavorite) {
+                        state.favorites + exerciseId
+                    } else {
+                        state.favorites - exerciseId
+                    }
+                    state.copy(
+                        favorites = revertedFavorites,
+                        error = e.message ?: "Lỗi cập nhật yêu thích"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun loadFavorites() {
+        viewModelScope.launch {
+            trainingRepository.getFavorites().onSuccess { favorites ->
+                _uiState.update { state ->
+                    state.copy(favorites = favorites.map { it.id }.toSet())
+                }
+            }
         }
     }
 
@@ -87,6 +124,9 @@ class ExerciseLibraryViewModel @Inject constructor(
         }
         if (state.selectedMuscleGroup != null) {
             list = list.filter { it.muscleGroup.equals(state.selectedMuscleGroup, ignoreCase = true) }
+        }
+        if (state.selectedIntensity != null) {
+            list = list.filter { it.intensity.equals(state.selectedIntensity, ignoreCase = true) }
         }
         return list
     }

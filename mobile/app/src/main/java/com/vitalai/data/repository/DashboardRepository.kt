@@ -42,4 +42,26 @@ class DashboardRepository @Inject constructor(
             Result.success(0)
         }
     }
+
+    suspend fun addWater(ml: Int): Result<DashboardDto> {
+        return try {
+            val response = dashboardApi.updateWater(mapOf("amount" to ml))
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi cập nhật nước"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun addSteps(steps: Int): Result<DashboardDto> {
+        return try {
+            val response = dashboardApi.updateSteps(mapOf("amount" to steps))
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi cập nhật bước chân"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

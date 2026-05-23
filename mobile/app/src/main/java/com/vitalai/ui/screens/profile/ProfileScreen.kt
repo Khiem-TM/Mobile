@@ -29,6 +29,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.VitalBottomNavBar
+import com.vitalai.ui.theme.*
 
 @Composable
 fun ProfileScreen(
@@ -39,7 +40,7 @@ fun ProfileScreen(
 
     Scaffold(
         bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = Color(0xFFF9FAFB)
+        containerColor = AppMutedBackground
     ) { padding ->
         Column(
             modifier = Modifier
@@ -55,17 +56,17 @@ fun ProfileScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink900)
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color.White)
-                        .border(1.dp, Color(0xFFF3F4F6), CircleShape)
+                        .background(AppSurface)
+                        .border(1.dp, AppLine, CircleShape)
                         .clickable { /* settings */ },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Black, modifier = Modifier.size(22.dp))
+                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Ink900, modifier = Modifier.size(22.dp))
                 }
             }
 
@@ -92,11 +93,11 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFE5E7EB)),
+                                .background(AppSurface2),
                             contentAlignment = Alignment.Center
                         ) {
                             val initial = (uiState.user?.displayName?.firstOrNull() ?: 'U').uppercaseChar()
-                            Text(initial.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Color.Gray)
+                            Text(initial.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink500)
                         }
                     }
                     Spacer(modifier = Modifier.width(16.dp))
@@ -105,12 +106,12 @@ fun ProfileScreen(
                             text = uiState.user?.displayName ?: "Người dùng",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black
+                            color = Ink900
                         )
                         Text(
                             text = uiState.user?.email ?: "email@vital.app",
                             fontSize = 14.sp,
-                            color = Color.Gray
+                            color = Ink500
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -118,7 +119,7 @@ fun ProfileScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(100))
-                                    .background(Color(0xFF0F172A))
+                                    .background(Ink900)
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Text("PRO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -133,13 +134,13 @@ fun ProfileScreen(
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(100))
-                                    .background(Color(0xFFFEF3C7))
+                                    .background(AmberContainer)
                                     .padding(horizontal = 10.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("🎯", fontSize = 11.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(goalText, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFFB45309))
+                                Text(goalText, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = AmberOnContainer)
                             }
                             // Streak tag
                             val streak = uiState.streaks?.loginStreak ?: 0
@@ -147,13 +148,13 @@ fun ProfileScreen(
                                 Row(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(100))
-                                        .background(Color(0xFFECFDF5))
+                                        .background(Mint50)
                                         .padding(horizontal = 10.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text("🔥", fontSize = 11.sp)
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("$streak day streak", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF047857))
+                                    Text("$streak day streak", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Mint700)
                                 }
                             }
                         }
@@ -182,21 +183,21 @@ fun ProfileScreen(
                     value = currentWeight?.let { String.format("%.1f", it) } ?: "--",
                     unit = "kg",
                     label = "Hiện tại",
-                    color = Color(0xFF38C182),
+                    color = Mint500,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
                     value = targetWeight?.let { String.format("%.0f", it) } ?: "--",
                     unit = "kg",
                     label = "Mục tiêu",
-                    color = Color.Black,
+                    color = Ink900,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
                     value = bmi?.let { String.format("%.1f", it) } ?: "--",
                     unit = "",
                     label = "BMI",
-                    color = Color(0xFF38C182),
+                    color = Mint500,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -208,9 +209,9 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+                shape = RoundedCornerShape(VitalRadius.Lg),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppLine)
             ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.BarChart, label = "Chỉ số cơ thể") {
@@ -241,7 +242,7 @@ fun ProfileScreen(
                 "KHÁM PHÁ THÊM",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Gray,
+                color = Ink500,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
             )
 
@@ -250,9 +251,9 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+                shape = RoundedCornerShape(VitalRadius.Lg),
+                colors = CardDefaults.cardColors(containerColor = AppSurface),
+                border = BorderStroke(1.dp, AppLine)
             ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.Language, label = "Khám phá (Blog)") {
@@ -274,9 +275,9 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFF3F4F6), RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(VitalRadius.Lg))
+                    .background(AppSurface)
+                    .border(1.dp, AppLine, RoundedCornerShape(VitalRadius.Lg))
                     .clickable {
                         viewModel.logout {
                             navController.navigate(Screen.Welcome) {
@@ -301,9 +302,9 @@ fun ProfileScreen(
 private fun StatCard(value: String, unit: String, label: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -313,11 +314,11 @@ private fun StatCard(value: String, unit: String, label: String, color: Color, m
                 Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = color)
                 if (unit.isNotEmpty()) {
                     Spacer(modifier = Modifier.width(2.dp))
-                    Text(unit, fontSize = 13.sp, color = Color.Gray, modifier = Modifier.padding(bottom = 2.dp))
+                    Text(unit, fontSize = 13.sp, color = Ink500, modifier = Modifier.padding(bottom = 2.dp))
                 }
             }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(label, fontSize = 12.sp, color = Color.Gray)
+            Text(label, fontSize = 12.sp, color = Ink500)
         }
     }
 }
@@ -340,17 +341,17 @@ private fun ProfileMenuItem(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFF3F4F6)),
+                .background(AppSurface2),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = label, tint = Color(0xFF374151), modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = label, tint = Ink700, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.width(14.dp))
-        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color.Black, modifier = Modifier.weight(1f))
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color(0xFFD1D5DB), modifier = Modifier.size(20.dp))
+        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Ink900, modifier = Modifier.weight(1f))
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Ink300, modifier = Modifier.size(20.dp))
     }
     if (showDivider) {
-        HorizontalDivider(color = Color(0xFFF3F4F6), thickness = 1.dp, modifier = Modifier.padding(start = 70.dp))
+        HorizontalDivider(color = AppLineSoft, thickness = 1.dp, modifier = Modifier.padding(start = 70.dp))
     }
 }
 

@@ -58,7 +58,7 @@ fun NotificationsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -81,7 +81,7 @@ fun NotificationsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(vertical = 12.dp)
             ) {
                 items(uiState.notifications, key = { it.id }) { notification ->
                     NotificationItem(
@@ -106,6 +106,8 @@ private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit)
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(RoundedCornerShape(VitalRadius.Lg))
             .clickable(onClick = onClick)
             .background(if (!notification.isRead) Mint50 else AppSurface)
             .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -152,7 +154,6 @@ private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit)
             )
         }
     }
-    HorizontalDivider(color = Ink200, thickness = 0.5.dp)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
