@@ -2,12 +2,14 @@ package com.vitalai.ui.screens.metrics
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,7 +29,6 @@ import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.SegmentedPills
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,12 +90,38 @@ fun MetricsScreen(
                 }
 
                 // Period selector
-                SegmentedPills(
-                    options = listOf("1W" to "1 tuần", "1M" to "1 tháng", "3M" to "3 tháng"),
-                    selected = uiState.selectedPeriod,
-                    onSelected = viewModel::selectPeriod,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(50),
+                    color = AppSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    ) {
+                        listOf("1W" to "1 tuần", "1M" to "1 tháng", "3M" to "3 tháng").forEach { (key, label) ->
+                            val isSelected = uiState.selectedPeriod == key
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (isSelected) Mint500 else Color.Transparent)
+                                    .clickable { viewModel.selectPeriod(key) }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 13.sp,
+                                    color = if (isSelected) Color.White else Ink500,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Weight chart
                 uiState.periodData?.let { period ->
@@ -102,7 +129,6 @@ fun MetricsScreen(
                         Card(
                             shape = RoundedCornerShape(VitalRadius.Xl),
                             colors = CardDefaults.cardColors(containerColor = AppSurface),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
                             elevation = CardDefaults.cardElevation(0.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -135,7 +161,6 @@ fun MetricsScreen(
                     Card(
                         shape = RoundedCornerShape(VitalRadius.Xl),
                         colors = CardDefaults.cardColors(containerColor = AppSurface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
                         elevation = CardDefaults.cardElevation(0.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -143,13 +168,28 @@ fun MetricsScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(bmiColor(bmi).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccessibilityNew,
+                                    contentDescription = null,
+                                    tint = bmiColor(bmi),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Chỉ số BMI", fontWeight = FontWeight.Bold, color = Ink900)
-                                Text(bmiLabel(bmi), fontSize = 13.sp, color = bmiColor(bmi))
+                                Text("Chỉ số BMI", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+                                Text(bmiLabel(bmi), fontSize = 13.sp, color = bmiColor(bmi), fontWeight = FontWeight.Medium)
                             }
                             Text(
                                 "%.1f".format(bmi),
-                                fontSize = 32.sp,
+                                fontSize = 36.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = bmiColor(bmi)
                             )
@@ -178,17 +218,18 @@ fun MetricsScreen(
 private fun MetricCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(VitalRadius.Lg),
+        shape = RoundedCornerShape(VitalRadius.Xl),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
         border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.18f)),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = color)
-            Text(label, fontSize = 11.sp, color = color.copy(alpha = 0.8f))
+            Text(value, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = color)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(label, fontSize = 12.sp, color = Ink500, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -302,172 +343,200 @@ fun MetricsScreenPreview() {
     )
 
     val latest = mockData.last()
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Số liệu cơ thể",
-                        fontWeight = FontWeight.Bold
-                    )
+    VitalAITheme {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                title = { Text("Số liệu cơ thể", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = {}) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                    }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppSurface
-                )
+                actions = {
+                    TextButton(onClick = {}) {
+                        Text("Lịch sử", color = Mint500, fontSize = 13.sp)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
-        containerColor = AppBackground
+        containerColor = AppMutedBackground
     ) { padding ->
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
 
-                MetricCard(
-                    "Cân nặng",
-                    "${latest.weightKg} kg",
-                    Mint500,
-                    Modifier.weight(1f)
-                )
-
-                latest.bmi?.let { bmi ->
-
-                    MetricCard(
-                        "BMI",
-                        "%.1f".format(bmi),
-                        bmiColor(bmi),
-                        Modifier.weight(1f)
-                    )
-                }
-
-                latest.bodyFatPct?.let { fat ->
-
-                    MetricCard(
-                        "Mỡ cơ thể",
-                        "%.1f%%".format(fat),
-                        MacroFat,
-                        Modifier.weight(1f)
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-
-                listOf(
-                    "1W" to "1 tuần",
-                    "1M" to "1 tháng",
-                    "3M" to "3 tháng"
-                ).forEach { (_, label) ->
-
-                    FilterChip(
-                        selected = label == "1 tháng",
-                        onClick = {},
-                        label = {
-                            Text(label, fontSize = 12.sp)
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Mint500,
-                            selectedLabelColor = Color.White
-                        )
-                    )
-                }
-            }
-
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = AppSurface
-                ),
-                elevation = CardDefaults.cardElevation(2.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    MetricCard(
+                        "Cân nặng",
+                        "${latest.weightKg} kg",
+                        Mint500,
+                        Modifier.weight(1f)
+                    )
 
-                        Text(
-                            "Biểu đồ cân nặng",
-                            fontWeight = FontWeight.Bold,
-                            color = Ink900
-                        )
+                    latest.bmi?.let { bmi ->
 
-                        Text(
-                            "TB: 77.4 kg",
-                            fontSize = 12.sp,
-                            color = Ink500
+                        MetricCard(
+                            "BMI",
+                            "%.1f".format(bmi),
+                            bmiColor(bmi),
+                            Modifier.weight(1f)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    latest.bodyFatPct?.let { fat ->
 
-                    WeightLineChart(
-                        data = mockData,
+                        MetricCard(
+                            "Mỡ cơ thể",
+                            "%.1f%%".format(fat),
+                            MacroFat,
+                            Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(50),
+                    color = AppSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
+                ) {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(160.dp)
-                    )
+                            .padding(4.dp)
+                    ) {
+                        listOf("1W" to "1 tuần", "1M" to "1 tháng", "3M" to "3 tháng").forEach { (key, label) ->
+                            val isSelected = "1M" == key
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (isSelected) Mint500 else Color.Transparent)
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 13.sp,
+                                    color = if (isSelected) Color.White else Ink500,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
                 }
-            }
-
-            latest.bmi?.let { bmi ->
 
                 Card(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(VitalRadius.Xl),
                     colors = CardDefaults.cardColors(
                         containerColor = AppSurface
                     ),
-                    elevation = CardDefaults.cardElevation(2.dp),
+                    elevation = CardDefaults.cardElevation(0.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
 
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(16.dp)
                     ) {
 
-                        Column(
-                            modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
 
                             Text(
-                                "Chỉ số BMI",
+                                "Biểu đồ cân nặng",
                                 fontWeight = FontWeight.Bold,
                                 color = Ink900
                             )
 
                             Text(
-                                bmiLabel(bmi),
-                                fontSize = 13.sp,
-                                color = bmiColor(bmi)
+                                "TB: 77.4 kg",
+                                fontSize = 12.sp,
+                                color = Ink500
                             )
                         }
 
-                        Text(
-                            "%.1f".format(bmi),
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = bmiColor(bmi)
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        WeightLineChart(
+                            data = mockData,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
                         )
+                    }
+                }
+
+                latest.bmi?.let { bmi ->
+
+                    Card(
+                        shape = RoundedCornerShape(VitalRadius.Xl),
+                        colors = CardDefaults.cardColors(
+                            containerColor = AppSurface
+                        ),
+                        elevation = CardDefaults.cardElevation(0.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            Box(
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(bmiColor(bmi).copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AccessibilityNew,
+                                    contentDescription = null,
+                                    tint = bmiColor(bmi),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+
+                                Text(
+                                    "Chỉ số BMI",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Ink900
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    bmiLabel(bmi),
+                                    fontSize = 13.sp,
+                                    color = bmiColor(bmi),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Text(
+                                "%.1f".format(bmi),
+                                fontSize = 36.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = bmiColor(bmi)
+                            )
+                        }
                     }
                 }
             }
