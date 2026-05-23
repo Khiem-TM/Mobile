@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -59,12 +60,34 @@ fun ExerciseLibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    ExerciseLibraryScreenContent(
+        uiState = uiState,
+        onBackClick = { navController.popBackStack() },
+        onSearchQueryChange = viewModel::setSearchQuery,
+        onMuscleFilterToggle = { key, isSelected -> viewModel.setMuscleFilter(if (isSelected) null else key) },
+        onIntensityFilterToggle = { key, isSelected -> viewModel.setIntensityFilter(if (isSelected) null else key) },
+        onExerciseClick = { navController.navigate(Screen.ExerciseDetail(it.id)) },
+        onFavoriteToggle = { viewModel.toggleFavorite(it) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseLibraryScreenContent(
+    uiState: ExerciseLibraryUiState,
+    onBackClick: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onMuscleFilterToggle: (String?, Boolean) -> Unit,
+    onIntensityFilterToggle: (String?, Boolean) -> Unit,
+    onExerciseClick: (ExerciseDto) -> Unit,
+    onFavoriteToggle: (String) -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Thư viện bài tập", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
@@ -81,7 +104,7 @@ fun ExerciseLibraryScreen(
             // Search bar
             OutlinedTextField(
                 value = uiState.searchQuery,
-                onValueChange = viewModel::setSearchQuery,
+                onValueChange = onSearchQueryChange,
                 placeholder = { Text("Tìm kiếm bài tập...", color = Ink500) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Ink500) },
                 modifier = Modifier
@@ -111,7 +134,7 @@ fun ExerciseLibraryScreen(
                     PillChip(
                         label = label,
                         isSelected = isSelected,
-                        onClick = { viewModel.setMuscleFilter(if (isSelected) null else key) }
+                        onClick = { onMuscleFilterToggle(key, isSelected) }
                     )
                 }
             }
@@ -132,7 +155,7 @@ fun ExerciseLibraryScreen(
                     }
                     FilterChip(
                         selected = isSelected,
-                        onClick = { viewModel.setIntensityFilter(if (isSelected) null else key) },
+                        onClick = { onIntensityFilterToggle(key, isSelected) },
                         label = {
                             Text(label, fontSize = 12.sp,
                                 color = if (isSelected) Color.White else color,
@@ -161,8 +184,8 @@ fun ExerciseLibraryScreen(
                 else -> ExerciseListContent(
                     exercises = uiState.filteredExercises,
                     favorites = uiState.favorites,
-                    onExerciseClick = { navController.navigate(Screen.ExerciseDetail(it.id)) },
-                    onFavoriteToggle = { viewModel.toggleFavorite(it) }
+                    onExerciseClick = onExerciseClick,
+                    onFavoriteToggle = onFavoriteToggle
                 )
             }
         }
@@ -309,6 +332,56 @@ private fun PillChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
             fontSize = 13.sp,
             color = if (isSelected) Color.White else Ink700,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ExerciseLibraryScreenPreview() {
+    val mockExercises = listOf(
+        ExerciseDto(
+            id = "1",
+            name = "Push Up",
+            primaryMuscleGroup = "CHEST",
+            equipment = "Bodyweight",
+            imageAvtUrl = null,
+            imageUrl = null,
+            intensity = "moderate",
+            caloriesPerMin = 0.1f
+        ),
+        ExerciseDto(
+            id = "2",
+            name = "Squat",
+            primaryMuscleGroup = "LEGS",
+            equipment = "Barbell",
+            imageAvtUrl = null,
+            imageUrl = null,
+            intensity = "heavy",
+            caloriesPerMin = 0.2f
+        )
+    )
+
+    val mockState = ExerciseLibraryUiState(
+        exercises = mockExercises,
+        filteredExercises = mockExercises,
+        selectedMuscleGroup = null,
+        selectedIntensity = null,
+        searchQuery = "",
+        isLoading = false,
+        error = null,
+        favorites = setOf("1")
+    )
+
+    VitalAITheme {
+        ExerciseLibraryScreenContent(
+            uiState = mockState,
+            onBackClick = {},
+            onSearchQueryChange = {},
+            onMuscleFilterToggle = { _, _ -> },
+            onIntensityFilterToggle = { _, _ -> },
+            onExerciseClick = {},
+            onFavoriteToggle = {}
         )
     }
 }

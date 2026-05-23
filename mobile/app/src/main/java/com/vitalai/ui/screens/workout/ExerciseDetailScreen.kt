@@ -24,8 +24,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vitalai.data.remote.model.ExerciseDto
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
@@ -43,20 +45,43 @@ fun ExerciseDetailScreen(
     val exercise = uiState.exercises.firstOrNull { it.id == id }
         ?: uiState.filteredExercises.firstOrNull { it.id == id }
 
-    if (uiState.isLoading && exercise == null) {
+    ExerciseDetailScreenContent(
+        exercise = exercise,
+        isLoading = uiState.isLoading && exercise == null,
+        errorMessage = uiState.error,
+        isFavorite = exercise?.id in uiState.favorites,
+        onRetry = { viewModel.loadExercises() },
+        onBackClick = { navController.popBackStack() },
+        onFavoriteToggle = { exercise?.let { viewModel.toggleFavorite(it.id) } },
+        onAddToWorkoutClick = { navController.navigate(Screen.WorkoutBuilder) }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExerciseDetailScreenContent(
+    exercise: ExerciseDto?,
+    isLoading: Boolean,
+    errorMessage: String?,
+    isFavorite: Boolean,
+    onRetry: () -> Unit,
+    onBackClick: () -> Unit,
+    onFavoriteToggle: () -> Unit,
+    onAddToWorkoutClick: () -> Unit
+) {
+    if (isLoading) {
         LoadingState()
         return
     }
 
     if (exercise == null) {
         ErrorState(
-            message = uiState.error ?: "Không tìm thấy bài tập",
-            onRetry = { viewModel.loadExercises() }
+            message = errorMessage ?: "Không tìm thấy bài tập",
+            onRetry = onRetry
         )
         return
     }
 
-    val isFavorite = exercise.id in uiState.favorites
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Cách thực hiện", "Mẹo tập đúng", "Biến thể")
 
@@ -98,7 +123,7 @@ fun ExerciseDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { navController.popBackStack() },
+                        onClick = onBackClick,
                         modifier = Modifier
                             .clip(CircleShape)
                             .background(Color.Black.copy(0.4f))
@@ -107,7 +132,7 @@ fun ExerciseDetailScreen(
                     }
                     Row {
                         IconButton(
-                            onClick = { viewModel.toggleFavorite(exercise.id) },
+                            onClick = onFavoriteToggle,
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(0.4f))
@@ -217,7 +242,7 @@ fun ExerciseDetailScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedIconButton(
-                    onClick = { viewModel.toggleFavorite(exercise.id) },
+                    onClick = onFavoriteToggle,
                     border = ButtonDefaults.outlinedButtonBorder,
                     modifier = Modifier.size(48.dp)
                 ) {
@@ -228,7 +253,7 @@ fun ExerciseDetailScreen(
                     )
                 }
                 Button(
-                    onClick = { navController.navigate(Screen.WorkoutBuilder) },
+                    onClick = onAddToWorkoutClick,
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Mint500)
@@ -346,5 +371,37 @@ private fun formatIntensity(intensity: String): String {
         "moderate" -> "Vừa"
         "heavy" -> "Nặng"
         else -> intensity
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ExerciseDetailScreenPreview() {
+    val mockExercise = ExerciseDto(
+        id = "1",
+        name = "Push Up",
+        description = "Bài tập hít đất cơ bản giúp phát triển cơ ngực, vai và bắp tay sau.",
+        primaryMuscleGroup = "CHEST",
+        equipment = "Bodyweight",
+        imageAvtUrl = null,
+        imageUrl = null,
+        intensity = "moderate",
+        caloriesPerMin = 0.1f,
+        metValue = 3.8f,
+        instructions = "1. Bắt đầu ở tư thế plank cao.\n2. Hạ thân người xuống cho đến khi ngực gần chạm sàn.\n3. Đẩy người lên lại vị trí ban đầu.",
+        formTips = "Giữ lưng thẳng trong suốt quá trình tập.\nKhông để hông bị chùng xuống."
+    )
+
+    VitalAITheme {
+        ExerciseDetailScreenContent(
+            exercise = mockExercise,
+            isLoading = false,
+            errorMessage = null,
+            isFavorite = true,
+            onRetry = {},
+            onBackClick = {},
+            onFavoriteToggle = {},
+            onAddToWorkoutClick = {}
+        )
     }
 }

@@ -24,8 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vitalai.data.remote.model.ExerciseDto
 import coil.compose.AsyncImage
 import com.vitalai.ui.theme.*
 import java.time.LocalDate
@@ -39,6 +41,40 @@ fun WorkoutBuilderScreen(
     viewModel: WorkoutBuilderViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    // Navigate away on save
+    if (uiState.savedSessionId != null) {
+        LaunchedEffect(uiState.savedSessionId) {
+            navController.popBackStack()
+        }
+    }
+
+    WorkoutBuilderScreenContent(
+        uiState = uiState,
+        onBackClick = { navController.popBackStack() },
+        onSaveSession = viewModel::saveSession,
+        onSessionNameChange = viewModel::setSessionName,
+        onAddSet = viewModel::addSet,
+        onUpdateSet = viewModel::updateSet,
+        onRemoveExercise = viewModel::removeExercise,
+        onShowExercisePicker = viewModel::setShowExercisePicker,
+        onAddExercise = viewModel::addExercise
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkoutBuilderScreenContent(
+    uiState: WorkoutBuilderUiState,
+    onBackClick: () -> Unit,
+    onSaveSession: () -> Unit,
+    onSessionNameChange: (String) -> Unit,
+    onAddSet: (Int) -> Unit,
+    onUpdateSet: (Int, Int, String?, String?, Boolean?) -> Unit,
+    onRemoveExercise: (Int) -> Unit,
+    onShowExercisePicker: (Boolean) -> Unit,
+    onAddExercise: (ExerciseDto) -> Unit
+) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val dateFormatted = remember {
@@ -69,7 +105,7 @@ fun WorkoutBuilderScreen(
                         Text("${totalVolume}kg tổng KL", fontSize = 11.sp, color = Ink500)
                     }
                     Button(
-                        onClick = viewModel::saveSession,
+                        onClick = onSaveSession,
                         enabled = !uiState.isSaving,
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Mint500)
@@ -99,7 +135,7 @@ fun WorkoutBuilderScreen(
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.Close, contentDescription = "Đóng", tint = Ink700)
                     }
                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -116,7 +152,7 @@ fun WorkoutBuilderScreen(
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                     TextField(
                         value = uiState.sessionName,
-                        onValueChange = viewModel::setSessionName,
+                        onValueChange = onSessionNameChange,
                         textStyle = LocalTextStyle.current.copy(
                             fontWeight = FontWeight.Bold,
                             fontSize = 26.sp,
@@ -154,11 +190,11 @@ fun WorkoutBuilderScreen(
                 ExerciseBlock(
                     builderExercise = builderEx,
                     exerciseIndex = exerciseIdx,
-                    onAddSet = { viewModel.addSet(exerciseIdx) },
+                    onAddSet = { onAddSet(exerciseIdx) },
                     onUpdateSet = { setIdx, reps, kg, done ->
-                        viewModel.updateSet(exerciseIdx, setIdx, reps, kg, done)
+                        onUpdateSet(exerciseIdx, setIdx, reps, kg, done)
                     },
-                    onRemove = { viewModel.removeExercise(exerciseIdx) }
+                    onRemove = { onRemoveExercise(exerciseIdx) }
                 )
             }
 
@@ -174,7 +210,7 @@ fun WorkoutBuilderScreen(
                             color = Ink200,
                             shape = RoundedCornerShape(12.dp)
                         )
-                        .clickable { viewModel.setShowExercisePicker(true) }
+                        .clickable { onShowExercisePicker(true) }
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -193,7 +229,7 @@ fun WorkoutBuilderScreen(
     // Exercise picker bottom sheet
     if (uiState.showExercisePicker) {
         ModalBottomSheet(
-            onDismissRequest = { viewModel.setShowExercisePicker(false) },
+            onDismissRequest = { onShowExercisePicker(false) },
             sheetState = sheetState,
             containerColor = AppSurface
         ) {
@@ -221,7 +257,7 @@ fun WorkoutBuilderScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { viewModel.addExercise(ex) }
+                                .clickable { onAddExercise(ex) }
                                 .padding(vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -250,13 +286,6 @@ fun WorkoutBuilderScreen(
                 }
                 Spacer(Modifier.height(32.dp))
             }
-        }
-    }
-
-    // Navigate away on save
-    if (uiState.savedSessionId != null) {
-        LaunchedEffect(uiState.savedSessionId) {
-            navController.popBackStack()
         }
     }
 }
@@ -410,4 +439,57 @@ private fun formatTime(seconds: Int): String {
     val s = seconds % 60
     return if (h > 0) "%02d:%02d:%02d".format(h, m, s)
     else "%02d:%02d".format(m, s)
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun WorkoutBuilderScreenPreview() {
+    val mockExerciseDto = ExerciseDto(
+        id = "1",
+        name = "Bench Press",
+        description = "Barbell bench press",
+        primaryMuscleGroup = "CHEST",
+        equipment = "Barbell",
+        imageAvtUrl = null,
+        imageUrl = null,
+        intensity = "heavy",
+        caloriesPerMin = 0.2f
+    )
+
+    val mockState = WorkoutBuilderUiState(
+        sessionName = "Ngực - Tay sau",
+        date = "2026-05-23",
+        exercises = listOf(
+            BuilderExercise(
+                exercise = mockExerciseDto,
+                sets = mutableListOf(
+                    SetEntry(1, reps = "12", kg = "60", isDone = true),
+                    SetEntry(2, reps = "10", kg = "60", isDone = true),
+                    SetEntry(3, reps = "8", kg = "65", isDone = false)
+                )
+            )
+        ),
+        elapsedSeconds = 1245,
+        isRunning = true,
+        isSaving = false,
+        savedSessionId = null,
+        error = null,
+        showExercisePicker = false,
+        availableExercises = emptyList(),
+        isLoadingExercises = false
+    )
+
+    VitalAITheme {
+        WorkoutBuilderScreenContent(
+            uiState = mockState,
+            onBackClick = {},
+            onSaveSession = {},
+            onSessionNameChange = {},
+            onAddSet = {},
+            onUpdateSet = { _, _, _, _, _ -> },
+            onRemoveExercise = {},
+            onShowExercisePicker = {},
+            onAddExercise = {}
+        )
+    }
 }
