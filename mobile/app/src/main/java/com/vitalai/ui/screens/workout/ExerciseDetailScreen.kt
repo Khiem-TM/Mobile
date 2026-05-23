@@ -174,9 +174,9 @@ fun ExerciseDetailScreenContent(
             Column(modifier = Modifier.padding(16.dp)) {
                 // Tags
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TagPill(exercise.muscleGroup, Mint500, Color.White)
-                    TagPill(exercise.intensity?.let(::formatIntensity) ?: "moderate", MacroCarbs, Color.White)
-                    exercise.equipment?.let { TagPill(it, Ink100, Ink700) }
+                    TagPill(exercise.muscleGroup, Mint50, Mint700)
+                    TagPill("• ${exercise.intensity?.let(::formatIntensity) ?: "Vừa"}", Color(0xFFFFEBEB), Color(0xFFE53935))
+                    exercise.equipment?.let { TagPill(it, Ink50, Ink700) }
                 }
                 Spacer(Modifier.height(12.dp))
                 // Title
@@ -194,18 +194,18 @@ fun ExerciseDetailScreenContent(
                 ) {
                     StatCard("MET", "${exercise.metValue}", "điểm", Mint500, Modifier.weight(1f))
                     StatCard("Năng lượng", "${(exercise.caloriesPerMin * 60).toInt()}", "kcal/h", MacroProtein, Modifier.weight(1f))
-                    StatCard("Cường độ", exercise.intensity?.let(::formatIntensity) ?: "N/A", "", MacroCarbs, Modifier.weight(1f))
+                    StatCard("Cường độ", exercise.intensity?.let(::formatIntensity) ?: "N/A", "mức", MacroCarbs, Modifier.weight(1f))
                 }
             }
         }
 
         // Tabs
         item {
-            ScrollableTabRow(
+            TabRow(
                 selectedTabIndex = selectedTab,
                 containerColor = AppSurface,
                 contentColor = Mint500,
-                edgePadding = 16.dp
+                modifier = Modifier.padding(horizontal = 16.dp)
             ) {
                 tabs.forEachIndexed { i, title ->
                     Tab(
@@ -241,24 +241,28 @@ fun ExerciseDetailScreenContent(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedIconButton(
-                    onClick = onFavoriteToggle,
-                    border = ButtonDefaults.outlinedButtonBorder,
-                    modifier = Modifier.size(48.dp)
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Ink50),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Yêu thích",
-                        tint = if (isFavorite) MacroProtein else Ink500
-                    )
+                    IconButton(onClick = onFavoriteToggle) {
+                        Icon(
+                            if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Yêu thích",
+                            tint = if (isFavorite) MacroProtein else Ink500
+                        )
+                    }
                 }
                 Button(
                     onClick = onAddToWorkoutClick,
                     modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(containerColor = Mint500)
                 ) {
-                    Text("Thêm vào buổi tập", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("+ Thêm vào buổi tập", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.White)
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -283,8 +287,8 @@ private fun StatCard(label: String, value: String, unit: String, accentColor: Co
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        colors = CardDefaults.cardColors(containerColor = Ink50),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -292,10 +296,10 @@ private fun StatCard(label: String, value: String, unit: String, accentColor: Co
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = accentColor)
-            Text(unit, fontSize = 10.sp, color = Ink500)
+            Text(value, fontWeight = FontWeight.Bold, fontSize = 24.sp, color = accentColor)
+            Text(unit, fontSize = 11.sp, color = Ink500)
             Spacer(Modifier.height(2.dp))
-            Text(label, fontSize = 11.sp, color = Ink700, fontWeight = FontWeight.Medium)
+            Text(label, fontSize = 11.sp, color = Ink500, fontWeight = FontWeight.Medium)
         }
     }
 }

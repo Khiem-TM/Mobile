@@ -85,13 +85,13 @@ fun ExerciseLibraryScreenContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Thư viện bài tập", fontWeight = FontWeight.Bold) },
+                title = { Text("Thư viện bài tập", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppMutedBackground)
             )
         },
         containerColor = AppMutedBackground
@@ -113,7 +113,7 @@ fun ExerciseLibraryScreenContent(
                 shape = RoundedCornerShape(VitalRadius.Pill),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Mint500,
-                    unfocusedBorderColor = Ink200,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedContainerColor = AppSurface,
                     unfocusedContainerColor = AppSurface
                 ),
@@ -140,38 +140,38 @@ fun ExerciseLibraryScreenContent(
             }
 
             // Intensity toggle row
-            Row(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                shape = RoundedCornerShape(50),
+                color = AppSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
             ) {
-                intensities.forEach { (key, label) ->
-                    val isSelected = uiState.selectedIntensity == key
-                    val color = when (key) {
-                        "heavy" -> MacroProtein
-                        "moderate" -> MacroCarbs
-                        else -> if (isSelected) Mint500 else Ink500
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(4.dp)
+                ) {
+                    intensities.forEach { (key, label) ->
+                        val isSelected = uiState.selectedIntensity == key
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(50))
+                                .background(if (isSelected) Mint500 else Color.Transparent)
+                                .clickable { onIntensityFilterToggle(key, isSelected) }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 13.sp,
+                                color = if (isSelected) Color.White else Ink500,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                            )
+                        }
                     }
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onIntensityFilterToggle(key, isSelected) },
-                        label = {
-                            Text(label, fontSize = 12.sp,
-                                color = if (isSelected) Color.White else color,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal)
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = color,
-                            selectedLabelColor = Color.White,
-                            containerColor = AppSurface
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true, selected = isSelected,
-                            borderColor = color.copy(alpha = 0.4f),
-                            selectedBorderColor = color
-                        )
-                    )
                 }
             }
 
@@ -231,9 +231,9 @@ private fun ExerciseCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(VitalRadius.Lg),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
         border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
         elevation = CardDefaults.cardElevation(0.dp)
@@ -241,7 +241,7 @@ private fun ExerciseCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
@@ -250,51 +250,44 @@ private fun ExerciseCard(
                 modifier = Modifier
                     .size(72.dp)
                     .background(Mint50)
-                    .clip(RoundedCornerShape(VitalRadius.Md)),
+                    .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        exercise.name,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = Ink900,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                Text(
+                    exercise.name,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Ink900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MuscleGroupPill(exercise.muscleGroup)
-                }
-                Spacer(Modifier.height(6.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "${(exercise.caloriesPerMin * 60).toInt()} kcal/h",
-                        fontSize = 11.sp,
-                        color = MacroProtein,
-                        fontWeight = FontWeight.Medium
-                    )
+                    MuscleGroupPill(exercise.muscleGroup)
                     if (exercise.equipment != null) {
-                        Text("•", fontSize = 11.sp, color = Ink300)
-                        Text(exercise.equipment, fontSize = 11.sp, color = Ink500)
+                        Text("•", fontSize = 13.sp, color = Ink300)
+                        Text(exercise.equipment, fontSize = 13.sp, color = Ink500)
                     }
                 }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "${(exercise.caloriesPerMin * 60).toInt()} kcal/h",
+                    fontSize = 13.sp,
+                    color = MacroProtein,
+                    fontWeight = FontWeight.Medium
+                )
             }
             IconButton(onClick = onFavoriteClick) {
                 Icon(
                     if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Yêu thích",
-                    tint = if (isFavorite) MacroProtein else Ink300
+                    tint = if (isFavorite) MacroProtein else Ink300,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -305,11 +298,11 @@ private fun ExerciseCard(
 private fun MuscleGroupPill(muscle: String) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .clip(RoundedCornerShape(6.dp))
             .background(Mint50)
-            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Text(muscle, fontSize = 10.sp, color = Mint700, fontWeight = FontWeight.Medium)
+        Text(muscle, fontSize = 11.sp, color = Mint700, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -317,21 +310,21 @@ private fun MuscleGroupPill(muscle: String) {
 private fun PillChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .clip(RoundedCornerShape(50))
             .background(if (isSelected) Mint500 else AppSurface)
             .border(
                 width = 1.dp,
-                color = if (isSelected) Mint500 else Ink200,
-                shape = RoundedCornerShape(VitalRadius.Pill)
+                color = if (isSelected) Mint500 else AppLine,
+                shape = RoundedCornerShape(50)
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
             label,
-            fontSize = 13.sp,
+            fontSize = 14.sp,
             color = if (isSelected) Color.White else Ink700,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
         )
     }
 }
