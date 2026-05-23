@@ -22,11 +22,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
@@ -310,5 +312,135 @@ private fun BlogStatPill(
     ) {
         Icon(icon, contentDescription = null, tint = if (inverse) Color.White else color, modifier = Modifier.size(13.dp))
         Text(value, color = if (inverse) Color.White else Ink700, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun DiscoverScreenPreview() {
+
+    val featuredBlog = BlogDto(
+        id = "1",
+        title = "7 nguyên tắc eat clean giúp giảm mỡ hiệu quả",
+        author = "VitalAI",
+        content = null,
+        thumbnailUrl = null,
+        tags = listOf(
+            "Dinh dưỡng",
+            "Healthy"
+        ),
+        status = "published",
+        likesCount = 328,
+        viewCount = 1240,
+        createdAt = "2026-05-13T10:00:00",
+
+        authorUser = AuthorUserDto(
+            id = "1",
+            displayName = "VitalAI",
+            email = "vitalai@example.com"
+        ),
+
+        blocks = null
+    )
+
+    val blogs = listOf(
+        featuredBlog,
+
+        BlogDto(
+            id = "2",
+            title = "Cardio hay gym tốt hơn cho giảm cân?",
+            author = "Coach Vita",
+            content = null,
+            thumbnailUrl = null,
+            tags = listOf("Tập luyện"),
+            status = "published",
+            likesCount = 120,
+            viewCount = 830,
+            createdAt = "2026-05-13T12:00:00",
+
+            authorUser = AuthorUserDto(
+                id = "2",
+                displayName = "Coach Vita",
+                email = "coach@example.com"
+            ),
+
+            blocks = null
+        ),
+
+        BlogDto(
+            id = "3",
+            title = "Meal prep cho người bận rộn",
+            author = "Healthy Team",
+            content = null,
+            thumbnailUrl = null,
+            tags = listOf("Công thức"),
+            status = "published",
+            likesCount = 89,
+            viewCount = 450,
+            createdAt = "2026-05-13T14:00:00",
+
+            authorUser = AuthorUserDto(
+                id = "3",
+                displayName = "Healthy Team",
+                email = "healthy@example.com"
+            ),
+
+            blocks = null
+        )
+    )
+
+    Scaffold(
+        containerColor = AppBackground
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+
+                items(
+                    listOf(
+                        "Tất cả",
+                        "Dinh dưỡng",
+                        "Tập luyện",
+                        "Mindset"
+                    )
+                ) { label ->
+
+                    FilterChip(
+                        selected = label == "Tất cả",
+                        onClick = {},
+                        label = {
+                            Text(label)
+                        }
+                    )
+                }
+            }
+
+            LazyColumn {
+
+                item {
+                    FeaturedBlogCard(
+                        blog = featuredBlog,
+                        onClick = {}
+                    )
+                }
+
+                items(blogs.drop(1)) { blog ->
+
+                    BlogListItem(
+                        blog = blog,
+                        onClick = {}
+                    )
+                }
+            }
+        }
     }
 }

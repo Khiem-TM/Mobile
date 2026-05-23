@@ -21,11 +21,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogBlockDto
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.ui.components.ErrorState
@@ -234,6 +236,7 @@ private fun BlogBlockView(block: BlogBlockDto) {
     }
 }
 
+<<<<<<< HEAD
 @Composable
 private fun HeroStatPill(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(
@@ -261,5 +264,80 @@ private fun DetailStat(icon: androidx.compose.ui.graphics.vector.ImageVector, va
     ) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
         Text(value, color = Ink700, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+=======
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun BlogDetailScreenPreview() {
+
+    val mockBlog = BlogDto(
+        id = "1",
+        title = "7 nguyên tắc eat clean giúp giảm mỡ hiệu quả",
+        author = "VitalAI",
+        content = null,
+        thumbnailUrl = null,
+        tags = listOf(
+            "Dinh dưỡng",
+            "Eat Clean",
+            "Healthy"
+        ),
+        status = "published",
+        likesCount = 328,
+        viewCount = 1240,
+        createdAt = "2026-05-13T10:00:00",
+
+        authorUser = AuthorUserDto(
+            id = "1",
+            displayName = "VitalAI",
+            email = "vitalai@example.com"
+        ),
+
+        blocks = listOf(
+            BlogBlockDto(
+                id = "1",
+                order = 1,
+                type = "text",
+                textContent = """
+                Eat clean là phương pháp ăn uống tập trung vào thực phẩm tự nhiên,
+                hạn chế đồ chế biến sẵn và đường tinh luyện.
+            """.trimIndent(),
+                imageUrl = null
+            ),
+
+            BlogBlockDto(
+                id = "2",
+                order = 2,
+                type = "image",
+                textContent = null,
+                imageUrl = null
+            ),
+
+            BlogBlockDto(
+                id = "3",
+                order = 3,
+                type = "text",
+                textContent = """
+                Bạn nên ưu tiên:
+
+                • Protein nạc
+                • Rau xanh
+                • Carb tốt
+                • Uống đủ nước
+
+                Việc duy trì chế độ ăn đều đặn sẽ giúp cải thiện sức khỏe và giảm mỡ bền vững.
+            """.trimIndent(),
+                imageUrl = null
+            )
+        )
+    )
+
+    Scaffold(
+        containerColor = AppBackground
+    ) { padding ->
+
+        BlogContent(
+            blog = mockBlog,
+            paddingValues = padding
+        )
+>>>>>>> refs/remotes/origin/main
     }
 }

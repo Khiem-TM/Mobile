@@ -280,10 +280,103 @@ fun SignUpScreen(
     }
 }
 
-@Preview(showBackground = true, name = "Đăng ký")
+//@Preview(showBackground = true, name = "Đăng ký")
+//@Composable
+//fun SignUpScreenPreview() {
+//    VitalAITheme {
+//        SignUpScreen(rememberNavController())
+//    }
+//}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun SignUpScreenPreview() {
+
     VitalAITheme {
-        SignUpScreen(rememberNavController())
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text("Đăng ký")
+                    }
+                )
+            }
+        ) { padding ->
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+
+                Text(
+                    text = "Tạo tài khoản mới",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+
+                Text(
+                    text = "Bắt đầu hành trình chăm sóc sức khỏe thông minh cùng VitalAI",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier
+                        .align(Alignment.Start)
+                        .padding(top = 8.dp, bottom = 32.dp)
+                )
+
+                OutlinedTextField(
+                    value = "a",
+                    onValueChange = {},
+                    label = { Text("Họ và tên") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Person, null)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = "demo@gmail.com",
+                    onValueChange = {},
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Email, null)
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = "12345678",
+                    onValueChange = {},
+                    label = { Text("Mật khẩu") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, null)
+                    },
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Button(
+                    onClick = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                ) {
+                    Text(
+                        "Đăng ký",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
     }
 }

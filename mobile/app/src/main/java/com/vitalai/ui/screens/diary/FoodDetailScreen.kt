@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -388,6 +389,391 @@ fun NutrientRow(label: String, value: String, progress: Float, color: Color) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink900, modifier = Modifier.width(70.dp))
+        }
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun FoodDetailScreenPreview() {
+    var quantity by remember { mutableFloatStateOf(1f) }
+
+    val servingG = 100f
+    val calories = (165f * quantity).toInt()
+    val carbs = 0f * quantity
+    val protein = 31f * quantity
+    val fat = 3.6f * quantity
+
+    val totalMacros = carbs + protein + fat
+    val carbPct = if (totalMacros > 0) ((carbs / totalMacros) * 100).toInt() else 0
+    val proPct = if (totalMacros > 0) ((protein / totalMacros) * 100).toInt() else 0
+    val fatPct = if (totalMacros > 0) ((fat / totalMacros) * 100).toInt() else 0
+
+    Scaffold(
+        containerColor = Color.White
+    ) { padding ->
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 100.dp)
+            ) {
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                        .background(Color(0xFFF3F4F6)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🍗", fontSize = 88.sp)
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Black.copy(alpha = 0.35f),
+                                        Color.Transparent,
+                                        Color.White
+                                    ),
+                                    startY = 0f,
+                                    endY = 850f
+                                )
+                            )
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 50.dp, start = 16.dp, end = 16.dp)
+                            .align(Alignment.TopCenter),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = null,
+                                tint = Color.Black
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.FavoriteBorder,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.MoreHoriz,
+                                    contentDescription = null,
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                ) {
+
+                    Text(
+                        text = "Ức gà áp chảo",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(100))
+                                .background(Color(0xFFF3F4F6))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🌐", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "Healthy Meal",
+                                fontSize = 13.sp,
+                                color = Color.Black,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(100))
+                                .background(Color(0xFFF3F4F6))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("⭐", fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "4.8",
+                                fontSize = 13.sp,
+                                color = Color.Black,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFFF9FAFB)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Khẩu phần", fontSize = 12.sp, color = Color.Gray)
+
+                                Text(
+                                    text = if (quantity == quantity.toLong().toFloat())
+                                        "${quantity.toInt()} phần (${servingG.toInt()}g)"
+                                    else
+                                        "$quantity phần (${(servingG * quantity).toInt()}g)",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
+
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE5E7EB))
+                                        .clickable {
+                                            if (quantity > 0.5f) quantity -= 0.5f
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Remove,
+                                        contentDescription = null,
+                                        tint = Color.Black
+                                    )
+                                }
+
+                                Text(
+                                    text = if (quantity == quantity.toLong().toFloat())
+                                        "${quantity.toInt()}"
+                                    else
+                                        "$quantity",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    color = Color.Black
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF0F172A))
+                                        .clickable { quantity += 0.5f },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("Tổng năng lượng", fontSize = 13.sp, color = Color.Gray)
+
+                            Text(
+                                text = calories.toString(),
+                                fontSize = 56.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38C182)
+                            )
+
+                            Text("kcal", fontSize = 14.sp, color = Color.Gray)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MacroBox(
+                            label = "Carbs",
+                            value = "${carbs.toInt()}g",
+                            pct = "$carbPct%",
+                            color = Color(0xFFF59E0B),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        MacroBox(
+                            label = "Protein",
+                            value = "${protein.toInt()}g",
+                            pct = "$proPct%",
+                            color = Color(0xFFEF4444),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        MacroBox(
+                            label = "Fat",
+                            value = "${fat.toInt()}g",
+                            pct = "$fatPct%",
+                            color = Color(0xFF8B5CF6),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                "Vi chất dinh dưỡng",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            NutrientRow(
+                                label = "Sodium",
+                                value = "75 mg",
+                                progress = 0.6f,
+                                color = Color(0xFF38C182)
+                            )
+
+                            NutrientRow(
+                                label = "Sugar",
+                                value = "0 g",
+                                progress = 0.3f,
+                                color = Color(0xFF38C182)
+                            )
+
+                            NutrientRow(
+                                label = "Fiber",
+                                value = "0 g",
+                                progress = 0.5f,
+                                color = Color(0xFF38C182)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFF3F4F6)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.ReceiptLong,
+                        contentDescription = null,
+                        tint = Color.Black
+                    )
+                }
+
+                Button(
+                    onClick = {},
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF0F172A)
+                    )
+                ) {
+                    Text(
+                        "Thêm vào bữa Sáng +",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
         }
     }
 }
