@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
@@ -54,6 +55,11 @@ fun DiscoverScreen(
                     Column {
                         Text("Khám phá", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Ink900)
                         Text("Bài viết sức khỏe mới nhất", fontSize = 12.sp, color = Ink500)
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
                 actions = {
@@ -389,56 +395,58 @@ fun DiscoverScreenPreview() {
         )
     )
 
-    Scaffold(
-        containerColor = AppBackground
-    ) { padding ->
+    VitalAITheme {
+        Scaffold(
+            containerColor = AppBackground
+        ) { padding ->
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(vertical = 8.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
             ) {
 
-                items(
-                    listOf(
-                        "Tất cả",
-                        "Dinh dưỡng",
-                        "Tập luyện",
-                        "Mindset"
-                    )
-                ) { label ->
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
 
-                    FilterChip(
-                        selected = label == "Tất cả",
-                        onClick = {},
-                        label = {
-                            Text(label)
-                        }
-                    )
-                }
-            }
+                    items(
+                        listOf(
+                            "Tất cả",
+                            "Dinh dưỡng",
+                            "Tập luyện",
+                            "Mindset"
+                        )
+                    ) { label ->
 
-            LazyColumn {
-
-                item {
-                    FeaturedBlogCard(
-                        blog = featuredBlog,
-                        onClick = {}
-                    )
+                        FilterChip(
+                            selected = label == "Tất cả",
+                            onClick = {},
+                            label = {
+                                Text(label)
+                            }
+                        )
+                    }
                 }
 
-                items(blogs.drop(1)) { blog ->
+                LazyColumn {
 
-                    BlogListItem(
-                        blog = blog,
-                        onClick = {}
-                    )
+                    item {
+                        FeaturedBlogCard(
+                            blog = featuredBlog,
+                            onClick = {}
+                        )
+                    }
+
+                    items(blogs.drop(1)) { blog ->
+
+                        BlogListItem(
+                            blog = blog,
+                            onClick = {}
+                        )
+                    }
                 }
             }
         }
