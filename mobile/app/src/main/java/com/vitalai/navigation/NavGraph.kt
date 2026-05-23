@@ -8,6 +8,7 @@ import androidx.navigation.toRoute
 import com.vitalai.ui.screens.auth.SignInScreen
 import com.vitalai.ui.screens.auth.SignUpScreen
 import com.vitalai.ui.screens.auth.WelcomeScreen
+import com.vitalai.ui.screens.auth.ForgotPasswordScreen
 import com.vitalai.ui.screens.coach.CoachScreen
 import com.vitalai.ui.screens.diary.CreateFoodScreen
 import com.vitalai.ui.screens.diary.DiaryScreen
@@ -45,6 +46,9 @@ fun VitalNavGraph(navController: NavHostController) {
         }
         composable<Screen.SignUp> {
             SignUpScreen(navController)
+        }
+        composable<Screen.ForgotPassword> {
+            ForgotPasswordScreen(navController)
         }
         composable<Screen.Onboarding> { backStackEntry ->
             val route: Screen.Onboarding = backStackEntry.toRoute()
