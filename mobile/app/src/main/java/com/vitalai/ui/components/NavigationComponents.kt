@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,27 +58,32 @@ val bottomNavItemsRight = listOf(
 fun VitalBottomNavBar(navController: NavController) {
     val navBackStackEntry = navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry.value?.destination?.route
+    val density = LocalDensity.current
+    val navigationBarHeight = with(density) {
+        WindowInsets.navigationBars.getBottom(this).toDp()
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(88.dp)
+            .height(100.dp)
             .background(Color.Transparent)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .height(90.dp)
                 .align(Alignment.BottomCenter)
                 .shadow(elevation = VitalElevation.Level3, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .background(AppSurface.copy(alpha = 0.96f))
+//                .navigationBarsPadding()
         ) {
             HorizontalDivider(color = AppLine, thickness = 1.dp, modifier = Modifier.align(Alignment.TopCenter))
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 18.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -102,8 +108,8 @@ fun VitalBottomNavBar(navController: NavController) {
                 .align(Alignment.TopCenter)
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(AppSurface)
-                .padding(6.dp)
+//                .background(AppSurface)
+//                .padding(6.dp)
                 .clip(CircleShape)
                 .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Mint400, Mint600)))
                 .shadow(VitalElevation.Fab, CircleShape, clip = false)
