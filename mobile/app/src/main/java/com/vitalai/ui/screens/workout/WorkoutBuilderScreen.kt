@@ -90,7 +90,7 @@ fun WorkoutBuilderScreenContent(
     }
 
     Scaffold(
-        containerColor = AppBackground,
+        containerColor = AppMutedBackground,
         bottomBar = {
             Surface(shadowElevation = 8.dp, color = AppSurface) {
                 Row(
@@ -107,13 +107,17 @@ fun WorkoutBuilderScreenContent(
                     Button(
                         onClick = onSaveSession,
                         enabled = !uiState.isSaving,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Mint500)
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Mint500,
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                     ) {
                         if (uiState.isSaving) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         } else {
-                            Text("Lưu buổi tập", fontWeight = FontWeight.SemiBold)
+                            Text("Lưu buổi tập", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                         }
                     }
                 }
@@ -131,7 +135,6 @@ fun WorkoutBuilderScreenContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(AppSurface)
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -139,7 +142,7 @@ fun WorkoutBuilderScreenContent(
                         Icon(Icons.Default.Close, contentDescription = "Đóng", tint = Ink700)
                     }
                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(dateFormatted, fontSize = 12.sp, color = Ink500)
+                        Text(dateFormatted, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Ink500)
                     }
                     IconButton(onClick = {}) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn", tint = Ink700)
@@ -204,14 +207,15 @@ fun WorkoutBuilderScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(AppSurface)
                         .border(
-                            width = 1.5.dp,
-                            color = Ink200,
-                            shape = RoundedCornerShape(12.dp)
+                            width = 1.dp,
+                            color = AppLine,
+                            shape = RoundedCornerShape(16.dp)
                         )
                         .clickable { onShowExercisePicker(true) }
-                        .padding(vertical = 14.dp),
+                        .padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -219,7 +223,7 @@ fun WorkoutBuilderScreenContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = Mint500)
-                        Text("Thêm bài tập", color = Mint500, fontWeight = FontWeight.SemiBold)
+                        Text("Thêm bài tập", color = Mint500, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -304,30 +308,32 @@ private fun ExerciseBlock(
             .padding(horizontal = 16.dp, vertical = 6.dp),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             // Exercise header
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = builderExercise.exercise.displayImageUrl,
                     contentDescription = builderExercise.exercise.name,
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(Mint50),
                     contentScale = ContentScale.Crop
                 )
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(builderExercise.exercise.name, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Ink900)
+                    Text(builderExercise.exercise.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Ink900)
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         "${builderExercise.exercise.muscleGroup} • ${builderExercise.sets.size} sets",
-                        fontSize = 11.sp, color = Ink500
+                        fontSize = 13.sp, color = Ink500
                     )
                 }
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Ink500, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Ink500, modifier = Modifier.size(20.dp))
                 }
             }
 
