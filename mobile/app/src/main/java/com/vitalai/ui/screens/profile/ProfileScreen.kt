@@ -688,3 +688,154 @@ fun ProfileScreenPreview() {
         }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun ProfileScreenPreview() {
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Cá nhân",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurface
+                )
+            )
+        },
+        containerColor = AppBackground
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = AppSurface
+                ),
+                elevation = CardDefaults.cardElevation(2.dp)
+            ) {
+
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(20.dp)
+                ) {
+
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Mint500, Mint700)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+
+                        Text(
+                            text = "S",
+                            fontSize = 32.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "a",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = Ink900
+                    )
+
+                    Text(
+                        text = "a@example.com",
+                        fontSize = 13.sp,
+                        color = Ink500
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+
+                        StatChip(
+                            label = "Cân nặng",
+                            value = "76kg"
+                        )
+
+                        StatChip(
+                            label = "Mục tiêu",
+                            value = "Giảm mỡ"
+                        )
+
+                        StatChip(
+                            label = "BMI",
+                            value = "24.1"
+                        )
+                    }
+                }
+            }
+
+            ProfileMenuSection(title = "Sức khoẻ") {
+
+                ProfileMenuItem(
+                    icon = Icons.Default.BarChart,
+                    label = "Số liệu cơ thể",
+                    onClick = {}
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.FitnessCenter,
+                    label = "Luyện tập",
+                    onClick = {}
+                )
+            }
+
+            ProfileMenuSection(title = "Khám phá") {
+
+                ProfileMenuItem(
+                    icon = Icons.AutoMirrored.Filled.Article,
+                    label = "Bài viết & Blog",
+                    onClick = {}
+                )
+
+                ProfileMenuItem(
+                    icon = Icons.Default.Notifications,
+                    label = "Thông báo",
+                    onClick = {}
+                )
+            }
+
+            ProfileMenuSection(title = "Tài khoản") {
+
+                ProfileMenuItem(
+                    icon = Icons.AutoMirrored.Filled.Logout,
+                    label = "Đăng xuất",
+                    labelColor = MacroProtein,
+                    onClick = {}
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
