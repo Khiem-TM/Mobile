@@ -51,8 +51,8 @@ interface TrainingApi {
     suspend fun getActivityLog(@Query("date") date: String): Response<ApiResponse<ActivityLogDto>>
 
     @PATCH("activity-logs/steps")
-    suspend fun updateSteps(@Body body: Map<String, Int>): Response<ApiResponse<ActivityLogDto>>
+    suspend fun updateSteps(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
 
     @PATCH("activity-logs/water")
-    suspend fun updateWater(@Body body: Map<String, Int>): Response<ApiResponse<ActivityLogDto>>
+    suspend fun updateWater(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
 }

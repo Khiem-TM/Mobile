@@ -5,8 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Unique,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { StreakType } from '../../../common/enums/streak-type.enum';
+import { User } from './user.entity';
 
 @Entity('streaks')
 @Unique(['user_id', 'streak_type'])
@@ -14,8 +17,8 @@ export class Streak {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column()
-  user_id!: string;
+  @Column({ nullable: true })
+  user_id!: string | null;
 
   @Column({
     type: 'enum',
@@ -38,4 +41,8 @@ export class Streak {
 
   @UpdateDateColumn()
   updated_at!: Date;
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'user_id' })
+  user!: User | null;
 }

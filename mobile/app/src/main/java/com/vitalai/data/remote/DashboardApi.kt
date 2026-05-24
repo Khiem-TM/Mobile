@@ -5,9 +5,7 @@ import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.StreakDto
 import com.vitalai.data.remote.model.UnreadCountDto
 import retrofit2.Response
-import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface DashboardApi {
@@ -19,10 +17,4 @@ interface DashboardApi {
 
     @GET("notifications/unread-count")
     suspend fun getUnreadCount(): Response<ApiResponse<UnreadCountDto>>
-
-    @POST("dashboard/water")
-    suspend fun updateWater(@Body body: Map<String, Int>): Response<ApiResponse<DashboardDto>>
-
-    @POST("dashboard/steps")
-    suspend fun updateSteps(@Body body: Map<String, Int>): Response<ApiResponse<DashboardDto>>
 }

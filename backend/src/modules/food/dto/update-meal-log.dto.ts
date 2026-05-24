@@ -6,7 +6,7 @@ import { MealType } from '../../../common/enums/meal-type.enum';
 export class UpdateMealLogDto {
   @ApiPropertyOptional({ enum: MealType })
   @IsOptional()
-  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() : value))
   @IsEnum(MealType)
   meal_type?: MealType;
 

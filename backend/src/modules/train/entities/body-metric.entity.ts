@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { BodyProgressPhoto } from './body-progress-photo.entity';
 
 @Entity('body_metrics')
 export class BodyMetric {
@@ -111,6 +112,6 @@ export class BodyMetric {
   @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @OneToMany('BodyProgressPhoto', 'bodyMetric')
-  photos!: any[];
+  @OneToMany(() => BodyProgressPhoto, (photo) => photo.bodyMetric)
+  photos!: BodyProgressPhoto[];
 }

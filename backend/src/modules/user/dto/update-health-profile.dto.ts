@@ -5,12 +5,14 @@ import {
   IsDateString,
   IsArray,
   IsEnum,
+  IsIn,
   Min,
   Max,
-  Length,
 } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { FoodAllergyType } from '../../../common/enums/food-allergy.enum';
+import { ActivityLevel } from '../../../common/enums/activity-level.enum';
+import { GoalType } from '../../../common/enums/goal-type.enum';
 
 export class UpdateHealthProfileDto {
   @ApiPropertyOptional({ example: '1995-06-15' })
@@ -20,8 +22,7 @@ export class UpdateHealthProfileDto {
 
   @ApiPropertyOptional({ example: 'male', enum: ['male', 'female', 'other'] })
   @IsOptional()
-  @IsString()
-  @Length(1, 10)
+  @IsIn(['male', 'female', 'other'])
   gender?: string;
 
   @ApiPropertyOptional({ example: 170 })
@@ -49,14 +50,12 @@ export class UpdateHealthProfileDto {
     ],
   })
   @IsOptional()
-  @IsString()
-  @Length(1, 20)
-  activityLevel?: string;
+  @IsEnum(ActivityLevel)
+  activityLevel?: ActivityLevel;
 
   @ApiPropertyOptional({ example: 'balanced' })
   @IsOptional()
   @IsString()
-  @Length(1, 30)
   dietType?: string;
 
   @ApiPropertyOptional({ type: [String], enum: FoodAllergyType })
@@ -88,11 +87,11 @@ export class UpdateHealthProfileDto {
 
   @ApiPropertyOptional({
     example: 'lose_weight',
-    enum: ['lose_weight', 'gain_muscle', 'maintain', 'improve_endurance'],
+    enum: GoalType,
   })
   @IsOptional()
-  @IsString()
-  goalType?: string;
+  @IsEnum(GoalType)
+  goalType?: GoalType;
 
   @ApiPropertyOptional({ example: 65 })
   @IsOptional()

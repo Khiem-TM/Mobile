@@ -37,7 +37,7 @@ export class CreateMealLogDto {
   @IsDateString()
   log_date?: string;
 
-  @Transform(({ value }) => (typeof value === 'string' ? value.toUpperCase() : value))
+  @Transform(({ value }) => (typeof value === 'string' ? value.toLowerCase() : value))
   @IsEnum(MealType)
   meal_type!: MealType;
 

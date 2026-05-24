@@ -21,4 +21,13 @@ interface AuthApi {
 
     @POST("auth/refresh")
     suspend fun refresh(@Body refreshToken: Map<String, String>): Response<ApiResponse<RefreshResponseDto>>
+
+    @POST("auth/logout")
+    suspend fun logout(@Body body: Map<String, String?>): Response<ApiResponse<Map<String, String>>>
+
+    @POST("auth/forgot-password")
+    suspend fun forgotPassword(@Body body: Map<String, String>): Response<ApiResponse<Map<String, String>>>
+
+    @POST("auth/reset-password")
+    suspend fun resetPassword(@Body body: Map<String, String>): Response<ApiResponse<Map<String, String>>>
 }

@@ -16,7 +16,7 @@ import javax.inject.Inject
 data class MetricsUiState(
     val latest: BodyMetricDto? = null,
     val periodData: BodyMetricsPeriodDto? = null,
-    val selectedPeriod: String = "1W",
+    val selectedPeriod: String = "week",
     val isLoading: Boolean = false,
     val error: String? = null
 )

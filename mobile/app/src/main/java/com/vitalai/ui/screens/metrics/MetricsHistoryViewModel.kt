@@ -52,7 +52,7 @@ class MetricsHistoryViewModel @Inject constructor(
     private fun loadInitial() {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            bodyMetricsRepository.getPeriod("3M").fold(
+            bodyMetricsRepository.getPeriod("3months").fold(
                 onSuccess = { period ->
                     val sorted = period.data.sortedBy { it.date }
                     val latest = sorted.lastOrNull()
@@ -99,7 +99,8 @@ class MetricsHistoryViewModel @Inject constructor(
         val details = listOfNotNull(
             bmi?.let { "BMI %.1f".format(it) },
             bodyFatPct?.let { "Mỡ %.1f%%".format(it) },
-            muscleMassKg?.let { "Cơ %.1f kg".format(it) },
+            waistCm?.let { "Eo %.1f cm".format(it) },
+            hipCm?.let { "Hông %.1f cm".format(it) },
             notes
         ).joinToString(" · ").ifBlank { null }
 

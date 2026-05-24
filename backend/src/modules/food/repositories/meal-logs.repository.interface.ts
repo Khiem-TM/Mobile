@@ -14,4 +14,5 @@ export interface IMealLogsRepository {
   removeItem(itemId: string): Promise<void>;
   findItemById(itemId: string): Promise<MealLogItem | null>;
   updateImage(id: string, imageUrl: string | null, imagePublicId: string | null): Promise<MealLog>;
+  findUserIdsWithLogsOnDate(date: string): Promise<string[]>;
 }

@@ -9,6 +9,7 @@ import com.vitalai.ui.screens.auth.SignInScreen
 import com.vitalai.ui.screens.auth.SignUpScreen
 import com.vitalai.ui.screens.auth.WelcomeScreen
 import com.vitalai.ui.screens.auth.ForgotPasswordScreen
+import com.vitalai.ui.screens.auth.ResetPasswordScreen
 import com.vitalai.ui.screens.coach.CoachScreen
 import com.vitalai.ui.screens.diary.CreateFoodScreen
 import com.vitalai.ui.screens.diary.DiaryScreen
@@ -49,6 +50,10 @@ fun VitalNavGraph(navController: NavHostController) {
         }
         composable<Screen.ForgotPassword> {
             ForgotPasswordScreen(navController)
+        }
+        composable<Screen.ResetPassword> { backStackEntry ->
+            val route: Screen.ResetPassword = backStackEntry.toRoute()
+            ResetPasswordScreen(navController = navController, token = route.token)
         }
         composable<Screen.Onboarding> { backStackEntry ->
             val route: Screen.Onboarding = backStackEntry.toRoute()

@@ -38,6 +38,10 @@ export class MealLogsService {
     private readonly dashboardService: DashboardService,
   ) {}
 
+  private getLogDate(log: MealLog): string {
+    return log.log_date ?? new Date().toISOString().split('T')[0];
+  }
+
   async create(userId: string, dto: CreateMealLogDto): Promise<MealLog> {
     const logDate = dto.log_date || new Date().toISOString().split('T')[0];
     const log = await this.repository.findOrCreate(
@@ -52,7 +56,6 @@ export class MealLogsService {
       }
     }
 
-    await this.streaksService.updateActivity(userId, StreakType.CALORIE_GOAL, logDate);
     await this.checkCalorieGoal(userId, logDate);
     void this.dashboardService.invalidateDailyCache(userId, logDate);
 
@@ -89,7 +92,7 @@ export class MealLogsService {
     if (log.image_public_id) {
       await this.cloudinaryService.deleteFile(log.image_public_id);
     }
-    const logDate = new Date(log.log_date).toISOString().split('T')[0];
+    const logDate = this.getLogDate(log);
     void this.dashboardService.invalidateDailyCache(userId, logDate);
     return this.repository.deleteLog(id);
   }
@@ -104,7 +107,9 @@ export class MealLogsService {
       await this.cloudinaryService.deleteFile(log.image_public_id);
     }
     const { url, publicId } = await this.cloudinaryService.uploadFile(file, 'meal-logs');
-    return this.repository.updateImage(id, url, publicId);
+    const updated = await this.repository.updateImage(id, url, publicId);
+    void this.dashboardService.invalidateDailyCache(userId, this.getLogDate(log));
+    return updated;
   }
 
   async uploadBase64Image(
@@ -117,7 +122,9 @@ export class MealLogsService {
       await this.cloudinaryService.deleteFile(log.image_public_id);
     }
     const { url, publicId } = await this.cloudinaryService.uploadBase64(dto.imageData, 'meal-logs');
-    return this.repository.updateImage(id, url, publicId);
+    const updated = await this.repository.updateImage(id, url, publicId);
+    void this.dashboardService.invalidateDailyCache(userId, this.getLogDate(log));
+    return updated;
   }
 
   async addItemToLog(
@@ -153,7 +160,11 @@ export class MealLogsService {
       source: itemDto.source || 'manual',
     };
 
-    return this.repository.saveItem(itemData);
+    const item = await this.repository.saveItem(itemData);
+    const logDate = this.getLogDate(log);
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
+    await this.checkCalorieGoal(userId, logDate);
+    return item;
   }
 
   async updateItem(
@@ -184,7 +195,7 @@ export class MealLogsService {
     }
 
     const ratio = quantity_in_grams / 100;
-    return this.repository.updateItem(itemId, {
+    const updated = await this.repository.updateItem(itemId, {
       quantity: newQuantity,
       serving_unit: newUnit,
       quantity_in_grams,
@@ -196,6 +207,10 @@ export class MealLogsService {
       sugar_snapshot: Number(food.sugar_per_100g || 0) * ratio,
       sodium_snapshot: Number(food.sodium_per_100g || 0) * ratio,
     });
+    const logDate = this.getLogDate(log);
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
+    await this.checkCalorieGoal(userId, logDate);
+    return updated;
   }
 
   async removeItemFromLog(
@@ -211,9 +226,10 @@ export class MealLogsService {
     if (!log || log.user_id !== userId) {
       throw new NotFoundException('Meal log not found');
     }
-    const logDate = new Date(log.log_date).toISOString().split('T')[0];
+    const logDate = this.getLogDate(log);
     void this.dashboardService.invalidateDailyCache(userId, logDate);
     await this.repository.removeItem(itemId);
+    await this.checkCalorieGoal(userId, logDate);
   }
 
   async getDailySummaryRange(
@@ -225,7 +241,7 @@ export class MealLogsService {
 
     const byDate: Record<string, typeof allLogs> = {};
     for (const log of allLogs) {
-      const dateStr = new Date(log.log_date).toISOString().split('T')[0];
+      const dateStr = this.getLogDate(log);
       if (!byDate[dateStr]) byDate[dateStr] = [];
       byDate[dateStr].push(log);
     }
@@ -248,6 +264,8 @@ export class MealLogsService {
     let totalFat = 0;
     let totalCarbs = 0;
     let totalFiber = 0;
+    let totalSugar = 0;
+    let totalSodium = 0;
     for (const log of logs) {
       for (const item of log.items || []) {
         totalCalories += Number(item.calories_snapshot || 0);
@@ -255,6 +273,8 @@ export class MealLogsService {
         totalFat += Number(item.fat_snapshot || 0);
         totalCarbs += Number(item.carbs_snapshot || 0);
         totalFiber += Number(item.fiber_snapshot || 0);
+        totalSugar += Number(item.sugar_snapshot || 0);
+        totalSodium += Number(item.sodium_snapshot || 0);
       }
     }
     return {
@@ -264,6 +284,8 @@ export class MealLogsService {
       total_fat: Math.round(totalFat * 100) / 100,
       total_carbs: Math.round(totalCarbs * 100) / 100,
       total_fiber: Math.round(totalFiber * 100) / 100,
+      total_sugar: Math.round(totalSugar * 100) / 100,
+      total_sodium: Math.round(totalSodium * 100) / 100,
       logs,
     };
   }
@@ -277,13 +299,29 @@ export class MealLogsService {
   private async checkCalorieGoal(userId: string, logDate: string) {
     const summary = await this.getDailySummary(userId, logDate);
     const profile = await this.usersService.getHealthProfile(userId);
-    if (profile && profile.dailyCaloriesGoal && profile.dailyCaloriesGoal > 0 && summary.total_calories > profile.dailyCaloriesGoal) {
+    if (!profile?.dailyCaloriesGoal || profile.dailyCaloriesGoal <= 0) return;
+
+    const goal = Number(profile.dailyCaloriesGoal);
+    const pct = summary.total_calories / goal;
+    if (pct >= 0.9 && pct <= 1.1) {
+      await this.notificationsService.createOncePerDay(
+        userId,
+        NotificationType.GOAL_PROGRESS,
+        'Đạt mục tiêu calo hôm nay! 🎉',
+        `Bạn đã nạp ${Math.round(summary.total_calories)} / ${Math.round(goal)} kcal`,
+      );
+      await this.streaksService.updateActivity(userId, StreakType.CALORIE_GOAL, logDate);
+    } else if (pct > 1.1) {
       await this.notificationsService.createOncePerDay(
         userId,
         NotificationType.GOAL_PROGRESS,
         '⚠️ Vượt giới hạn Calories',
-        'Hôm nay: ' + summary.total_calories.toFixed(0) + ' kcal / mục tiêu ' + profile.dailyCaloriesGoal + ' kcal',
+        'Hôm nay: ' + summary.total_calories.toFixed(0) + ' kcal / mục tiêu ' + goal + ' kcal',
       );
     }
+  }
+
+  async getUserIdsWithLogsOnDate(date: string): Promise<string[]> {
+    return this.repository.findUserIdsWithLogsOnDate(date);
   }
 }

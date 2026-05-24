@@ -57,6 +57,10 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    private fun authMessage(response: ApiResponse<Map<String, String>>?, fallback: String): String {
+        return response?.message ?: response?.data?.get("message") ?: fallback
+    }
+
     suspend fun login(request: LoginRequest): Result<AuthResponseDto> {
         return try {
             val response = authApi.login(request)
@@ -105,6 +109,39 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun logout() {
+        try {
+            val refreshToken = tokenManager.getRefreshToken()
+            authApi.logout(mapOf("refresh_token" to refreshToken))
+        } catch (_: Exception) {
+        }
         tokenManager.clearTokens()
+    }
+
+    suspend fun forgotPassword(email: String): Result<String> {
+        return try {
+            val response = authApi.forgotPassword(mapOf("email" to email.trim()))
+            if (response.isSuccessful) {
+                Result.success(authMessage(response.body(), "Hướng dẫn đặt lại mật khẩu đã được gửi nếu email tồn tại."))
+            } else {
+                Result.failure(Exception(parseErrorMessage(response, "Không gửi được hướng dẫn (${response.code()})")))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(authExceptionMessage(e), e))
+        }
+    }
+
+    suspend fun resetPassword(token: String, newPassword: String): Result<String> {
+        return try {
+            val response = authApi.resetPassword(
+                mapOf("token" to token.trim(), "newPassword" to newPassword)
+            )
+            if (response.isSuccessful) {
+                Result.success(authMessage(response.body(), "Đặt lại mật khẩu thành công."))
+            } else {
+                Result.failure(Exception(parseErrorMessage(response, "Không đặt lại được mật khẩu (${response.code()})")))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception(authExceptionMessage(e), e))
+        }
     }
 }

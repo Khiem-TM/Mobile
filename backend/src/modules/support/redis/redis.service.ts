@@ -12,7 +12,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   onModuleInit() {
     this.client = new Redis({
       host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6380),
+      port: this.configService.get<number>('REDIS_PORT', 6379),
       lazyConnect: true,
       retryStrategy: (times) => Math.min(times * 100, 3000),
     });
@@ -48,8 +48,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async delByPattern(pattern: string): Promise<void> {
-    const keys = await this.client.keys(pattern);
-    if (keys.length) await this.client.del(...keys);
+    let cursor = '0';
+    do {
+      const [nextCursor, keys] = await this.client.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        100,
+      );
+      cursor = nextCursor;
+      if (keys.length) await this.client.del(...keys);
+    } while (cursor !== '0');
   }
 
   // Atomic: set only if not exists. Returns true if key was set (first time).
@@ -67,7 +77,20 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   }
 
   async keys(pattern: string): Promise<string[]> {
-    return this.client.keys(pattern);
+    const allKeys: string[] = [];
+    let cursor = '0';
+    do {
+      const [nextCursor, keys] = await this.client.scan(
+        cursor,
+        'MATCH',
+        pattern,
+        'COUNT',
+        100,
+      );
+      cursor = nextCursor;
+      allKeys.push(...keys);
+    } while (cursor !== '0');
+    return allKeys;
   }
 
   // ─── Typed Cache Helpers ───────────────────────────────────────────────────

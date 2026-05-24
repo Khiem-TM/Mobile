@@ -51,4 +51,15 @@ export class StreaksRepository implements IStreaksRepository {
   async findAllByType(type: StreakType): Promise<Streak[]> {
     return this.repo.find({ where: { streak_type: type } });
   }
+
+  async resetExpiredBefore(yesterday: string): Promise<number> {
+    const result = await this.repo
+      .createQueryBuilder()
+      .update(Streak)
+      .set({ current_streak: 0 })
+      .where('current_streak > 0')
+      .andWhere('last_activity_date < :yesterday', { yesterday })
+      .execute();
+    return result.affected ?? 0;
+  }
 }

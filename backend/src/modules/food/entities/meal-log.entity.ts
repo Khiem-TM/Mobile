@@ -24,11 +24,11 @@ export class MealLog {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @Column({ type: 'timestamptz', default: () => 'CURRENT_TIMESTAMP' })
-  log_date: Date;
+  @Column({ type: 'date', name: 'log_date', nullable: true, default: () => 'CURRENT_DATE' })
+  log_date: string | null;
 
-  @Column({ type: 'enum', enum: MealType })
-  meal_type: MealType;
+  @Column({ type: 'varchar', length: 20, nullable: true, default: MealType.BREAKFAST })
+  meal_type: MealType | null;
 
   @Column({ type: 'text', nullable: true })
   notes: string;

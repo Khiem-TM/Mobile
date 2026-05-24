@@ -21,11 +21,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    // Check blacklist — tokens added here on logout/password-change until they expire
-    if (payload.jti) {
-      const isBlacklisted = await this.redisService.get(`bl:${payload.jti}`);
-      if (isBlacklisted) throw new UnauthorizedException('Token has been revoked');
+    if (!payload.jti) {
+      throw new UnauthorizedException('Token is missing revocation id');
     }
+    // Check blacklist — tokens added here on logout/password-change until they expire
+    const isBlacklisted = await this.redisService.get(`bl:${payload.jti}`);
+    if (isBlacklisted) throw new UnauthorizedException('Token has been revoked');
     return { sub: payload.sub, email: payload.email, role: payload.role };
   }
 }

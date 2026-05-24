@@ -19,8 +19,8 @@ export class MealLogsRepository implements IMealLogsRepository {
     let log = await this.logRepo
       .createQueryBuilder('ml')
       .where('ml.user_id = :userId', { userId })
-      .andWhere('ml.meal_type = :type', { type })
-      .andWhere("DATE(ml.log_date AT TIME ZONE 'UTC') = :date", { date })
+      .andWhere('LOWER(ml.meal_type::text) = :type', { type })
+      .andWhere('ml.log_date = :date', { date })
       .leftJoinAndSelect('ml.items', 'items')
       .leftJoinAndSelect('items.food', 'food')
       .getOne();
@@ -28,7 +28,7 @@ export class MealLogsRepository implements IMealLogsRepository {
     if (!log) {
       log = this.logRepo.create({
         user_id: userId,
-        log_date: new Date(date),
+        log_date: date,
         meal_type: type,
       });
       log = await this.logRepo.save(log);
@@ -54,7 +54,7 @@ export class MealLogsRepository implements IMealLogsRepository {
       .orderBy('ml.meal_type', 'ASC');
 
     if (date) {
-      qb.andWhere("DATE(ml.log_date AT TIME ZONE 'UTC') = :date", { date });
+      qb.andWhere('ml.log_date = :date', { date });
     }
 
     return qb.getMany();
@@ -64,8 +64,8 @@ export class MealLogsRepository implements IMealLogsRepository {
     return this.logRepo
       .createQueryBuilder('ml')
       .where('ml.user_id = :userId', { userId })
-      .andWhere("DATE(ml.log_date AT TIME ZONE 'UTC') >= :fromDate", { fromDate })
-      .andWhere("DATE(ml.log_date AT TIME ZONE 'UTC') <= :toDate", { toDate })
+      .andWhere('ml.log_date >= :fromDate', { fromDate })
+      .andWhere('ml.log_date <= :toDate', { toDate })
       .leftJoinAndSelect('ml.items', 'items')
       .leftJoinAndSelect('items.food', 'food')
       .orderBy('ml.log_date', 'ASC')
@@ -116,5 +116,14 @@ export class MealLogsRepository implements IMealLogsRepository {
       where: { id },
       relations: ['items', 'items.food'],
     }) as Promise<MealLog>;
+  }
+
+  async findUserIdsWithLogsOnDate(date: string): Promise<string[]> {
+    const rows = await this.logRepo
+      .createQueryBuilder('ml')
+      .select('DISTINCT ml.user_id', 'userId')
+      .where('ml.log_date = :date', { date })
+      .getRawMany<{ userId: string }>();
+    return rows.map((row) => row.userId);
   }
 }

@@ -7,6 +7,7 @@ sealed class Screen {
     @Serializable object SignIn
     @Serializable object SignUp
     @Serializable object ForgotPassword
+    @Serializable data class ResetPassword(val token: String = "")
     @Serializable data class Onboarding(val step: Int)
     @Serializable object Home
     @Serializable object Diary

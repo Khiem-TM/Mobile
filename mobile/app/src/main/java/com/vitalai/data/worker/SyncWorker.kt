@@ -12,6 +12,7 @@ import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.AddMealItemRequest
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import java.time.LocalDate
 
 @HiltWorker
 class SyncWorker @AssistedInject constructor(
@@ -62,12 +63,22 @@ class SyncWorker @AssistedInject constructor(
             }
             action.actionType == "UPDATE_STEPS" -> {
                 val steps = action.payload.toIntOrNull() ?: return false
-                val response = trainingApi.updateSteps(mapOf("steps" to steps))
+                val response = trainingApi.updateSteps(
+                    mapOf(
+                        "logDate" to LocalDate.now().toString(),
+                        "steps" to steps,
+                    ),
+                )
                 response.isSuccessful
             }
             action.actionType == "UPDATE_WATER" -> {
                 val waterMl = action.payload.toIntOrNull() ?: return false
-                val response = trainingApi.updateWater(mapOf("water_ml" to waterMl))
+                val response = trainingApi.updateWater(
+                    mapOf(
+                        "logDate" to LocalDate.now().toString(),
+                        "waterMl" to waterMl,
+                    ),
+                )
                 response.isSuccessful
             }
             else -> true // unknown action type — discard

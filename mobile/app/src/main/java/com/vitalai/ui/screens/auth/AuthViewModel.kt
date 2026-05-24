@@ -57,6 +57,24 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun forgotPassword(email: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.forgotPassword(email)
+                .onSuccess { _authState.value = AuthState.Success(it) }
+                .onFailure { _authState.value = AuthState.Error(it.message ?: "Không gửi được hướng dẫn") }
+        }
+    }
+
+    fun resetPassword(token: String, newPassword: String) {
+        viewModelScope.launch {
+            _authState.value = AuthState.Loading
+            authRepository.resetPassword(token, newPassword)
+                .onSuccess { _authState.value = AuthState.Success(it) }
+                .onFailure { _authState.value = AuthState.Error(it.message ?: "Không đặt lại được mật khẩu") }
+        }
+    }
+
     fun resetState() {
         _authState.value = AuthState.Idle
     }

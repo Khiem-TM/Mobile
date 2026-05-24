@@ -30,6 +30,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.ui.components.VitalIconButton
 import com.vitalai.ui.theme.AppLine
@@ -63,19 +66,31 @@ import com.vitalai.ui.theme.VitalAITheme
 import com.vitalai.ui.theme.VitalRadius
 
 @Composable
-fun ForgotPasswordScreen(navController: NavController) {
+fun ForgotPasswordScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = hiltViewModel()
+) {
     var email by rememberSaveable { mutableStateOf("") }
-    var isSubmitted by rememberSaveable { mutableStateOf(false) }
+    val authState by viewModel.authState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.resetState()
+    }
+
+    val isSubmitted = authState is AuthState.Success
 
     ForgotPasswordContent(
         email = email,
         onEmailChange = {
             email = it
-            isSubmitted = false
+            if (authState !is AuthState.Idle) viewModel.resetState()
         },
         isSubmitted = isSubmitted,
+        isLoading = authState is AuthState.Loading,
+        message = (authState as? AuthState.Success)?.userName,
+        error = (authState as? AuthState.Error)?.message,
         onBackClick = { navController.popBackStack() },
-        onSubmitClick = { isSubmitted = true },
+        onSubmitClick = { viewModel.forgotPassword(email.trim()) },
         onSignInClick = { navController.popBackStack() }
     )
 }
@@ -85,6 +100,9 @@ private fun ForgotPasswordContent(
     email: String,
     onEmailChange: (String) -> Unit,
     isSubmitted: Boolean,
+    isLoading: Boolean,
+    message: String?,
+    error: String?,
     onBackClick: () -> Unit,
     onSubmitClick: () -> Unit,
     onSignInClick: () -> Unit
@@ -217,8 +235,25 @@ private fun ForgotPasswordContent(
                         .padding(14.dp)
                 ) {
                     Text(
-                        text = "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.",
+                        text = message ?: "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được gửi.",
                         color = Mint600,
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
+                    )
+                }
+            }
+
+            if (!error.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 18.dp)
+                        .background(Color(0xFFFFEBEE), RoundedCornerShape(VitalRadius.Md))
+                        .padding(14.dp)
+                ) {
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
                         fontSize = 13.sp,
                         lineHeight = 19.sp
                     )
@@ -233,10 +268,14 @@ private fun ForgotPasswordContent(
                 shape = RoundedCornerShape(100),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                 modifier = Modifier.fillMaxWidth(),
-                enabled = isEmailValid
+                enabled = isEmailValid && !isLoading
             ) {
                 Text(
-                    text = if (isSubmitted) "Gửi lại hướng dẫn" else "Gửi hướng dẫn",
+                    text = when {
+                        isLoading -> "Đang gửi..."
+                        isSubmitted -> "Gửi lại hướng dẫn"
+                        else -> "Gửi hướng dẫn"
+                    },
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
@@ -275,6 +314,9 @@ private fun ForgotPasswordPreview() {
             email = "davil@vital.app",
             onEmailChange = {},
             isSubmitted = false,
+            isLoading = false,
+            message = null,
+            error = null,
             onBackClick = {},
             onSubmitClick = {},
             onSignInClick = {}
@@ -290,6 +332,9 @@ private fun ForgotPasswordSentPreview() {
             email = "davil@vital.app",
             onEmailChange = {},
             isSubmitted = true,
+            isLoading = false,
+            message = null,
+            error = null,
             onBackClick = {},
             onSubmitClick = {},
             onSignInClick = {}

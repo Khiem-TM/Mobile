@@ -42,6 +42,15 @@ export class FoodsService {
     private readonly redisService: RedisService,
   ) {}
 
+  private async invalidateFoodCache(foodId?: string): Promise<void> {
+    await Promise.all([
+      foodId ? this.redisService.del(`cache:foods:one:${foodId}`) : Promise.resolve(),
+      foodId ? this.redisService.del(`cache:foods:recipe:${foodId}`) : Promise.resolve(),
+      this.redisService.delByPattern('cache:foods:list:*'),
+      this.redisService.delByPattern('cache:foods:explore:*'),
+    ]);
+  }
+
   async findAll(query: string = '', page: number = 1, limit: number = 20) {
     const key = `cache:foods:list:${query}:${page}:${limit}`;
     const cached = await this.redisService.getJson<{ items: Food[]; total: number; page: number; limit: number }>(key);
@@ -109,7 +118,9 @@ export class FoodsService {
       created_by_user_id: userId,
       is_verified: false,
     });
-    return this.foodRepository.save(food);
+    const saved = await this.foodRepository.save(food);
+    await this.invalidateFoodCache(saved.id);
+    return saved;
   }
 
   async getFavorites(userId: string): Promise<Food[]> {
@@ -130,6 +141,7 @@ export class FoodsService {
         await manager.save(FoodUserFavorite, { user_id: userId, food_id: foodId });
         await manager.increment(Food, { id: foodId }, 'favorites_count', 1);
       });
+      await this.invalidateFoodCache(foodId);
     }
   }
 
@@ -142,6 +154,7 @@ export class FoodsService {
         await manager.delete(FoodUserFavorite, { user_id: userId, food_id: foodId });
         await manager.decrement(Food, { id: foodId }, 'favorites_count', 1);
       });
+      await this.invalidateFoodCache(foodId);
     }
   }
 
@@ -150,7 +163,9 @@ export class FoodsService {
     const { url, publicId } = await this.cloudinaryService.uploadFile(file, 'foods');
     food.image_urls = [...(food.image_urls ?? []), url];
     food.image_public_ids = [...(food.image_public_ids ?? []), publicId];
-    return this.foodRepository.save(food);
+    const saved = await this.foodRepository.save(food);
+    await this.invalidateFoodCache(foodId);
+    return saved;
   }
 
   async removeImage(foodId: string, publicId: string): Promise<Food> {
@@ -160,7 +175,9 @@ export class FoodsService {
     await this.cloudinaryService.deleteFile(publicId);
     food.image_public_ids = (food.image_public_ids ?? []).filter((_, i) => i !== idx);
     food.image_urls = (food.image_urls ?? []).filter((_, i) => i !== idx);
-    return this.foodRepository.save(food);
+    const saved = await this.foodRepository.save(food);
+    await this.invalidateFoodCache(foodId);
+    return saved;
   }
 
   async findByBarcode(barcode: string): Promise<Food> {
@@ -254,6 +271,7 @@ export class FoodsService {
       await this.recipeStepRepository.save(steps);
     }
 
+    await this.invalidateFoodCache(foodId);
     return this.getRecipe(foodId);
   }
 
@@ -289,7 +307,9 @@ export class FoodsService {
       image_url,
       image_public_id,
     });
-    return this.recipeStepRepository.save(step);
+    const saved = await this.recipeStepRepository.save(step);
+    await this.invalidateFoodCache(foodId);
+    return saved;
   }
 
   async removeRecipeStep(foodId: string, stepId: string): Promise<void> {
@@ -300,6 +320,7 @@ export class FoodsService {
       await this.cloudinaryService.deleteFile(step.image_public_id).catch(() => undefined);
     }
     await this.recipeStepRepository.delete(stepId);
+    await this.invalidateFoodCache(foodId);
   }
 
   // ─── Ingredients ────────────────────────────────────────────────────────────
@@ -359,6 +380,7 @@ export class FoodsService {
       await this.foodRepository.save(food);
     }
 
+    await this.invalidateFoodCache(foodId);
     return this.findOne(foodId);
   }
 

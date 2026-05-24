@@ -86,7 +86,7 @@ export class DashboardService {
     const [activityRange, bodyRange, workouts] = await Promise.all([
       this.activityLogsService.getRange(userId, fromDate, toDate),
       this.bodyMetricsService.getRange(userId, fromDate, toDate),
-      this.trainingService.getWorkoutHistory(userId, 50),
+      this.trainingService.getWorkoutHistoryRange(userId, fromDate, toDate),
     ]);
 
     const dailyNutrition = await this.mealLogsService.getDailySummaryRange(userId, fromDate, toDate);
@@ -108,10 +108,6 @@ export class DashboardService {
       0,
     );
 
-    const weekWorkouts = workouts.filter(
-      (w) => w.sessionDate >= fromDate && w.sessionDate <= toDate,
-    );
-
     const weekResult = {
       period: { from: fromDate, to: toDate },
       nutrition: {
@@ -129,8 +125,8 @@ export class DashboardService {
         total_water_ml: totalWater,
       },
       training: {
-        workout_count: weekWorkouts.length,
-        workouts: weekWorkouts,
+        workout_count: workouts.length,
+        workouts,
       },
       body_metrics: bodyRange,
     };
@@ -150,7 +146,7 @@ export class DashboardService {
     const [activityRange, bodyRange, workouts] = await Promise.all([
       this.activityLogsService.getRange(userId, fromDate, toDate),
       this.bodyMetricsService.getRange(userId, fromDate, toDate),
-      this.trainingService.getWorkoutHistory(userId, 200),
+      this.trainingService.getWorkoutHistoryRange(userId, fromDate, toDate),
     ]);
 
     const dailyNutrition = await this.mealLogsService.getDailySummaryRange(userId, fromDate, toDate);
@@ -160,10 +156,6 @@ export class DashboardService {
     const daysLogged = Object.values(dailyNutrition).filter(
       (d: any) => d.logs?.length > 0,
     ).length;
-
-    const monthWorkouts = workouts.filter(
-      (w) => w.sessionDate >= fromDate && w.sessionDate <= toDate,
-    );
 
     const totalSteps = activityRange.reduce(
       (sum, a) => sum + (Number(a.steps) || 0),
@@ -202,9 +194,9 @@ export class DashboardService {
         active_days: activityRange.length,
       },
       training: {
-        workout_count: monthWorkouts.length,
+        workout_count: workouts.length,
         avg_workouts_per_week:
-          Math.round((monthWorkouts.length / lastDay) * 7 * 10) / 10,
+          Math.round((workouts.length / lastDay) * 7 * 10) / 10,
       },
       body: {
         weight_change_kg:

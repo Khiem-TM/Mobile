@@ -27,6 +27,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 import { UpdateProfileDto } from '../dto/update-profile.dto';
 import { UpdateHealthProfileDto } from '../dto/update-health-profile.dto';
+import { OnboardingDto } from '../dto/onboarding.dto';
 import { User } from '../entities/user.entity';
 import { UserHealthProfile } from '../entities/user-health-profile.entity';
 import { buildMulterOptions } from '../../../common/utils/multer.config';
@@ -117,5 +118,14 @@ export class UsersController {
     @Body() dto: UpdateHealthProfileDto,
   ): Promise<UserHealthProfile> {
     return this.usersService.updateHealthProfile(user.sub, dto);
+  }
+
+  @ApiOperation({ summary: 'Complete onboarding and calculate nutrition goals' })
+  @Post('me/onboarding')
+  completeOnboarding(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: OnboardingDto,
+  ): Promise<UserHealthProfile> {
+    return this.usersService.completeOnboarding(user.sub, dto);
   }
 }

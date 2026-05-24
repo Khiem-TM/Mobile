@@ -6,4 +6,5 @@ export interface IStreaksRepository {
   findByUser(userId: string): Promise<Streak[]>;
   updateStreak(streakId: string, current: number, longest: number, lastDate: string): Promise<Streak>;
   findAllByType(type: StreakType): Promise<Streak[]>;
+  resetExpiredBefore(yesterday: string): Promise<number>;
 }

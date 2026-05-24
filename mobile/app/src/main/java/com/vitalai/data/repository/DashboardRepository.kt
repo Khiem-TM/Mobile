@@ -1,14 +1,17 @@
 package com.vitalai.data.repository
 
 import com.vitalai.data.remote.DashboardApi
+import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.StreakDto
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DashboardRepository @Inject constructor(
-    private val dashboardApi: DashboardApi
+    private val dashboardApi: DashboardApi,
+    private val trainingApi: TrainingApi
 ) {
     suspend fun getDashboard(date: String? = null): Result<DashboardDto> {
         return try {
@@ -45,10 +48,10 @@ class DashboardRepository @Inject constructor(
 
     suspend fun addWater(ml: Int): Result<DashboardDto> {
         return try {
-            val response = dashboardApi.updateWater(mapOf("amount" to ml))
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
-            else Result.failure(Exception("Lỗi cập nhật nước"))
+            val today = LocalDate.now().toString()
+            val response = trainingApi.updateWater(mapOf("logDate" to today, "waterMl" to ml))
+            if (response.isSuccessful) getDashboard(today)
+            else Result.failure(Exception("Lỗi cập nhật nước (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -56,10 +59,10 @@ class DashboardRepository @Inject constructor(
 
     suspend fun addSteps(steps: Int): Result<DashboardDto> {
         return try {
-            val response = dashboardApi.updateSteps(mapOf("amount" to steps))
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
-            else Result.failure(Exception("Lỗi cập nhật bước chân"))
+            val today = LocalDate.now().toString()
+            val response = trainingApi.updateSteps(mapOf("logDate" to today, "steps" to steps))
+            if (response.isSuccessful) getDashboard(today)
+            else Result.failure(Exception("Lỗi cập nhật bước chân (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

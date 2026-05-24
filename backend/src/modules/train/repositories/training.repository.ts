@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository, Like, In } from 'typeorm';
 import { Exercise } from '../entities/exercise.entity';
 import { WorkoutSession } from '../entities/workout-session.entity';
 import { WorkoutSessionDetail } from '../entities/workout-session-detail.entity';
@@ -27,6 +27,11 @@ export class ExercisesRepository implements IExercisesRepository {
 
   async findById(id: string): Promise<Exercise | null> {
     return this.repo.findOne({ where: { id } });
+  }
+
+  async findByIds(ids: string[]): Promise<Exercise[]> {
+    if (!ids.length) return [];
+    return this.repo.find({ where: { id: In(ids) } });
   }
 
   async updateAvtImage(id: string, imageAvtUrl: string | null, imageAvtPublicId: string | null): Promise<Exercise> {

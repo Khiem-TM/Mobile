@@ -31,6 +31,15 @@ export class ActivityLog {
   })
   caloriesBurned!: number;
 
+  @Column({
+    name: 'workout_calories_burned',
+    type: 'decimal',
+    precision: 7,
+    scale: 2,
+    default: 0,
+  })
+  workoutCaloriesBurned!: number;
+
   @Column({ name: 'active_minutes', default: 0 })
   activeMinutes!: number;
 

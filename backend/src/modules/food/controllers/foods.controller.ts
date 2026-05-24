@@ -73,6 +73,22 @@ export class FoodsController {
     return this.foodsService.getFavorites(user.sub);
   }
 
+  // ─── Custom foods ────────────────────────────────────────────────────────────
+
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'List my custom foods' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @UseGuards(JwtAuthGuard)
+  @Get('custom')
+  getMyCustomFoods(
+    @CurrentUser() user: JwtPayload,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    return this.foodsService.getUserCustomFoods(user.sub, parseInt(page, 10), parseInt(limit, 10));
+  }
+
   @ApiOperation({ summary: 'Get food by ID (public)' })
   @Get(':id')
   getFood(@Param('id') id: string) {
@@ -141,22 +157,6 @@ export class FoodsController {
   async removeFavorite(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     await this.foodsService.removeFavorite(user.sub, id);
     return { message: 'Removed from favorites' };
-  }
-
-  // ─── Custom foods ────────────────────────────────────────────────────────────
-
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'List my custom foods' })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
-  @UseGuards(JwtAuthGuard)
-  @Get('custom')
-  getMyCustomFoods(
-    @CurrentUser() user: JwtPayload,
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
-  ) {
-    return this.foodsService.getUserCustomFoods(user.sub, parseInt(page, 10), parseInt(limit, 10));
   }
 
   // ─── Ingredients ────────────────────────────────────────────────────────────

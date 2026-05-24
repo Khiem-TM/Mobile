@@ -1,4 +1,16 @@
-import { Controller, Post, Body, UseGuards, Get, Req, Res, HttpCode, HttpStatus, Headers } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Get,
+  Req,
+  Res,
+  HttpCode,
+  HttpStatus,
+  Headers,
+  Query,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
@@ -13,8 +25,6 @@ import { GoogleMobileLoginDto } from '../dto/google-mobile-login.dto';
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
-  VerifyEmailDto,
-  SendVerificationDto,
 } from '../dto/email-auth.dto';
 import type { GoogleProfile } from '../strategies/google.strategy';
 
@@ -60,20 +70,6 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
-  @ApiOperation({ summary: 'Send email verification link' })
-  @Post('send-verification')
-  sendVerification(
-    @Body() dto: SendVerificationDto,
-  ): Promise<{ message: string }> {
-    return this.authService.sendEmailVerification(dto.email);
-  }
-
-  @ApiOperation({ summary: 'Verify email with token' })
-  @Post('verify-email')
-  verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
-    return this.authService.verifyEmail(dto.token);
-  }
-
   @ApiOperation({ summary: 'Request password reset email' })
   @Throttle({ short: { ttl: 60000, limit: 3 } })
   @Post('forgot-password')
@@ -102,13 +98,20 @@ export class AuthController {
     // Passport redirects automatically
   }
 
-  @ApiOperation({ summary: 'Google OAuth callback — redirects to frontend with tokens' })
+  @ApiOperation({ summary: 'Google OAuth callback — redirects to frontend with one-time code' })
   @ApiExcludeEndpoint()
   @UseGuards(AuthGuard('google'))
   @Get('google/callback')
   async googleCallback(@Req() req: { user: GoogleProfile }, @Res() res: any): Promise<void> {
     const authData = await this.authService.googleLogin(req.user);
+    const code = await this.authService.createOAuthCode(authData);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    res.redirect(`${frontendUrl}/oauth-callback?accessToken=${authData.access_token}&refreshToken=${authData.refresh_token}`);
+    res.redirect(`${frontendUrl}/oauth-callback?code=${code}`);
+  }
+
+  @ApiOperation({ summary: 'Exchange one-time OAuth code for app tokens' })
+  @Get('oauth-token')
+  oauthToken(@Query('code') code: string): Promise<AuthResponseDto> {
+    return this.authService.exchangeOAuthCode(code);
   }
 }

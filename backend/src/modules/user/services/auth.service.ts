@@ -69,7 +69,8 @@ export class AuthService {
     );
 
     // Store in Redis: O(1) lookup on refresh, no bcrypt loop
-    const tokenKey = `rt:${hashToken(refresh_token)}`;
+    const refreshTokenSha256 = hashToken(refresh_token);
+    const tokenKey = `rt:${refreshTokenSha256}`;
     await this.redisService.set(tokenKey, user.id, REFRESH_TTL_DAYS * 86400);
 
     // Keep DB row for audit trail (revoked_at, device_info)
@@ -79,6 +80,7 @@ export class AuthService {
     await this.refreshTokenRepository.save({
       user: { id: user.id },
       token_hash,
+      token_sha256: refreshTokenSha256,
       expires_at: expiresAt,
     });
 
@@ -99,7 +101,8 @@ export class AuthService {
   }
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    const { email, password, display_name } = registerDto;
+    const { password, display_name } = registerDto;
+    const email = registerDto.email.toLowerCase().trim();
 
     const existingUser = await this.userRepository.findOne({
       where: { email },
@@ -114,21 +117,20 @@ export class AuthService {
       email,
       password_hash,
       display_name,
-      is_verified: false,
+      is_verified: true,
     });
     await this.userRepository.save(user);
 
-    // Tự động gửi email xác nhận sau khi tạo tài khoản
-    // Không dùng await để tránh hold request quá lâu (tùy chọn)
-    this.sendEmailVerification(user.email).catch((err) => {
-      console.error('Failed to send verification email on register:', err);
+    this.mailerService.sendWelcomeEmail(user.email, user.display_name).catch((err) => {
+      console.error('Failed to send welcome email on register:', err);
     });
 
     return this.generateAuthResponse(user);
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
-    const { email, password } = loginDto;
+    const { password } = loginDto;
+    const email = loginDto.email.toLowerCase().trim();
     const user = await this.userRepository.findOne({ where: { email } });
 
     if (!user) {
@@ -136,7 +138,7 @@ export class AuthService {
     }
 
     if (!user.password_hash) {
-      throw new UnauthorizedException('Tài khoản này đăng nhập bằng Google. Vui lòng sử dụng Google Sign-In.');
+      throw new UnauthorizedException('This account uses Google login. Please use Google Sign-In.');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
@@ -147,12 +149,6 @@ export class AuthService {
     if (!user.is_active) {
       throw new ForbiddenException(
         'Your account has been deactivated. Please contact support.',
-      );
-    }
-
-    if (!user.is_verified) {
-      throw new ForbiddenException(
-        'Please verify your email before logging in. Check your inbox or request a new verification email.',
       );
     }
 
@@ -187,9 +183,11 @@ export class AuthService {
         where: { user: { id: user_sub } },
       });
       for (const record of tokens) {
-        if (record.expires_at < new Date()) continue;
+        if (record.revoked_at || record.expires_at < new Date()) continue;
         if (await bcrypt.compare(refreshToken, record.token_hash)) {
-          await this.refreshTokenRepository.delete(record.id);
+          await this.refreshTokenRepository.update(record.id, {
+            revoked_at: new Date(),
+          });
           return;
         }
       }
@@ -198,10 +196,21 @@ export class AuthService {
       const allTokens = await this.refreshTokenRepository.find({
         where: { user: { id: user_sub } },
       });
-      // Remove each from Redis (we stored SHA-256 of raw token, so we can't re-derive keys here)
-      // Delete all DB records and rely on Redis TTL for natural expiry of orphaned keys
-      await this.refreshTokenRepository.delete({ user: { id: user_sub } });
-      void allTokens; // intentional: Redis keys will expire naturally via TTL
+      await Promise.all(
+        allTokens
+          .map((token) => token.token_sha256)
+          .filter((sha): sha is string => Boolean(sha))
+          .map((sha) => this.redisService.del(`rt:${sha}`)),
+      );
+      await this.redisService.set(
+        `rt_user_revoked_before:${user_sub}`,
+        String(Math.floor(Date.now() / 1000)),
+        REFRESH_TTL_DAYS * 86400,
+      );
+      await this.refreshTokenRepository.update(
+        { user: { id: user_sub } },
+        { revoked_at: new Date() },
+      );
     }
   }
 
@@ -215,6 +224,14 @@ export class AuthService {
     try {
       const payload = this.jwtService.verify(token, { secret: jwtRefreshSecret });
       const userId = payload.sub as string;
+      const revokedBefore = await this.redisService.get(`rt_user_revoked_before:${userId}`);
+      if (
+        revokedBefore &&
+        payload.iat &&
+        Number(payload.iat) < Number(revokedBefore)
+      ) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
 
       // Fast path: O(1) Redis lookup — replaces N×bcrypt DB loop
       const tokenKey = `rt:${hashToken(token)}`;
@@ -227,12 +244,15 @@ export class AuthService {
         });
         let found = false;
         for (const record of dbTokens) {
-          if (record.expires_at < new Date()) continue;
+          if (record.revoked_at || record.expires_at < new Date()) continue;
           if (await bcrypt.compare(token, record.token_hash)) {
             found = true;
             // Backfill Redis so next refresh is fast
             const remainingMs = record.expires_at.getTime() - Date.now();
             await this.redisService.set(tokenKey, userId, Math.floor(remainingMs / 1000));
+            if (!record.token_sha256) {
+              await this.refreshTokenRepository.update(record.id, { token_sha256: hashToken(token) });
+            }
             break;
           }
         }
@@ -388,6 +408,22 @@ export class AuthService {
     return this.generateAuthResponse(user);
   }
 
+  async createOAuthCode(authResponse: AuthResponseDto): Promise<string> {
+    const code = randomBytes(32).toString('hex');
+    await this.redisService.set(`oauth_code:${code}`, JSON.stringify(authResponse), 300);
+    return code;
+  }
+
+  async exchangeOAuthCode(code: string): Promise<AuthResponseDto> {
+    const raw = await this.redisService.getdel(`oauth_code:${code}`);
+    if (!raw) throw new UnauthorizedException('Invalid or expired OAuth code');
+    try {
+      return JSON.parse(raw) as AuthResponseDto;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired OAuth code');
+    }
+  }
+
   async resetPassword(
     token: string,
     newPassword: string,
@@ -408,7 +444,24 @@ export class AuthService {
       usedAt: new Date(),
     });
 
-    await this.refreshTokenRepository.delete({ user: { id: record.user.id } });
+    const tokens = await this.refreshTokenRepository.find({
+      where: { user: { id: record.user.id } },
+    });
+    await Promise.all(
+      tokens
+        .map((token) => token.token_sha256)
+        .filter((sha): sha is string => Boolean(sha))
+        .map((sha) => this.redisService.del(`rt:${sha}`)),
+    );
+    await this.redisService.set(
+      `rt_user_revoked_before:${record.user.id}`,
+      String(Math.floor(Date.now() / 1000)),
+      REFRESH_TTL_DAYS * 86400,
+    );
+    await this.refreshTokenRepository.update(
+      { user: { id: record.user.id } },
+      { revoked_at: new Date() },
+    );
 
     return { message: 'Password reset successfully. Please log in again.' };
   }

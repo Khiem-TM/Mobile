@@ -1,7 +1,9 @@
 export enum GoalType {
   LOSE_WEIGHT = 'lose_weight',
   GAIN_WEIGHT = 'gain_weight',
+  GAIN_MUSCLE = 'gain_muscle',
   MAINTAIN = 'maintain',
+  IMPROVE_ENDURANCE = 'improve_endurance',
   BULKING = 'bulking', // tăng cơ
   CUTTING = 'cutting', // siết cơ
 }

@@ -61,6 +61,37 @@ export class MailerService {
     this.logger.log(`Verification email sent to ${email}`);
   }
 
+  async sendWelcomeEmail(email: string, displayName: string): Promise<void> {
+    if (!this.transporter) {
+      this.logger.warn(`[DEV] Welcome email would be sent to ${email}`);
+      return;
+    }
+
+    const from = this.configService.get<string>(
+      'MAIL_FROM',
+      'VitalAI <noreply@vitalai.app>',
+    );
+    await this.transporter.sendMail({
+      from,
+      to: email,
+      subject: 'Chào mừng bạn đến với VitalAI!',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #0B1F17;">
+          <h2 style="color: #10B981;">Chào mừng đến với VitalAI</h2>
+          <p>Xin chào ${displayName},</p>
+          <p>Tài khoản của bạn đã sẵn sàng. Bạn có thể bắt đầu thiết lập mục tiêu dinh dưỡng, theo dõi bữa ăn và luyện tập ngay hôm nay.</p>
+          <div style="background: #ECFDF5; border-radius: 12px; padding: 16px; margin: 20px 0;">
+            <strong>Gợi ý tiếp theo:</strong>
+            <p style="margin-bottom: 0;">Hoàn thành onboarding để VitalAI tự tính mục tiêu calo, macro và nước uống phù hợp với bạn.</p>
+          </div>
+          <p style="color: #667085; font-size: 14px;">Cảm ơn bạn đã chọn VitalAI.</p>
+        </div>
+      `,
+    });
+
+    this.logger.log(`Welcome email sent to ${email}`);
+  }
+
   async sendPasswordReset(email: string, token: string): Promise<void> {
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
     const link = `${frontendUrl}/reset-password?token=${token}`;

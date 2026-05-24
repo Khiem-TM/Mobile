@@ -101,7 +101,13 @@ fun MetricsScreen(
                             .fillMaxWidth()
                             .padding(4.dp)
                     ) {
-                        listOf("1W" to "1 tuần", "1M" to "1 tháng", "3M" to "3 tháng").forEach { (key, label) ->
+                        listOf(
+                            "week" to "1 tuần",
+                            "month" to "1 tháng",
+                            "3months" to "3 tháng",
+                            "6months" to "6 tháng",
+                            "year" to "1 năm"
+                        ).forEach { (key, label) ->
                             val isSelected = uiState.selectedPeriod == key
                             Box(
                                 modifier = Modifier
@@ -309,7 +315,7 @@ fun MetricsScreenPreview() {
             date = "2026-05-01",
             weightKg = 78.5f,
             bodyFatPct = 24f,
-            muscleMassKg = null,
+            waistCm = null,
             bmi = 26.2f,
             notes = null
         ),
@@ -318,7 +324,7 @@ fun MetricsScreenPreview() {
             date = "2026-05-05",
             weightKg = 77.8f,
             bodyFatPct = 23.5f,
-            muscleMassKg = null,
+            waistCm = null,
             bmi = 25.9f,
             notes = null
         ),
@@ -327,7 +333,7 @@ fun MetricsScreenPreview() {
             date = "2026-05-10",
             weightKg = 77.1f,
             bodyFatPct = 23f,
-            muscleMassKg = null,
+            waistCm = null,
             bmi = 25.6f,
             notes = null
         ),
@@ -336,7 +342,7 @@ fun MetricsScreenPreview() {
             date = "2026-05-13",
             weightKg = 76.4f,
             bodyFatPct = 22.4f,
-            muscleMassKg = null,
+            waistCm = null,
             bmi = 25.2f,
             notes = "Giảm mỡ tốt"
         )
@@ -417,8 +423,14 @@ fun MetricsScreenPreview() {
                             .fillMaxWidth()
                             .padding(4.dp)
                     ) {
-                        listOf("1W" to "1 tuần", "1M" to "1 tháng", "3M" to "3 tháng").forEach { (key, label) ->
-                            val isSelected = "1M" == key
+                        listOf(
+                            "week" to "1 tuần",
+                            "month" to "1 tháng",
+                            "3months" to "3 tháng",
+                            "6months" to "6 tháng",
+                            "year" to "1 năm"
+                        ).forEach { (key, label) ->
+                            val isSelected = "month" == key
                             Box(
                                 modifier = Modifier
                                     .weight(1f)

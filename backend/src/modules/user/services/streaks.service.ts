@@ -69,31 +69,10 @@ export class StreaksService {
 
   async resetExpiredStreaks() {
     this.logger.log('Starting nightly streaks expiration check...');
-    const types: StreakType[] = [StreakType.LOGIN, StreakType.CALORIE_GOAL, StreakType.WORKOUT];
-
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-    for (const type of types) {
-      const allStreaks = await this.repository.findAllByType(type);
-      for (const streak of allStreaks) {
-        if (
-          streak.last_activity_date &&
-          streak.last_activity_date < yesterdayStr &&
-          streak.current_streak > 0
-        ) {
-          this.logger.log(
-            `Resetting ${type} streak for user ${streak.user_id} (Last activity: ${streak.last_activity_date})`,
-          );
-          await this.repository.updateStreak(
-            streak.id,
-            0,
-            streak.longest_streak,
-            streak.last_activity_date,
-          );
-        }
-      }
-    }
+    const updated = await this.repository.resetExpiredBefore(yesterdayStr);
+    this.logger.log(`Reset ${updated} expired streaks.`);
   }
 }

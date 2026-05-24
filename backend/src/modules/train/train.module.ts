@@ -20,6 +20,7 @@ import {
   WorkoutSessionsRepository,
 } from './repositories/training.repository';
 import { BodyMetricsRepository } from './repositories/body-metrics.repository';
+import { BodyProgressPhotosRepository } from './repositories/body-progress-photos.repository';
 import { ActivityLogsRepository } from './repositories/activity-logs.repository';
 import {
   TRAINING_EXERCISES_REPOSITORY,
@@ -51,7 +52,7 @@ import {
     { provide: TRAINING_EXERCISES_REPOSITORY, useClass: ExercisesRepository },
     { provide: WORKOUT_SESSIONS_REPOSITORY, useClass: WorkoutSessionsRepository },
     { provide: BODY_METRICS_REPOSITORY, useClass: BodyMetricsRepository },
-    { provide: BODY_PHOTOS_REPOSITORY, useClass: BodyMetricsRepository },
+    { provide: BODY_PHOTOS_REPOSITORY, useClass: BodyProgressPhotosRepository },
     { provide: ACTIVITY_LOGS_REPOSITORY, useClass: ActivityLogsRepository },
   ],
   exports: [TrainingService, BodyMetricsService, ActivityLogsService],

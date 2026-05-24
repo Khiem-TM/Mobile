@@ -121,6 +121,16 @@ export class TrainingService {
     return Number((Number(exercise.metValue) * weight * (durationMinutes / 60)).toFixed(2));
   }
 
+  private async _getCalorieWeight(userId: string): Promise<number> {
+    const latestMetric = await this.bodyMetricsService.getLatest(userId);
+    if (latestMetric?.weightKg) return Number(latestMetric.weightKg);
+
+    const profile = await this.usersService.getHealthProfile(userId);
+    if (profile?.initialWeightKg) return Number(profile.initialWeightKg);
+
+    return 70;
+  }
+
   private async _recalcSessionTotals(
     sessionId: string,
   ): Promise<{ totalDurationMinutes: number; totalCaloriesBurned: number }> {
@@ -142,9 +152,18 @@ export class TrainingService {
     const detailData: Array<Partial<WorkoutSessionDetail>> = [];
     let totalDurationMinutes = 0;
     let totalCaloriesBurned = 0;
+    const inputDetails = dto.details ?? [];
+    const exerciseIds = [...new Set(inputDetails.map((detail) => detail.exerciseId))];
+    const exercises = await this.exerciseRepo.findByIds(exerciseIds);
+    const exerciseMap = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+    const weight = await this._getCalorieWeight(userId);
 
-    for (const d of dto.details ?? []) {
-      const calories = await this._calcCalories(userId, d.exerciseId, d.durationMinutes);
+    for (const d of inputDetails) {
+      const exercise = exerciseMap.get(d.exerciseId);
+      if (!exercise) throw new NotFoundException('Exercise not found');
+      const calories = Number(
+        (Number(exercise.metValue) * weight * (d.durationMinutes / 60)).toFixed(2),
+      );
       detailData.push({
         exerciseId: d.exerciseId,
         durationMinutes: d.durationMinutes,
@@ -240,10 +259,16 @@ export class TrainingService {
     if (!session || session.userId !== userId) {
       throw new NotFoundException('Workout session not found');
     }
-    const updated = await this.sessionRepo.updateSession(sessionId, {
-      sessionName: dto.sessionName,
-      notes: dto.notes,
-    });
+    const oldDate = session.sessionDate;
+    const updateData: Partial<WorkoutSession> = {};
+    if (dto.sessionDate !== undefined) updateData.sessionDate = dto.sessionDate;
+    if (dto.sessionName !== undefined) updateData.sessionName = dto.sessionName;
+    if (dto.notes !== undefined) updateData.notes = dto.notes;
+    const updated = await this.sessionRepo.updateSession(sessionId, updateData);
+    if (dto.sessionDate && dto.sessionDate !== oldDate) {
+      await this._syncActivityLog(userId, oldDate);
+      await this._syncActivityLog(userId, dto.sessionDate);
+    }
     return this._withSessionComputedFields(updated);
   }
 

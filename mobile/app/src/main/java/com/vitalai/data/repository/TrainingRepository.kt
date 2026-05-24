@@ -7,6 +7,7 @@ import com.vitalai.data.remote.model.CreateWorkoutSessionDto
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.SessionExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -116,7 +117,8 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateSteps(steps: Int): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateSteps(mapOf("steps" to steps))
+            val today = LocalDate.now().toString()
+            val response = trainingApi.updateSteps(mapOf("logDate" to today, "steps" to steps))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi cập nhật bước chân"))
@@ -127,7 +129,8 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateWater(waterMl: Int): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateWater(mapOf("water_ml" to waterMl))
+            val today = LocalDate.now().toString()
+            val response = trainingApi.updateWater(mapOf("logDate" to today, "waterMl" to waterMl))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi cập nhật nước uống"))

@@ -79,8 +79,8 @@ export class ActivityLogsRepository implements IActivityLogsRepository {
       .createQueryBuilder()
       .insert()
       .into(ActivityLog)
-      .values({ userId, logDate: date, caloriesBurned: calories })
-      .orUpdate(['calories_burned', 'updated_at'], ['user_id', 'log_date'])
+      .values({ userId, logDate: date, workoutCaloriesBurned: calories })
+      .orUpdate(['workout_calories_burned', 'updated_at'], ['user_id', 'log_date'])
       .execute();
   }
 

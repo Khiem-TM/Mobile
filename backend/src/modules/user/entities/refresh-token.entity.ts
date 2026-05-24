@@ -23,6 +23,9 @@ export class RefreshToken {
   @Column({ type: 'varchar', length: 255, unique: true })
   token_hash!: string;
 
+  @Column({ name: 'token_sha256', type: 'varchar', length: 64, nullable: true })
+  token_sha256!: string | null;
+
   @Column({ type: 'text', nullable: true })
   device_info!: string;
 

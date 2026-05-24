@@ -6,6 +6,10 @@ import { UserHealthProfile } from '../entities/user-health-profile.entity';
 import { RefreshToken } from '../entities/refresh-token.entity';
 import { BodyMetricsService } from '../../train/services/body-metrics.service';
 import { RagEmbedService } from '../../support/rag/rag-embed.service';
+import { TDEEUtil } from '../../../common/utils/tdee.util';
+import { NotificationsService } from './notifications.service';
+import { NotificationType } from '../entities/notification.entity';
+import { OnboardingDto } from '../dto/onboarding.dto';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +22,7 @@ export class UsersService {
     private readonly refreshTokenRepository: Repository<RefreshToken>,
     @Inject(forwardRef(() => BodyMetricsService))
     private readonly bodyMetricsService: BodyMetricsService,
+    private readonly notificationsService: NotificationsService,
     private readonly ragEmbedService: RagEmbedService,
   ) {}
 
@@ -86,16 +91,51 @@ export class UsersService {
     // Auto-calculate macros when goalType is set and no manual macro values provided
     if (data.goalType && !data.proteinGoalG && !data.fatGoalG && !data.carbsGoalG) {
       const latestMetric = await this.bodyMetricsService.getLatest(userId);
-      if (latestMetric?.tdee) {
-        const tdee = Number(latestMetric.tdee);
+      let tdee: number | null = latestMetric?.tdee ? Number(latestMetric.tdee) : null;
+
+      if (!tdee) {
+        const p = merged as Partial<UserHealthProfile>;
+        if (
+          p.initialWeightKg &&
+          p.heightCm &&
+          p.birthDate &&
+          p.gender &&
+          p.activityLevel
+        ) {
+          const age = Math.floor(
+            (Date.now() - new Date(p.birthDate).getTime()) /
+              (365.25 * 24 * 3600 * 1000),
+          );
+          const bmr = TDEEUtil.calculateBMR(
+            Number(p.initialWeightKg),
+            Number(p.heightCm),
+            age,
+            p.gender,
+          );
+          tdee = TDEEUtil.calculateTDEE(bmr, p.activityLevel);
+        }
+      }
+
+      if (tdee) {
         let calories = tdee;
         if (data.goalType === 'lose_weight') calories = tdee - 500;
+        else if (data.goalType === 'gain_weight') calories = tdee + 300;
         else if (data.goalType === 'gain_muscle') calories = tdee + 300;
+        else if (data.goalType === 'bulking') calories = tdee + 500;
+        else if (data.goalType === 'cutting') calories = tdee - 500;
 
         merged.dailyCaloriesGoal = Number(calories.toFixed(2));
+        merged.caloriesGoal = merged.dailyCaloriesGoal;
         merged.proteinGoalG = Number(((calories * 0.3) / 4).toFixed(2));
         merged.fatGoalG = Number(((calories * 0.3) / 9).toFixed(2));
         merged.carbsGoalG = Number(((calories * 0.4) / 4).toFixed(2));
+
+        if (!data.waterGoalMl && merged.initialWeightKg) {
+          merged.waterGoalMl = Math.max(
+            2000,
+            Math.round(Number(merged.initialWeightKg) * 35),
+          );
+        }
       }
     }
 
@@ -113,5 +153,41 @@ export class UsersService {
 
     this.ragEmbedService.triggerUserEmbed(userId);
     return saved;
+  }
+
+  async completeOnboarding(
+    userId: string,
+    dto: OnboardingDto,
+  ): Promise<UserHealthProfile> {
+    const profile = await this.updateHealthProfile(userId, {
+      birthDate: dto.birthDate,
+      gender: dto.gender,
+      heightCm: dto.heightCm,
+      initialWeightKg: dto.initialWeightKg,
+      activityLevel: dto.activityLevel,
+      goalType: dto.goalType,
+      targetWeightKg: dto.targetWeightKg,
+      dietType: dto.dietType,
+      foodAllergies: dto.foodAllergies ?? [],
+    });
+
+    await this.bodyMetricsService.upsert(userId, {
+      recordedAt: new Date().toISOString().split('T')[0],
+      weightKg: dto.initialWeightKg,
+      notes: 'Initial weight from onboarding',
+    });
+
+    if (profile.dailyCaloriesGoal) {
+      await this.notificationsService.createOncePerDay(
+        userId,
+        NotificationType.SYSTEM,
+        'Mục tiêu đã được thiết lập! 🎯',
+        `Mục tiêu calo hàng ngày của bạn: ${Math.round(
+          Number(profile.dailyCaloriesGoal),
+        )} kcal`,
+      );
+    }
+
+    return profile;
   }
 }
