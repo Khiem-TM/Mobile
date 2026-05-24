@@ -38,7 +38,7 @@ import com.vitalai.data.remote.model.MealLogItemDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.VitalBottomNavBar
+import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -52,10 +52,7 @@ fun DiaryScreen(
     val uiState by viewModel.uiState.collectAsState()
     var editingItem by remember { mutableStateOf<Triple<String, MealLogItemDto, String>?>(null) }
 
-    Scaffold(
-        bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = AppMutedBackground
-    ) { padding ->
+    MainTabScaffold(navController = navController) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
             uiState.error != null -> ErrorState(

@@ -35,9 +35,8 @@ import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ArcGauge
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.VitalBottomNavBar
+import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.AppLine
-import com.vitalai.ui.theme.AppMutedBackground
 import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.AppSurface2
 import com.vitalai.ui.theme.AmberContainer
@@ -65,10 +64,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = AppMutedBackground
-    ) { padding ->
+    MainTabScaffold(navController = navController) { padding ->
         when {
             uiState.isLoading && uiState.dashboard == null -> LoadingState(
                 modifier = Modifier.padding(padding)

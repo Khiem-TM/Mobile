@@ -28,7 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
-import com.vitalai.ui.components.VitalBottomNavBar
+import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.*
 
 @Composable
@@ -38,10 +38,7 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = AppMutedBackground
-    ) { padding ->
+    MainTabScaffold(navController = navController) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()

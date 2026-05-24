@@ -48,10 +48,10 @@ fun WelcomeScreen(navController: NavController) {
         )
 
         // Floating Tags
-        // Salmon
+        // Egg
         FoodTag(
-            text = "Salmon · 280 kcal",
-            dotColor = Mint500,
+            text = "Egg · 280 kcal",
+            dotColor = MacroProtein,
             modifier = Modifier
                 .offset(x = 32.dp, y = 100.dp)
         )
@@ -68,7 +68,7 @@ fun WelcomeScreen(navController: NavController) {
         // Greens
         FoodTag(
             text = "Greens · 45 kcal",
-            dotColor = MacroProtein,
+            dotColor = Mint500,
             modifier = Modifier
                 .offset(x = 48.dp, y = 320.dp)
         )
@@ -123,7 +123,7 @@ fun WelcomeScreen(navController: NavController) {
 
             // Title
             Text(
-                text = "Ăn thông minh,\nsống khỏe mỗi ngày",
+                text = "Ăn thông minh, sống khỏe mỗi ngày",
                 color = Color.White,
                 fontSize = 36.sp,
                 fontWeight = FontWeight.ExtraBold,
@@ -133,7 +133,7 @@ fun WelcomeScreen(navController: NavController) {
 
             // Subtitle
             Text(
-                text = "Theo dõi calo, quét bữa ăn bằng AI, và nhận tư\nvấn cá nhân hóa từ huấn luyện viên ảo.",
+                text = "Theo dõi calo, quét bữa ăn bằng AI, và nhận tư vấn cá nhân hóa từ huấn luyện viên ảo.",
                 color = Color.White.copy(alpha = 0.8f),
                 fontSize = 16.sp,
                 lineHeight = 24.sp,

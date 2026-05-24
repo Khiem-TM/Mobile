@@ -30,7 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ChatSessionDto
-import com.vitalai.ui.components.VitalBottomNavBar
+import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -84,7 +84,8 @@ fun CoachScreen(
             )
         }
     ) {
-        Scaffold(
+        MainTabScaffold(
+            navController = navController,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
@@ -119,8 +120,6 @@ fun CoachScreen(
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
                 )
             },
-            bottomBar = { VitalBottomNavBar(navController = navController) },
-            containerColor = AppMutedBackground
         ) { padding ->
             Column(
                 modifier = Modifier
