@@ -190,7 +190,7 @@ fun VitalBottomNavBar(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
+            .height(90.dp)
             .background(Color.Transparent)
     ) {
         // --- NỀN THANH ĐIỀU HƯỚNG ---
@@ -231,6 +231,9 @@ fun VitalBottomNavBar(navController: NavController) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
+                // Nhô lên 10dp khỏi thanh nav nhưng KHÔNG tính vào chiều cao đo được,
+                // nhờ Box cha cao đúng 90dp -> Scaffold chỉ chừa 90dp, nội dung không bị xén.
+                .offset(y = (-10).dp)
                 .size(64.dp)
                 // Đọc offset trong lambda -> chỉ invalidate layout, KHÔNG recompose
                 .offset { IntOffset(offset.x.roundToInt(), offset.y.roundToInt()) }
