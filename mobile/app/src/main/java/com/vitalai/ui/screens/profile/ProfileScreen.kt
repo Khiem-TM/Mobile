@@ -1,5 +1,7 @@
 package com.vitalai.ui.screens.profile
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,8 +31,12 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.*
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import java.io.File
 @Composable
 fun ProfileScreen(
     navController: NavController,
@@ -41,6 +47,21 @@ fun ProfileScreen(
     var showEditAvatarDialog by remember { mutableStateOf(false) }
     var isEditingDisplayName by remember { mutableStateOf(false) }
     var displayNameDraft by remember { mutableStateOf("") }
+    val avatarPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val uploadFile = copyUriToCacheFile(context, uri)
+            if (uploadFile != null) {
+                viewModel.uploadAvatar(uploadFile.file, uploadFile.mimeType) {
+                    Toast.makeText(context, "Tải ảnh đại diện thành công!", Toast.LENGTH_SHORT).show()
+                    showEditAvatarDialog = false
+                }
+            } else {
+                viewModel.setUpdateProfileError("Không thể đọc ảnh đã chọn")
+            }
+        }
+    }
 
     LaunchedEffect(uiState.user?.id, uiState.user?.displayName) {
         if (!isEditingDisplayName) {
@@ -52,6 +73,7 @@ fun ProfileScreen(
         EditAvatarDialog(
             avatarUrl = uiState.user?.avatarUrl.orEmpty(),
             isSaving = uiState.isUpdatingProfile,
+            isUploading = uiState.isUploadingAvatar,
             error = uiState.updateProfileError,
             onDismiss = {
                 viewModel.clearUpdateProfileError()
@@ -62,24 +84,12 @@ fun ProfileScreen(
                     Toast.makeText(context, "Cập nhật ảnh đại diện thành công!", Toast.LENGTH_SHORT).show()
                     showEditAvatarDialog = false
                 }
-            }
-        )
-    }
-
-    if (isEditingDisplayName) {
-        EditDisplayNameDialog(
-            currentName = uiState.user?.displayName.orEmpty(),
-            isSaving = uiState.isUpdatingProfile,
-            error = uiState.updateProfileError,
-            onDismiss = {
-                viewModel.clearUpdateProfileError()
-                isEditingDisplayName = false
             },
-            onSave = { newName ->
-                viewModel.updateProfile(newName, uiState.user?.avatarUrl.orEmpty()) {
-                    Toast.makeText(context, "Cập nhật tên hiển thị thành công!", Toast.LENGTH_SHORT).show()
-                    isEditingDisplayName = false
-                }
+            onUpload = {
+                viewModel.clearUpdateProfileError()
+                avatarPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
             }
         )
     }
@@ -122,7 +132,7 @@ fun ProfileScreen(
                     val avatarUrl = uiState.user?.avatarUrl
                     val avatarSize = 85.dp
 //                    Box(modifier = Modifier.size(76.dp)) {
-                    Box {
+                    Box(modifier = Modifier.size(avatarSize + 8.dp)) {
                         if (avatarUrl != null) {
                             AsyncImage(
                                 model = avatarUrl,
@@ -147,26 +157,18 @@ fun ProfileScreen(
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .offset(x = 4.dp, y = 4.dp)
+                                .offset(x = -4.dp, y = -4.dp)
                                 .size(30.dp)
-
-                                // 1. Cắt tròn vùng bấm và cấu hình Clickable TRƯỚC để hiệu ứng chạm (ripple) phủ toàn bộ nút
                                 .clip(CircleShape)
                                 .clickable(
-                                    enabled = !uiState.isUpdatingProfile,
+                                    enabled = !uiState.isUpdatingProfile && !uiState.isUploadingAvatar,
                                     onClick = {
                                         viewModel.clearUpdateProfileError()
                                         showEditAvatarDialog = true
                                     }
                                 )
-
-                                // 2. Vẽ viền sáng màu
                                 .border(3.dp, Color(0xFFF2F7F3), CircleShape)
-
-                                // 3. QUAN TRỌNG: Đẩy khu vực vẽ nền lùi vào trong 3.dp (bằng đúng độ dày viền)
                                 .padding(3.dp)
-
-                                // 4. Cắt tròn phần bên trong và đổ màu nền (lúc này nền đã nhỏ hơn viền, kẹt ở trong)
                                 .clip(CircleShape)
                                 .background(Color(0xFF0EB67E)),
 
@@ -200,6 +202,7 @@ fun ProfileScreen(
                                 TextButton(
                                     onClick = {
                                         viewModel.updateProfile(displayNameDraft, uiState.user?.avatarUrl.orEmpty()) {
+                                            Toast.makeText(context, "Cập nhật tên hiển thị thành công!", Toast.LENGTH_SHORT).show()
                                             isEditingDisplayName = false
                                         }
                                     },
@@ -512,9 +515,11 @@ private fun ProfileMenuItem(
 private fun EditAvatarDialog(
     avatarUrl: String,
     isSaving: Boolean,
+    isUploading: Boolean,
     error: String?,
     onDismiss: () -> Unit,
-    onSave: (avatarUrl: String) -> Unit
+    onSave: (avatarUrl: String) -> Unit,
+    onUpload: () -> Unit
 ) {
     var avatarUrlDraft by remember(avatarUrl) {
         mutableStateOf(avatarUrl)
@@ -522,7 +527,7 @@ private fun EditAvatarDialog(
 
     AlertDialog(
         onDismissRequest = {
-            if (!isSaving) onDismiss()
+            if (!isSaving && !isUploading) onDismiss()
         },
         containerColor = AppSurface,
         title = {
@@ -535,38 +540,65 @@ private fun EditAvatarDialog(
                     onValueChange = { avatarUrlDraft = it },
                     label = { Text("Avatar URL") },
                     singleLine = true,
-                    enabled = !isSaving,
+                    enabled = !isSaving && !isUploading,
                     placeholder = { Text("https://example.com/avatar.jpg") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (isUploading) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Đang tải ảnh lên...", color = Ink500, fontSize = 13.sp)
+                    }
+                }
                 if (error != null) {
                     Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                 }
             }
         },
         confirmButton = {
-            Button(
-                onClick = { onSave(avatarUrlDraft) },
-                enabled = !isSaving && avatarUrlDraft.trim().isNotBlank()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
+                IconButton(
+                    onClick = onUpload,
+                    enabled = !isSaving && !isUploading
+                ) {
+                    Icon(
+                        Icons.Default.FileUpload,
+                        contentDescription = "Tải ảnh avatar",
+                        tint = Ink700,
+                        modifier = Modifier.size(22.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text(
-                    text = "Lưu",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSaving) {
-                Text("Hủy")
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss, enabled = !isSaving && !isUploading) {
+                        Text("Hủy")
+                    }
+                    Button(
+                        onClick = { onSave(avatarUrlDraft) },
+                        enabled = !isSaving && !isUploading && avatarUrlDraft.trim().isNotBlank()
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = "Lưu",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
         }
     )
@@ -622,6 +654,33 @@ private fun EditDisplayNameDialog(
             TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Hủy") }
         }
     )
+}
+
+private data class AvatarUploadFile(
+    val file: File,
+    val mimeType: String
+)
+
+private fun copyUriToCacheFile(context: Context, uri: Uri): AvatarUploadFile? {
+    return try {
+        val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
+        val extension = when (mimeType) {
+            "image/png" -> "png"
+            "image/webp" -> "webp"
+            "image/heic" -> "heic"
+            "image/heif" -> "heif"
+            else -> "jpg"
+        }
+        val file = File(context.cacheDir, "avatar_${System.currentTimeMillis()}.$extension")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            file.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        } ?: return null
+        AvatarUploadFile(file, mimeType)
+    } catch (_: Exception) {
+        null
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)

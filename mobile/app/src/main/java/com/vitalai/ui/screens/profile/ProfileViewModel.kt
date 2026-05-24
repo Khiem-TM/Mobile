@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class ProfileUiState(
@@ -22,6 +23,7 @@ data class ProfileUiState(
     val streaks: StreakDto? = null,
     val isLoading: Boolean = false,
     val isUpdatingProfile: Boolean = false,
+    val isUploadingAvatar: Boolean = false,
     val updateProfileError: String? = null
 )
 
@@ -119,5 +121,34 @@ class ProfileViewModel @Inject constructor(
 
     fun clearUpdateProfileError() {
         _uiState.update { it.copy(updateProfileError = null) }
+    }
+
+    fun setUpdateProfileError(message: String) {
+        _uiState.update { it.copy(updateProfileError = message) }
+    }
+
+    fun uploadAvatar(file: File, mimeType: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUploadingAvatar = true, updateProfileError = null) }
+            userRepository.uploadAvatar(file, mimeType)
+                .onSuccess { updatedUser ->
+                    _uiState.update {
+                        it.copy(
+                            user = updatedUser,
+                            isUploadingAvatar = false,
+                            updateProfileError = null
+                        )
+                    }
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isUploadingAvatar = false,
+                            updateProfileError = error.message ?: "Không thể tải ảnh avatar"
+                        )
+                    }
+                }
+        }
     }
 }

@@ -4,6 +4,10 @@ import com.vitalai.data.remote.UserApi
 import com.vitalai.data.remote.model.HealthProfileDto
 import com.vitalai.data.remote.model.UpdateProfileRequest
 import com.vitalai.data.remote.model.UserDto
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,6 +58,28 @@ class UserRepository @Inject constructor(
                 Result.success(body)
             } else {
                 Result.failure(Exception("Cannot update user profile"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun uploadAvatar(file: File, mimeType: String): Result<UserDto> {
+        return try {
+            val part = MultipartBody.Part.createFormData(
+                name = "file",
+                filename = file.name,
+                body = file.asRequestBody(mimeType.toMediaTypeOrNull())
+            )
+            val response = userApi.uploadAvatar(part)
+            if (response.isSuccessful) {
+                getCurrentUser()
+            } else {
+                val errorBody = response.errorBody()?.string()
+                val message = errorBody
+                    ?.takeIf { it.isNotBlank() }
+                    ?: "Cannot upload avatar (${response.code()})"
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
