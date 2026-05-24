@@ -29,12 +29,14 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.*
-
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 @Composable
 fun ProfileScreen(
     navController: NavController,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showEditAvatarDialog by remember { mutableStateOf(false) }
     var isEditingDisplayName by remember { mutableStateOf(false) }
@@ -57,7 +59,26 @@ fun ProfileScreen(
             },
             onSave = { avatarUrl ->
                 viewModel.updateProfile(uiState.user?.displayName.orEmpty(), avatarUrl) {
+                    Toast.makeText(context, "Cập nhật ảnh đại diện thành công!", Toast.LENGTH_SHORT).show()
                     showEditAvatarDialog = false
+                }
+            }
+        )
+    }
+
+    if (isEditingDisplayName) {
+        EditDisplayNameDialog(
+            currentName = uiState.user?.displayName.orEmpty(),
+            isSaving = uiState.isUpdatingProfile,
+            error = uiState.updateProfileError,
+            onDismiss = {
+                viewModel.clearUpdateProfileError()
+                isEditingDisplayName = false
+            },
+            onSave = { newName ->
+                viewModel.updateProfile(newName, uiState.user?.avatarUrl.orEmpty()) {
+                    Toast.makeText(context, "Cập nhật tên hiển thị thành công!", Toast.LENGTH_SHORT).show()
+                    isEditingDisplayName = false
                 }
             }
         )
@@ -99,20 +120,22 @@ fun ProfileScreen(
                 Row(verticalAlignment = Alignment.Top) {
                     // Avatar
                     val avatarUrl = uiState.user?.avatarUrl
-                    Box(modifier = Modifier.size(76.dp)) {
+                    val avatarSize = 85.dp
+//                    Box(modifier = Modifier.size(76.dp)) {
+                    Box {
                         if (avatarUrl != null) {
                             AsyncImage(
                                 model = avatarUrl,
                                 contentDescription = "Avatar",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .size(100.dp)
+                                    .size(avatarSize)
                                     .clip(CircleShape)
                             )
                         } else {
                             Box(
                                 modifier = Modifier
-                                    .size(64.dp)
+                                    .size(avatarSize)
                                     .clip(CircleShape)
                                     .background(AppSurface2),
                                 contentAlignment = Alignment.Center
@@ -121,24 +144,39 @@ fun ProfileScreen(
                                 Text(initial.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink500)
                             }
                         }
-                        IconButton(
-                            onClick = {
-                                viewModel.clearUpdateProfileError()
-                                showEditAvatarDialog = true
-                            },
-                            enabled = !uiState.isUpdatingProfile,
+                        Box(
                             modifier = Modifier
-                                .size(32.dp)
                                 .align(Alignment.BottomEnd)
+                                .offset(x = 4.dp, y = 4.dp)
+                                .size(30.dp)
+
+                                // 1. Cắt tròn vùng bấm và cấu hình Clickable TRƯỚC để hiệu ứng chạm (ripple) phủ toàn bộ nút
                                 .clip(CircleShape)
-                                .background(AppSurface)
-                                .border(1.dp, AppLine, CircleShape)
+                                .clickable(
+                                    enabled = !uiState.isUpdatingProfile,
+                                    onClick = {
+                                        viewModel.clearUpdateProfileError()
+                                        showEditAvatarDialog = true
+                                    }
+                                )
+
+                                // 2. Vẽ viền sáng màu
+                                .border(3.dp, Color(0xFFF2F7F3), CircleShape)
+
+                                // 3. QUAN TRỌNG: Đẩy khu vực vẽ nền lùi vào trong 3.dp (bằng đúng độ dày viền)
+                                .padding(3.dp)
+
+                                // 4. Cắt tròn phần bên trong và đổ màu nền (lúc này nền đã nhỏ hơn viền, kẹt ở trong)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0EB67E)),
+
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.PhotoCamera,
                                 contentDescription = "Sửa avatar",
-                                tint = Ink700,
-                                modifier = Modifier.size(16.dp)
+                                tint = AppSurface,
+                                modifier = Modifier.size(15.dp)
                             )
                         }
                     }
@@ -190,26 +228,34 @@ fun ProfileScreen(
                                 Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
                             }
                         } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                            ) {
                                 Text(
                                     text = uiState.user?.displayName ?: "Người dùng",
                                     fontSize = 22.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Ink900,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(end = 36.dp)
                                 )
-                                IconButton(
-                                    onClick = {
-                                        viewModel.clearUpdateProfileError()
-                                        displayNameDraft = uiState.user?.displayName.orEmpty()
-                                        isEditingDisplayName = true
-                                    },
-                                    enabled = !uiState.isUpdatingProfile,
-                                    modifier = Modifier.size(32.dp)
+
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .clickable {
+                                            viewModel.clearUpdateProfileError()
+                                            isEditingDisplayName = true
+                                        },
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         Icons.Default.Edit,
-                                        contentDescription = "Sửa tên hiển thị",
+                                        contentDescription = "Sửa tên",
                                         tint = Ink700,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -218,7 +264,7 @@ fun ProfileScreen(
                         }
                         Text(
                             text = uiState.user?.email ?: "email@vital.app",
-                            fontSize = 14.sp,
+                            fontSize = 12.sp,
                             color = Ink500
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -226,11 +272,11 @@ fun ProfileScreen(
                             // PRO badge
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(100))
-                                    .background(Ink900)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF0EB67E))
+                                    .padding(horizontal = 15.dp, vertical = 1.dp)
                             ) {
-                                Text("PRO", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                Text("PRO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             // Goal tag
                             val goalText = when (uiState.healthProfile?.goalType?.lowercase()) {
@@ -243,10 +289,10 @@ fun ProfileScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(100))
                                     .background(AmberContainer)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                    .padding(horizontal = 10.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("🎯", fontSize = 11.sp)
+                                Text("🎯", fontSize = 10.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(goalText, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = AmberOnContainer)
                             }
@@ -478,6 +524,7 @@ private fun EditAvatarDialog(
         onDismissRequest = {
             if (!isSaving) onDismiss()
         },
+        containerColor = AppSurface,
         title = {
             Text("Sửa avatar", fontWeight = FontWeight.Bold)
         },
@@ -510,13 +557,69 @@ private fun EditAvatarDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Lưu")
+                Text(
+                    text = "Lưu",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss, enabled = !isSaving) {
                 Text("Hủy")
             }
+        }
+    )
+}
+
+@Composable
+private fun EditDisplayNameDialog(
+    currentName: String,
+    isSaving: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSave: (newName: String) -> Unit
+) {
+    var nameDraft by remember(currentName) { mutableStateOf(currentName) }
+
+    AlertDialog(
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        containerColor = AppSurface,
+        title = { Text("Đổi tên hiển thị", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = nameDraft,
+                    onValueChange = { nameDraft = it },
+                    label = { Text("Tên mới") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    isError = nameDraft.trim().length !in 2..100,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (error != null) {
+                    Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(nameDraft) },
+                enabled = !isSaving && nameDraft.trim().length in 2..100
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(
+                    text = "Lưu",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Hủy") }
         }
     )
 }
