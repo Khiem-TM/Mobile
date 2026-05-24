@@ -2,7 +2,10 @@ package com.vitalai.data.remote
 
 import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.BlogDto
+import com.vitalai.data.remote.model.BlogLikedDto
 import com.vitalai.data.remote.model.BlogPageDto
+import com.vitalai.data.remote.model.CommentPageDto
+import com.vitalai.data.remote.model.CreateCommentRequest
 import com.vitalai.data.remote.model.CreateBlogRequest
 import retrofit2.Response
 import retrofit2.http.Body
@@ -23,6 +26,34 @@ interface BlogApi {
 
     @GET("blogs/{id}")
     suspend fun getBlogById(@Path("id") id: String): Response<ApiResponse<BlogDto>>
+
+    @GET("blogs/tags")
+    suspend fun getTags(): Response<ApiResponse<List<String>>>
+
+    @POST("blogs/{id}/like")
+    suspend fun toggleLike(@Path("id") id: String): Response<ApiResponse<BlogLikedDto>>
+
+    @GET("blogs/{id}/liked")
+    suspend fun isLiked(@Path("id") id: String): Response<ApiResponse<BlogLikedDto>>
+
+    @GET("blogs/{id}/comments")
+    suspend fun getComments(
+        @Path("id") id: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
+    ): Response<ApiResponse<CommentPageDto>>
+
+    @POST("blogs/{id}/comments")
+    suspend fun postComment(
+        @Path("id") id: String,
+        @Body request: CreateCommentRequest
+    ): Response<ApiResponse<com.vitalai.data.remote.model.CommentDto>>
+
+    @DELETE("blogs/{id}/comments/{commentId}")
+    suspend fun deleteComment(
+        @Path("id") id: String,
+        @Path("commentId") commentId: String
+    ): Response<Unit>
 
     @GET("user/blogs")
     suspend fun getMyBlogs(

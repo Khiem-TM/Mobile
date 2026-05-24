@@ -28,6 +28,25 @@ data class BodyMetricsPeriodDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class BodyMetricsSummaryDto(
+    @Json(name = "startWeight") val startWeight: Float = 0f,
+    @Json(name = "currentWeight") val currentWeight: Float = 0f,
+    @Json(name = "weightChange") val weightChange: Float = 0f,
+    @Json(name = "startDate") val startDate: String? = null,
+    @Json(name = "latestDate") val latestDate: String? = null,
+    @Json(name = "totalRecords") val totalRecords: Int = 0
+)
+
+@JsonClass(generateAdapter = true)
+data class ProgressPhotoDto(
+    @Json(name = "id") val id: String,
+    @Json(name = "photoUrl") val photoUrl: String,
+    @Json(name = "photoType") val photoType: String,
+    @Json(name = "takenAt") val takenAt: String? = null,
+    @Json(name = "bodyMetricId") val bodyMetricId: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class UpsertBodyMetricRequest(
     @Json(name = "recordedAt") val recordedAt: String? = null,
     @Json(name = "weightKg") val weightKg: Float? = null,

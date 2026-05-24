@@ -6,10 +6,12 @@ import com.vitalai.data.remote.model.CreateMealLogRequest
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.MealLogItemDto
 import com.vitalai.data.remote.model.MealLogSummaryDto
+import com.vitalai.data.remote.model.UpdateMealLogItemRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -21,6 +23,12 @@ interface MealLogApi {
     @GET("meal-logs")
     suspend fun getMealLogs(@Query("date") date: String): Response<ApiResponse<List<MealLogDto>>>
 
+    @GET("meal-logs/history")
+    suspend fun getMealHistory(
+        @Query("fromDate") fromDate: String,
+        @Query("toDate") toDate: String
+    ): Response<ApiResponse<List<MealLogDto>>>
+
     @GET("meal-logs/summary")
     suspend fun getMealSummary(@Query("date") date: String): Response<ApiResponse<MealLogSummaryDto>>
 
@@ -30,9 +38,19 @@ interface MealLogApi {
         @Body request: AddMealItemRequest
     ): Response<ApiResponse<MealLogItemDto>>
 
+    @PATCH("meal-logs/{mealLogId}/items/{itemId}")
+    suspend fun updateItem(
+        @Path("mealLogId") mealLogId: String,
+        @Path("itemId") itemId: String,
+        @Body request: UpdateMealLogItemRequest
+    ): Response<ApiResponse<MealLogItemDto>>
+
     @DELETE("meal-logs/{mealLogId}/items/{itemId}")
     suspend fun deleteItem(
         @Path("mealLogId") mealLogId: String,
         @Path("itemId") itemId: String
     ): Response<ApiResponse<Unit>>
+
+    @DELETE("meal-logs/{mealLogId}")
+    suspend fun deleteMealLog(@Path("mealLogId") mealLogId: String): Response<Unit>
 }

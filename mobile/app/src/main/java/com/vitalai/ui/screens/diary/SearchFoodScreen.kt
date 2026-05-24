@@ -51,6 +51,8 @@ fun SearchFoodScreen(
 
     LaunchedEffect(Unit) {
         viewModel.loadAllFoods()
+        viewModel.loadCustomFoods()
+        viewModel.loadExploreFoods()
         viewModel.loadFavorites()
     }
 
@@ -185,7 +187,11 @@ fun SearchFoodScreen(
             }
 
             Text(
-                text = "GẦN ĐÂY",
+                text = when (selectedTab) {
+                    2 -> "MÓN CỦA TÔI"
+                    3 -> "YÊU THÍCH"
+                    else -> "GỢI Ý"
+                },
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = Ink500,
@@ -194,8 +200,10 @@ fun SearchFoodScreen(
 
             val displayItems = when {
                 selectedTab == 3 -> uiState.favorites
+                selectedTab == 2 -> uiState.customFoods
                 uiState.query.isNotBlank() -> uiState.searchResults
-                selectedTab == 0 || selectedTab == 1 -> uiState.allFoods
+                selectedTab == 1 -> uiState.exploreFoods.ifEmpty { uiState.allFoods }
+                selectedTab == 0 -> uiState.allFoods
                 else -> emptyList()
             }
 
@@ -587,4 +595,3 @@ fun SearchFoodScreenPreview() {
         }
     }
 }
-

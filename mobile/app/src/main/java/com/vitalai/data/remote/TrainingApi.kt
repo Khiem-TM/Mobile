@@ -6,6 +6,8 @@ import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.CreateWorkoutSessionDto
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.SessionExerciseDto
+import com.vitalai.data.remote.model.UpdateCaloriesBurnedRequest
+import com.vitalai.data.remote.model.UpdateWorkoutSessionRequest
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import retrofit2.Response
 import retrofit2.http.Body
@@ -41,11 +43,23 @@ interface TrainingApi {
     @DELETE("training/sessions/{id}")
     suspend fun deleteSession(@Path("id") id: String): Response<Unit>
 
+    @PATCH("training/sessions/{id}")
+    suspend fun updateSession(
+        @Path("id") id: String,
+        @Body request: UpdateWorkoutSessionRequest
+    ): Response<ApiResponse<WorkoutSessionDto>>
+
     @POST("training/sessions/{id}/exercises")
     suspend fun addExercise(
         @Path("id") sessionId: String,
         @Body request: AddExerciseRequest
     ): Response<ApiResponse<SessionExerciseDto>>
+
+    @DELETE("training/sessions/{id}/exercises/{detailId}")
+    suspend fun removeExercise(
+        @Path("id") sessionId: String,
+        @Path("detailId") detailId: String
+    ): Response<Unit>
 
     @GET("activity-logs")
     suspend fun getActivityLog(@Query("date") date: String): Response<ApiResponse<ActivityLogDto>>
@@ -55,4 +69,7 @@ interface TrainingApi {
 
     @PATCH("activity-logs/water")
     suspend fun updateWater(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+
+    @PATCH("activity-logs/calories-burned")
+    suspend fun updateCaloriesBurned(@Body body: UpdateCaloriesBurnedRequest): Response<ApiResponse<ActivityLogDto>>
 }

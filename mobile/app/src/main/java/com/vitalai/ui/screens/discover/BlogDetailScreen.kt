@@ -9,7 +9,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,6 +31,7 @@ import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogBlockDto
 import com.vitalai.data.remote.model.BlogDto
+import com.vitalai.data.remote.model.CommentDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.VitalIconButton
@@ -57,15 +60,32 @@ fun BlogDetailScreen(
             )
             uiState.blog != null -> BlogContent(
                 blog = uiState.blog!!,
+                comments = uiState.comments,
+                isLiked = uiState.isLiked,
+                isPostingComment = uiState.isPostingComment,
                 paddingValues = padding,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onToggleLike = viewModel::toggleLike,
+                onPostComment = viewModel::postComment,
+                onDeleteComment = viewModel::deleteComment
             )
         }
     }
 }
 
 @Composable
-private fun BlogContent(blog: BlogDto, paddingValues: PaddingValues, onBack: () -> Unit) {
+private fun BlogContent(
+    blog: BlogDto,
+    comments: List<CommentDto>,
+    isLiked: Boolean,
+    isPostingComment: Boolean,
+    paddingValues: PaddingValues,
+    onBack: () -> Unit,
+    onToggleLike: () -> Unit,
+    onPostComment: (String) -> Unit,
+    onDeleteComment: (String) -> Unit
+) {
+    var commentText by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -184,7 +204,20 @@ private fun BlogContent(blog: BlogDto, paddingValues: PaddingValues, onBack: () 
                     Spacer(Modifier.weight(1f))
                     DetailStat(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
                     Spacer(Modifier.width(8.dp))
-                    DetailStat(icon = Icons.Default.Favorite, value = "${blog.likesCount}", color = MacroProtein)
+                    Surface(
+                        onClick = onToggleLike,
+                        shape = RoundedCornerShape(VitalRadius.Pill),
+                        color = if (isLiked) MacroProtein.copy(alpha = 0.14f) else AppSurface2
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.Favorite, contentDescription = "Thích", tint = MacroProtein, modifier = Modifier.size(14.dp))
+                            Text("${blog.likesCount}", color = Ink700, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(18.dp))
@@ -201,9 +234,62 @@ private fun BlogContent(blog: BlogDto, paddingValues: PaddingValues, onBack: () 
                     val text = blog.content ?: "Nội dung đang được cập nhật..."
                     Text(text = text, fontSize = 16.sp, color = Ink700, lineHeight = 25.sp)
                 }
+
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider(color = AppLineSoft)
+                Spacer(Modifier.height(16.dp))
+                Text("Bình luận (${blog.commentCount})", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = commentText,
+                        onValueChange = { commentText = it },
+                        placeholder = { Text("Viết bình luận...") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    IconButton(
+                        onClick = {
+                            onPostComment(commentText)
+                            commentText = ""
+                        },
+                        enabled = commentText.isNotBlank() && !isPostingComment
+                    ) {
+                        Icon(Icons.Default.Send, contentDescription = "Gửi", tint = Mint500)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                comments.forEach { comment ->
+                    CommentItem(comment = comment, onDelete = { onDeleteComment(comment.id) })
+                    Spacer(Modifier.height(8.dp))
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
+    }
+}
+
+@Composable
+private fun CommentItem(comment: CommentDto, onDelete: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier.size(34.dp).clip(CircleShape).background(Mint50),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(comment.authorUser?.displayName?.firstOrNull()?.uppercaseChar()?.toString() ?: "U", color = Mint700, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(comment.authorUser?.displayName ?: "Người dùng", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
+            Text(comment.content, fontSize = 14.sp, color = Ink700, lineHeight = 20.sp)
+            Text(comment.createdAt.take(10), fontSize = 11.sp, color = Ink500)
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            Icon(Icons.Default.Delete, contentDescription = "Xóa bình luận", tint = Ink500, modifier = Modifier.size(16.dp))
+        }
     }
 }
 
@@ -331,8 +417,14 @@ fun BlogDetailScreenPreview() {
         ) { padding ->
             BlogContent(
                 blog = mockBlog,
+                comments = emptyList(),
+                isLiked = false,
+                isPostingComment = false,
                 paddingValues = padding,
-                onBack = {}
+                onBack = {},
+                onToggleLike = {},
+                onPostComment = {},
+                onDeleteComment = {}
             )
         }
     }

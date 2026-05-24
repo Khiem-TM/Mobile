@@ -14,6 +14,7 @@ import com.vitalai.ui.screens.coach.CoachScreen
 import com.vitalai.ui.screens.diary.CreateFoodScreen
 import com.vitalai.ui.screens.diary.DiaryScreen
 import com.vitalai.ui.screens.diary.FoodDetailScreen
+import com.vitalai.ui.screens.diary.MealHistoryScreen
 import com.vitalai.ui.screens.diary.SearchFoodScreen
 import com.vitalai.ui.screens.discover.BlogComposerScreen
 import com.vitalai.ui.screens.discover.BlogDetailScreen
@@ -85,6 +86,9 @@ fun VitalNavGraph(navController: NavHostController) {
         }
         composable<Screen.CreateFood> {
             CreateFoodScreen(navController)
+        }
+        composable<Screen.MealHistory> {
+            MealHistoryScreen(navController)
         }
 
         // ── Workout / Metrics ─────────────────────────────────

@@ -3,6 +3,7 @@ package com.vitalai.ui.screens.metrics
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.BodyMetricDto
+import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.repository.BodyMetricsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,7 @@ data class MetricTimelineEvent(
 
 data class MetricsHistoryUiState(
     val events: List<MetricTimelineEvent> = emptyList(),
+    val photos: List<ProgressPhotoDto> = emptyList(),
     val currentWeightKg: Float = 0f,
     val delta90Days: Float = 0f,
     val totalEvents: Int = 0,
@@ -52,6 +54,7 @@ class MetricsHistoryViewModel @Inject constructor(
     private fun loadInitial() {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
+            val photosResult = bodyMetricsRepository.getPhotos(10)
             bodyMetricsRepository.getPeriod("3months").fold(
                 onSuccess = { period ->
                     val sorted = period.data.sortedBy { it.date }
@@ -60,6 +63,7 @@ class MetricsHistoryViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             events = sorted.asReversed().map { metric -> metric.toTimelineEvent() },
+                            photos = photosResult.getOrElse { emptyList() },
                             currentWeightKg = latest?.weightKg ?: 0f,
                             delta90Days = if (latest != null && first != null) latest.weightKg - first.weightKg else 0f,
                             isLoading = false,

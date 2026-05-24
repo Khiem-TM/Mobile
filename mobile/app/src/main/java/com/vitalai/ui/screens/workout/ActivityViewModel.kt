@@ -55,4 +55,13 @@ class ActivityViewModel @Inject constructor(
             )
         }
     }
+
+    fun updateCaloriesBurned(calories: Float, activeMinutes: Int, notes: String? = null) {
+        viewModelScope.launch {
+            trainingRepository.updateCaloriesBurned(calories, activeMinutes, exerciseNotes = notes).fold(
+                onSuccess = { log -> _uiState.update { it.copy(log = log) } },
+                onFailure = { e -> _uiState.update { it.copy(error = e.message) } }
+            )
+        }
+    }
 }

@@ -11,7 +11,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.FrontHand
@@ -74,6 +76,8 @@ fun WorkoutScreen(
         onStartWorkoutClick = { navController.navigate(Screen.WorkoutBuilder) },
         onLibraryClick = { navController.navigate(Screen.ExerciseLibrary) },
         onFilterByMuscleGroup = viewModel::filterByMuscleGroup,
+        onUpdateSession = viewModel::updateSession,
+        onDeleteSession = viewModel::deleteSession,
         onRetry = viewModel::loadData
     )
 }
@@ -87,8 +91,11 @@ fun WorkoutScreenContent(
     onStartWorkoutClick: () -> Unit,
     onLibraryClick: () -> Unit,
     onFilterByMuscleGroup: (String?) -> Unit,
+    onUpdateSession: (String, String, String?) -> Unit,
+    onDeleteSession: (String) -> Unit,
     onRetry: () -> Unit
 ) {
+    var editingSession by remember { mutableStateOf<WorkoutSessionDto?>(null) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -344,11 +351,40 @@ fun WorkoutScreenContent(
                         )
                     }
                     items(uiState.sessions) { session ->
-                        SessionItem(session = session)
+                        SessionItem(
+                            session = session,
+                            onEdit = { editingSession = session },
+                            onDelete = { onDeleteSession(session.id) }
+                        )
                     }
                 }
             }
         }
+    }
+
+    editingSession?.let { session ->
+        var name by remember(session.id) { mutableStateOf(session.sessionName ?: "") }
+        AlertDialog(
+            onDismissRequest = { editingSession = null },
+            title = { Text("Sửa phiên tập") },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Tên phiên") },
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onUpdateSession(session.id, name.ifBlank { "Phiên tập" }, session.sessionDate)
+                    editingSession = null
+                }) { Text("Lưu") }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingSession = null }) { Text("Hủy") }
+            }
+        )
     }
 }
 
@@ -475,7 +511,11 @@ private fun ExerciseItem(exercise: ExerciseDto) {
 }
 
 @Composable
-private fun SessionItem(session: WorkoutSessionDto) {
+private fun SessionItem(
+    session: WorkoutSessionDto,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -507,6 +547,12 @@ private fun SessionItem(session: WorkoutSessionDto) {
             Column(horizontalAlignment = Alignment.End) {
                 Text("${session.totalCaloriesBurned.toInt()}", fontSize = 19.sp, color = Mint500, fontWeight = FontWeight.Bold)
                 Text("kcal", fontSize = 12.sp, color = Ink500)
+            }
+            IconButton(onClick = onEdit, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.Edit, contentDescription = "Sửa phiên", tint = Ink500, modifier = Modifier.size(18.dp))
+            }
+            IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Default.Delete, contentDescription = "Xóa phiên", tint = MacroProtein, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -567,8 +613,9 @@ fun WorkoutScreenPreview() {
             onStartWorkoutClick = {},
             onLibraryClick = {},
             onFilterByMuscleGroup = {},
+            onUpdateSession = { _, _, _ -> },
+            onDeleteSession = {},
             onRetry = {}
         )
     }
 }
-

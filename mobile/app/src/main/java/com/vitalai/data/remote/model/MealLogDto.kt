@@ -58,3 +58,9 @@ data class AddMealItemRequest(
     @Json(name = "quantity") val quantity: Float,
     @Json(name = "serving_unit") val servingUnit: String
 )
+
+@JsonClass(generateAdapter = true)
+data class UpdateMealLogItemRequest(
+    @Json(name = "quantity") val quantity: Float? = null,
+    @Json(name = "serving_unit") val servingUnit: String? = null
+)

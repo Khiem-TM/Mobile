@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
@@ -86,7 +87,8 @@ fun NotificationsScreen(
                 items(uiState.notifications, key = { it.id }) { notification ->
                     NotificationItem(
                         notification = notification,
-                        onClick = { viewModel.markRead(notification.id) }
+                        onClick = { viewModel.markRead(notification.id) },
+                        onDelete = { viewModel.deleteNotification(notification.id) }
                     )
                 }
             }
@@ -95,7 +97,7 @@ fun NotificationsScreen(
 }
 
 @Composable
-private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit) {
+private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit, onDelete: () -> Unit = {}) {
     val (icon, iconColor) = when (notification.type) {
         "meal" -> Icons.Default.Restaurant to MacroCarbs
         "workout" -> Icons.Default.FitnessCenter to Mint500
@@ -152,6 +154,9 @@ private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit)
                     .clip(CircleShape)
                     .background(Mint500)
             )
+        }
+        IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
+            Icon(Icons.Default.Delete, contentDescription = "Xóa thông báo", tint = Ink500, modifier = Modifier.size(18.dp))
         }
     }
 }

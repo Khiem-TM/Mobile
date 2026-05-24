@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.MealLogSummaryDto
+import com.vitalai.data.remote.model.UpdateMealLogItemRequest
 import com.vitalai.data.repository.MealLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -55,6 +56,22 @@ class DiaryViewModel @Inject constructor(
     fun deleteItem(mealLogId: String, itemId: String) {
         viewModelScope.launch {
             mealLogRepository.deleteItem(mealLogId, itemId).onSuccess { loadMealLogs() }
+        }
+    }
+
+    fun editItem(mealLogId: String, itemId: String, quantity: Float, servingUnit: String) {
+        viewModelScope.launch {
+            mealLogRepository.updateItem(
+                mealLogId,
+                itemId,
+                UpdateMealLogItemRequest(quantity = quantity, servingUnit = servingUnit)
+            ).onSuccess { loadMealLogs() }
+        }
+    }
+
+    fun deleteMealLog(mealLogId: String) {
+        viewModelScope.launch {
+            mealLogRepository.deleteMealLog(mealLogId).onSuccess { loadMealLogs() }
         }
     }
 }

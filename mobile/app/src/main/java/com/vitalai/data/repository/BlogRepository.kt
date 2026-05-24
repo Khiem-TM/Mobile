@@ -3,6 +3,9 @@ package com.vitalai.data.repository
 import com.vitalai.data.remote.BlogApi
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.data.remote.model.BlogPageDto
+import com.vitalai.data.remote.model.CommentDto
+import com.vitalai.data.remote.model.CommentPageDto
+import com.vitalai.data.remote.model.CreateCommentRequest
 import com.vitalai.data.remote.model.CreateBlogRequest
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +31,71 @@ class BlogRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Không tìm thấy bài viết"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getTags(): Result<List<String>> {
+        return try {
+            val response = blogApi.getTags()
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun toggleLike(id: String): Result<Boolean> {
+        return try {
+            val response = blogApi.toggleLike(id)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body.liked)
+            else Result.failure(Exception("Không cập nhật được lượt thích (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun isLiked(id: String): Result<Boolean> {
+        return try {
+            val response = blogApi.isLiked(id)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body.liked)
+            else Result.success(false)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getComments(id: String, page: Int = 1, limit: Int = 20): Result<CommentPageDto> {
+        return try {
+            val response = blogApi.getComments(id, page, limit)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Không tải được bình luận (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun postComment(id: String, content: String): Result<CommentDto> {
+        return try {
+            val response = blogApi.postComment(id, CreateCommentRequest(content))
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Không gửi được bình luận (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteComment(blogId: String, commentId: String): Result<Unit> {
+        return try {
+            val response = blogApi.deleteComment(blogId, commentId)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Không xóa được bình luận (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

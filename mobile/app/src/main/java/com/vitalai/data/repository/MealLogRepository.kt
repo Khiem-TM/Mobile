@@ -20,6 +20,7 @@ import com.vitalai.data.remote.model.FoodBriefDto
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.MealLogItemDto
 import com.vitalai.data.remote.model.MealLogSummaryDto
+import com.vitalai.data.remote.model.UpdateMealLogItemRequest
 import com.vitalai.data.worker.SyncWorker
 import com.vitalai.util.Resource
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -95,6 +96,17 @@ class MealLogRepository @Inject constructor(
         }
     }
 
+    suspend fun getMealHistory(fromDate: String, toDate: String): Result<List<MealLogDto>> {
+        return try {
+            val response = mealLogApi.getMealHistory(fromDate, toDate)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi tải lịch sử bữa ăn (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun createMealLog(mealType: String, date: String): Result<MealLogDto> {
         return try {
             val response = mealLogApi.createMealLog(CreateMealLogRequest(mealType, date))
@@ -139,6 +151,23 @@ class MealLogRepository @Inject constructor(
         }
     }
 
+    suspend fun updateItem(mealLogId: String, itemId: String, request: UpdateMealLogItemRequest): Result<MealLogItemDto> {
+        return try {
+            val response = mealLogApi.updateItem(mealLogId, itemId, request)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) {
+                mealLogDao.insertItems(listOf(body.toEntity(mealLogId)))
+                Result.success(body)
+            } else {
+                Result.failure(Exception("Lỗi cập nhật món (${response.code()})"))
+            }
+        } catch (e: IOException) {
+            Result.failure(IOException("Không thể cập nhật món khi ngoại tuyến"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun deleteItem(mealLogId: String, itemId: String): Result<Unit> {
         return try {
             val response = mealLogApi.deleteItem(mealLogId, itemId)
@@ -153,6 +182,16 @@ class MealLogRepository @Inject constructor(
             )
             scheduleSyncWorker()
             Result.failure(IOException("Đã lưu vào hàng chờ, sẽ đồng bộ khi có mạng"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteMealLog(mealLogId: String): Result<Unit> {
+        return try {
+            val response = mealLogApi.deleteMealLog(mealLogId)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi xóa bữa ăn (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

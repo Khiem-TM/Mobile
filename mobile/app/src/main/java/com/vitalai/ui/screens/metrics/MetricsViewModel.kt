@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.data.remote.model.BodyMetricsPeriodDto
+import com.vitalai.data.remote.model.BodyMetricsSummaryDto
+import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import com.vitalai.data.repository.BodyMetricsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -16,6 +18,7 @@ import javax.inject.Inject
 data class MetricsUiState(
     val latest: BodyMetricDto? = null,
     val periodData: BodyMetricsPeriodDto? = null,
+    val summary: BodyMetricsSummaryDto? = null,
     val selectedPeriod: String = "week",
     val isLoading: Boolean = false,
     val error: String? = null
@@ -38,10 +41,12 @@ class MetricsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             val latestDeferred = async { bodyMetricsRepository.getLatest() }
+            val summaryDeferred = async { bodyMetricsRepository.getSummary() }
             val periodDeferred = async { bodyMetricsRepository.getPeriod(period) }
             _uiState.update {
                 it.copy(
                     latest = latestDeferred.await().getOrNull(),
+                    summary = summaryDeferred.await().getOrNull(),
                     periodData = periodDeferred.await().getOrNull(),
                     isLoading = false
                 )
@@ -55,6 +60,21 @@ class MetricsViewModel @Inject constructor(
             bodyMetricsRepository.getPeriod(period).onSuccess { data ->
                 _uiState.update { it.copy(periodData = data) }
             }
+        }
+    }
+
+    fun addMetric(request: UpsertBodyMetricRequest) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            bodyMetricsRepository.addMetric(request).fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isLoading = false) }
+                    loadData()
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message) }
+                }
+            )
         }
     }
 }

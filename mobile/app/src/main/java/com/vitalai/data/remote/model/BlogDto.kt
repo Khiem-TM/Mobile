@@ -51,6 +51,32 @@ data class BlogPageDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class BlogLikedDto(
+    @Json(name = "liked") val liked: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class CommentDto(
+    @Json(name = "id") val id: String,
+    @Json(name = "content") val content: String,
+    @Json(name = "authorUser") val authorUser: AuthorUserDto? = null,
+    @Json(name = "createdAt") val createdAt: String
+)
+
+@JsonClass(generateAdapter = true)
+data class CommentPageDto(
+    @Json(name = "items") val items: List<CommentDto>,
+    @Json(name = "total") val total: Int,
+    @Json(name = "page") val page: Int,
+    @Json(name = "limit") val limit: Int
+)
+
+@JsonClass(generateAdapter = true)
+data class CreateCommentRequest(
+    @Json(name = "content") val content: String
+)
+
+@JsonClass(generateAdapter = true)
 data class CreateBlogRequest(
     @Json(name = "title") val title: String,
     @Json(name = "thumbnailUrl") val thumbnailUrl: String? = null,

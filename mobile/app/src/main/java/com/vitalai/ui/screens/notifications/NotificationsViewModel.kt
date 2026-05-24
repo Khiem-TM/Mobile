@@ -61,4 +61,16 @@ class NotificationsViewModel @Inject constructor(
             }
         }
     }
+
+    fun deleteNotification(id: String) {
+        viewModelScope.launch {
+            notificationsRepository.deleteNotification(id).onSuccess {
+                _uiState.update { state ->
+                    state.copy(notifications = state.notifications.filterNot { it.id == id })
+                }
+            }.onFailure { err ->
+                _uiState.update { it.copy(error = err.message) }
+            }
+        }
+    }
 }

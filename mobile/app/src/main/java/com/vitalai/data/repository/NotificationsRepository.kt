@@ -40,4 +40,14 @@ class NotificationsRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun deleteNotification(id: String): Result<Unit> {
+        return try {
+            val response = notificationsApi.deleteNotification(id)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi xóa thông báo (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

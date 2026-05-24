@@ -63,7 +63,8 @@ fun ActivityScreen(
         uiState = uiState,
         onBackClick = { navController.popBackStack() },
         onUpdateSteps = { viewModel.updateSteps(it) },
-        onUpdateWater = { viewModel.updateWater(it) }
+        onUpdateWater = { viewModel.updateWater(it) },
+        onUpdateCalories = { calories, minutes -> viewModel.updateCaloriesBurned(calories, minutes) }
     )
 }
 
@@ -73,9 +74,11 @@ fun ActivityScreenContent(
     uiState: ActivityUiState,
     onBackClick: () -> Unit,
     onUpdateSteps: (Int) -> Unit,
-    onUpdateWater: (Int) -> Unit
+    onUpdateWater: (Int) -> Unit,
+    onUpdateCalories: (Float, Int) -> Unit
 ) {
     val log = uiState.log
+    var showCaloriesDialog by remember { mutableStateOf(false) }
 
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi")))
 
@@ -196,9 +199,9 @@ fun ActivityScreenContent(
                     )
                     QuickActionButton(
                         icon = { Icon(Icons.Default.Edit, contentDescription = null, tint = MacroCarbs, modifier = Modifier.size(18.dp)) },
-                        label = "Ghi chú",
+                        label = "Calories",
                         modifier = Modifier.weight(1f),
-                        onClick = {}
+                        onClick = { showCaloriesDialog = true }
                     )
                 }
             }
@@ -237,6 +240,44 @@ fun ActivityScreenContent(
             }
         }
     }
+
+    if (showCaloriesDialog) {
+        var caloriesText by remember(log?.caloriesBurned) { mutableStateOf((log?.caloriesBurned?.toInt() ?: 0).toString()) }
+        var minutesText by remember(log?.activeMinutes) { mutableStateOf((log?.activeMinutes ?: 0).toString()) }
+        AlertDialog(
+            onDismissRequest = { showCaloriesDialog = false },
+            title = { Text("Ghi calories đã đốt") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = caloriesText,
+                        onValueChange = { caloriesText = it },
+                        label = { Text("Calories") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = minutesText,
+                        onValueChange = { minutesText = it },
+                        label = { Text("Phút vận động") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val calories = caloriesText.toFloatOrNull()
+                    val minutes = minutesText.toIntOrNull()
+                    if (calories != null && minutes != null) {
+                        onUpdateCalories(calories, minutes)
+                        showCaloriesDialog = false
+                    }
+                }) { Text("Lưu") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCaloriesDialog = false }) { Text("Hủy") }
+            }
+        )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
@@ -259,7 +300,8 @@ fun ActivityScreenPreview() {
             uiState = mockState,
             onBackClick = {},
             onUpdateSteps = {},
-            onUpdateWater = {}
+            onUpdateWater = {},
+            onUpdateCalories = { _, _ -> }
         )
     }
 }

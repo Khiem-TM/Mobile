@@ -20,6 +20,58 @@ data class DashboardDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class DashboardPeriodDto(
+    @Json(name = "from") val from: String,
+    @Json(name = "to") val to: String,
+    @Json(name = "year") val year: Int? = null,
+    @Json(name = "month") val month: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DashboardNutritionReportDto(
+    @Json(name = "avg_daily_calories") val avgDailyCalories: Int = 0,
+    @Json(name = "total_calories") val totalCalories: Int = 0,
+    @Json(name = "days_logged") val daysLogged: Int = 0
+)
+
+@JsonClass(generateAdapter = true)
+data class DashboardActivityReportDto(
+    @Json(name = "total_steps") val totalSteps: Int = 0,
+    @Json(name = "avg_daily_steps") val avgDailySteps: Int = 0,
+    @Json(name = "total_water_ml") val totalWaterMl: Int = 0,
+    @Json(name = "total_active_minutes") val totalActiveMinutes: Int = 0,
+    @Json(name = "active_days") val activeDays: Int = 0
+)
+
+@JsonClass(generateAdapter = true)
+data class DashboardTrainingReportDto(
+    @Json(name = "workout_count") val workoutCount: Int = 0,
+    @Json(name = "avg_workouts_per_week") val avgWorkoutsPerWeek: Float? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DashboardWeeklyDto(
+    @Json(name = "period") val period: DashboardPeriodDto,
+    @Json(name = "nutrition") val nutrition: DashboardNutritionReportDto,
+    @Json(name = "activity") val activity: DashboardActivityReportDto,
+    @Json(name = "training") val training: DashboardTrainingReportDto
+)
+
+@JsonClass(generateAdapter = true)
+data class DashboardMonthlyBodyDto(
+    @Json(name = "weight_change_kg") val weightChangeKg: Float? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DashboardMonthlyDto(
+    @Json(name = "period") val period: DashboardPeriodDto,
+    @Json(name = "nutrition") val nutrition: DashboardNutritionReportDto,
+    @Json(name = "activity") val activity: DashboardActivityReportDto,
+    @Json(name = "training") val training: DashboardTrainingReportDto,
+    @Json(name = "body") val body: DashboardMonthlyBodyDto? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class StreakDto(
     @Json(name = "login_streak") val loginStreak: Int,
     @Json(name = "meal_log_streak") val mealLogStreak: Int,

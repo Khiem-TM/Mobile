@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,10 +27,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.BodyMetricDto
+import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.*
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,6 +41,7 @@ fun MetricsScreen(
     viewModel: MetricsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddMetricDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -49,6 +53,9 @@ fun MetricsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showAddMetricDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Thêm số liệu", tint = Mint500)
+                    }
                     TextButton(onClick = { navController.navigate(Screen.MetricsHistory) }) {
                         Text("Lịch sử", color = Mint500, fontSize = 13.sp)
                     }
@@ -85,6 +92,35 @@ fun MetricsScreen(
                         }
                         latest.bodyFatPct?.let { fat ->
                             MetricCard("Mỡ cơ thể", "%.1f%%".format(fat), MacroFat, Modifier.weight(1f))
+                        }
+                    }
+                }
+
+                uiState.summary?.let { summary ->
+                    Card(
+                        shape = RoundedCornerShape(VitalRadius.Xl),
+                        colors = CardDefaults.cardColors(containerColor = AppSurface),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Tiến độ cân nặng", fontWeight = FontWeight.Bold, color = Ink900)
+                                Text("${summary.totalRecords} lần cập nhật", fontSize = 12.sp, color = Ink500)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    "%+.1f kg".format(summary.weightChange),
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (summary.weightChange <= 0f) Mint500 else MacroProtein
+                                )
+                                Text("${summary.startWeight} -> ${summary.currentWeight} kg", fontSize = 12.sp, color = Ink500)
+                            }
                         }
                     }
                 }
@@ -218,6 +254,65 @@ fun MetricsScreen(
             }
         }
     }
+
+    if (showAddMetricDialog) {
+        AddMetricDialog(
+            onDismiss = { showAddMetricDialog = false },
+            onSave = { request ->
+                viewModel.addMetric(request)
+                showAddMetricDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddMetricDialog(
+    onDismiss: () -> Unit,
+    onSave: (UpsertBodyMetricRequest) -> Unit
+) {
+    var weight by remember { mutableStateOf("") }
+    var bodyFat by remember { mutableStateOf("") }
+    var waist by remember { mutableStateOf("") }
+    var hip by remember { mutableStateOf("") }
+    var chest by remember { mutableStateOf("") }
+    var neck by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Cập nhật số liệu") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(weight, { weight = it }, label = { Text("Cân nặng kg") }, singleLine = true)
+                OutlinedTextField(bodyFat, { bodyFat = it }, label = { Text("% mỡ") }, singleLine = true)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(waist, { waist = it }, label = { Text("Eo") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(hip, { hip = it }, label = { Text("Hông") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(chest, { chest = it }, label = { Text("Ngực") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(neck, { neck = it }, label = { Text("Cổ") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(
+                    UpsertBodyMetricRequest(
+                        recordedAt = LocalDate.now().toString(),
+                        weightKg = weight.toFloatOrNull(),
+                        bodyFatPct = bodyFat.toFloatOrNull(),
+                        waistCm = waist.toFloatOrNull(),
+                        hipCm = hip.toFloatOrNull(),
+                        chestCm = chest.toFloatOrNull(),
+                        neckCm = neck.toFloatOrNull()
+                    )
+                )
+            }) { Text("Lưu") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Hủy") }
+        }
+    )
 }
 
 @Composable

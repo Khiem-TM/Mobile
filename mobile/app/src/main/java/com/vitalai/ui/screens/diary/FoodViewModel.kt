@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.AddMealItemRequest
 import com.vitalai.data.remote.model.CreateFoodRequest
 import com.vitalai.data.remote.model.FoodDto
+import com.vitalai.data.remote.model.FoodIngredientDto
+import com.vitalai.data.remote.model.RecipeDto
 import com.vitalai.data.repository.FoodRepository
 import com.vitalai.data.repository.MealLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,8 +21,12 @@ import javax.inject.Inject
 data class FoodUiState(
     val searchResults: List<FoodDto> = emptyList(),
     val allFoods: List<FoodDto> = emptyList(),
+    val customFoods: List<FoodDto> = emptyList(),
+    val exploreFoods: List<FoodDto> = emptyList(),
     val favorites: List<FoodDto> = emptyList(),
     val selectedFood: FoodDto? = null,
+    val selectedRecipe: RecipeDto? = null,
+    val selectedIngredients: List<FoodIngredientDto> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingAll: Boolean = false,
     val isSearching: Boolean = false,
@@ -72,6 +78,22 @@ class FoodViewModel @Inject constructor(
         }
     }
 
+    fun loadExploreFoods() {
+        viewModelScope.launch {
+            foodRepository.exploreFoods(limit = 20).onSuccess { page ->
+                _uiState.update { it.copy(exploreFoods = page.items) }
+            }
+        }
+    }
+
+    fun loadCustomFoods() {
+        viewModelScope.launch {
+            foodRepository.getCustomFoods(limit = 50).onSuccess { page ->
+                _uiState.update { it.copy(customFoods = page.items) }
+            }
+        }
+    }
+
     fun loadFavorites() {
         viewModelScope.launch {
             foodRepository.getFavorites().onSuccess { list ->
@@ -85,9 +107,18 @@ class FoodViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             foodRepository.getFoodById(id).onSuccess { food ->
                 _uiState.update { it.copy(selectedFood = food, isLoading = false) }
+                loadRecipeAndIngredients(id)
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, error = err.message) }
             }
+        }
+    }
+
+    private fun loadRecipeAndIngredients(id: String) {
+        viewModelScope.launch {
+            val recipe = foodRepository.getRecipe(id).getOrNull()
+            val ingredients = foodRepository.getIngredients(id).getOrElse { emptyList() }
+            _uiState.update { it.copy(selectedRecipe = recipe, selectedIngredients = ingredients) }
         }
     }
 

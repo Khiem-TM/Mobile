@@ -90,6 +90,7 @@ fun HomeScreen(
                     ) 
                 }
                 item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
+                item { DashboardTrendCard(uiState) }
                 item {
                     val streak = uiState.streaks?.loginStreak ?: 0
                     if (streak > 0) StreakBanner(streak)
@@ -528,6 +529,65 @@ fun MealOverviewCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DashboardTrendCard(uiState: HomeUiState) {
+    val weekly = uiState.weeklyDashboard
+    val monthly = uiState.monthlyDashboard
+    if (weekly == null && monthly == null) return
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Xu hướng", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                weekly?.let {
+                    TrendMiniMetric(
+                        label = "Tuần này",
+                        value = "${it.nutrition.avgDailyCalories}",
+                        sub = "kcal/ngày",
+                        modifier = Modifier.weight(1f)
+                    )
+                    TrendMiniMetric(
+                        label = "Bước TB",
+                        value = "${it.activity.avgDailySteps}",
+                        sub = "bước/ngày",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                monthly?.let {
+                    TrendMiniMetric(
+                        label = "Tháng này",
+                        value = "${it.training.workoutCount}",
+                        sub = "buổi tập",
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrendMiniMetric(label: String, value: String, sub: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(VitalRadius.Md))
+            .background(AppSurface2)
+            .padding(12.dp)
+    ) {
+        Text(label, fontSize = 11.sp, color = Ink500)
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink900)
+        Text(sub, fontSize = 11.sp, color = Ink500)
     }
 }
 

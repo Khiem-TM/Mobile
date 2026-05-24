@@ -288,6 +288,50 @@ fun FoodDetailScreen(
                                     }
                                 }
                             }
+
+                            if (uiState.selectedIngredients.isNotEmpty() || uiState.selectedRecipe != null) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(VitalRadius.Xl),
+                                    colors = CardDefaults.cardColors(containerColor = AppSurface),
+                                    border = BorderStroke(1.dp, AppLine)
+                                ) {
+                                    Column(modifier = Modifier.padding(20.dp)) {
+                                        if (uiState.selectedIngredients.isNotEmpty()) {
+                                            Text("Nguyên liệu", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                                            Spacer(modifier = Modifier.height(10.dp))
+                                            uiState.selectedIngredients.take(6).forEach { ingredient ->
+                                                NutrientRow(
+                                                    label = ingredient.displayName,
+                                                    value = "${ingredient.quantityG.toInt()}g",
+                                                    progress = 1f,
+                                                    color = Mint500
+                                                )
+                                            }
+                                        }
+                                        uiState.selectedRecipe?.let { recipe ->
+                                            if (uiState.selectedIngredients.isNotEmpty()) Spacer(modifier = Modifier.height(14.dp))
+                                            Text("Công thức", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                                            Text(
+                                                "${recipe.prepTimeMin ?: 0}p chuẩn bị · ${recipe.cookTimeMin ?: 0}p nấu · ${recipe.servings ?: 1} phần",
+                                                fontSize = 12.sp,
+                                                color = Ink500,
+                                                modifier = Modifier.padding(top = 4.dp, bottom = 10.dp)
+                                            )
+                                            recipe.steps.sortedBy { it.stepNumber }.forEach { step ->
+                                                Text(
+                                                    "${step.stepNumber}. ${step.instruction}",
+                                                    fontSize = 14.sp,
+                                                    color = Ink700,
+                                                    lineHeight = 20.sp,
+                                                    modifier = Modifier.padding(vertical = 4.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
 

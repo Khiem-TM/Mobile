@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -105,6 +107,33 @@ fun MetricsHistoryScreen(
                     state = listState,
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
+                    if (uiState.photos.isNotEmpty()) {
+                        item {
+                            Text(
+                                "Ảnh tiến độ",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                color = Ink900,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(uiState.photos, key = { it.id }) { photo ->
+                                    AsyncImage(
+                                        model = photo.photoUrl,
+                                        contentDescription = photo.photoType,
+                                        modifier = Modifier
+                                            .size(width = 120.dp, height = 150.dp)
+                                            .clip(RoundedCornerShape(VitalRadius.Lg)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+                    }
                     grouped.forEach { (month, events) ->
                         // Sticky month header
                         stickyHeader {

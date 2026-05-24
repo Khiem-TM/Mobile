@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.remote.model.ExerciseDto
+import com.vitalai.data.remote.model.UpdateWorkoutSessionRequest
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.data.repository.TrainingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,6 +61,33 @@ class WorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             trainingRepository.getExercises(group).onSuccess { list ->
                 _uiState.update { it.copy(exercises = list) }
+            }
+        }
+    }
+
+    fun updateSession(sessionId: String, name: String, date: String? = null) {
+        viewModelScope.launch {
+            trainingRepository.updateSession(
+                sessionId,
+                UpdateWorkoutSessionRequest(sessionName = name, sessionDate = date)
+            ).onSuccess { updated ->
+                _uiState.update { state ->
+                    state.copy(sessions = state.sessions.map { if (it.id == sessionId) updated else it })
+                }
+            }.onFailure { e ->
+                _uiState.update { it.copy(error = e.message) }
+            }
+        }
+    }
+
+    fun deleteSession(sessionId: String) {
+        viewModelScope.launch {
+            trainingRepository.deleteSession(sessionId).onSuccess {
+                _uiState.update { state ->
+                    state.copy(sessions = state.sessions.filterNot { it.id == sessionId })
+                }
+            }.onFailure { e ->
+                _uiState.update { it.copy(error = e.message) }
             }
         }
     }

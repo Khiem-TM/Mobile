@@ -6,6 +6,8 @@ import com.vitalai.data.remote.model.AddExerciseRequest
 import com.vitalai.data.remote.model.CreateWorkoutSessionDto
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.SessionExerciseDto
+import com.vitalai.data.remote.model.UpdateCaloriesBurnedRequest
+import com.vitalai.data.remote.model.UpdateWorkoutSessionRequest
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import java.time.LocalDate
 import javax.inject.Inject
@@ -93,12 +95,33 @@ class TrainingRepository @Inject constructor(
         }
     }
 
+    suspend fun updateSession(id: String, request: UpdateWorkoutSessionRequest): Result<WorkoutSessionDto> {
+        return try {
+            val response = trainingApi.updateSession(id, request)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi cập nhật phiên tập (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun addExercise(sessionId: String, request: AddExerciseRequest): Result<SessionExerciseDto> {
         return try {
             val response = trainingApi.addExercise(sessionId, request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi thêm bài tập (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeExercise(sessionId: String, detailId: String): Result<Unit> {
+        return try {
+            val response = trainingApi.removeExercise(sessionId, detailId)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi xóa bài tập khỏi phiên (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -134,6 +157,29 @@ class TrainingRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi cập nhật nước uống"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateCaloriesBurned(
+        caloriesBurned: Float,
+        activeMinutes: Int,
+        logDate: String = LocalDate.now().toString(),
+        exerciseNotes: String? = null
+    ): Result<ActivityLogDto> {
+        return try {
+            val response = trainingApi.updateCaloriesBurned(
+                UpdateCaloriesBurnedRequest(
+                    logDate = logDate,
+                    caloriesBurned = caloriesBurned,
+                    activeMinutes = activeMinutes,
+                    exerciseNotes = exerciseNotes
+                )
+            )
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi cập nhật calories đã đốt (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

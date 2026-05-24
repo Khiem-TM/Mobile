@@ -31,6 +31,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogDto
+import com.vitalai.data.remote.model.FoodDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
@@ -46,7 +47,9 @@ fun DiscoverScreen(
     viewModel: DiscoverViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val tags = listOf(null to "Tất cả", "Dinh dưỡng" to "Dinh dưỡng", "Tập luyện" to "Tập luyện", "Mindset" to "Mindset", "Công thức" to "Công thức")
+    val tags = remember(uiState.tags) {
+        listOf(null to "Tất cả") + uiState.tags.map { it to it }
+    }
 
     Scaffold(
         topBar = {
@@ -117,6 +120,25 @@ fun DiscoverScreen(
                     }
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(bottom = 28.dp)) {
+                    if (uiState.exploreFoods.isNotEmpty()) {
+                        item {
+                            SectionHeader(
+                                title = "Món nên thử",
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                            )
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(uiState.exploreFoods, key = { it.id }) { food ->
+                                    ExploreFoodCard(
+                                        food = food,
+                                        onClick = { navController.navigate(Screen.FoodDetail(food.id)) }
+                                    )
+                                }
+                            }
+                        }
+                    }
                     item {
                         val featured = uiState.blogs.first()
                         SectionHeader(
@@ -143,6 +165,46 @@ fun DiscoverScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExploreFoodCard(food: FoodDto, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(156.dp)
+            .height(184.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
+    ) {
+        Column {
+            if (food.imageUrl != null) {
+                AsyncImage(
+                    model = food.imageUrl,
+                    contentDescription = food.name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .background(Mint50),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🍽️", fontSize = 28.sp)
+                }
+            }
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(food.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink900)
+                Text("${food.caloriesPer100g.toInt()} kcal/100g", fontSize = 11.sp, color = Ink500)
             }
         }
     }
@@ -452,4 +514,3 @@ fun DiscoverScreenPreview() {
         }
     }
 }
-

@@ -82,6 +82,13 @@ data class AddExerciseRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class UpdateWorkoutSessionRequest(
+    @Json(name = "sessionDate") val sessionDate: String? = null,
+    @Json(name = "sessionName") val sessionName: String? = null,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class ActivityLogDto(
     @Json(name = "id") val id: String? = null,
     @Json(name = "logDate") val logDate: String = "",
@@ -93,3 +100,11 @@ data class ActivityLogDto(
     val date: String get() = logDate
     val activeMins: Int get() = activeMinutes
 }
+
+@JsonClass(generateAdapter = true)
+data class UpdateCaloriesBurnedRequest(
+    @Json(name = "logDate") val logDate: String,
+    @Json(name = "caloriesBurned") val caloriesBurned: Float,
+    @Json(name = "activeMinutes") val activeMinutes: Int,
+    @Json(name = "exerciseNotes") val exerciseNotes: String? = null
+)

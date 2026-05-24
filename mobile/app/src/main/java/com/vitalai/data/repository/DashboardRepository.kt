@@ -3,6 +3,8 @@ package com.vitalai.data.repository
 import com.vitalai.data.remote.DashboardApi
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.DashboardDto
+import com.vitalai.data.remote.model.DashboardMonthlyDto
+import com.vitalai.data.remote.model.DashboardWeeklyDto
 import com.vitalai.data.remote.model.StreakDto
 import java.time.LocalDate
 import javax.inject.Inject
@@ -30,6 +32,28 @@ class DashboardRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi tải streak (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getWeeklyDashboard(weekStart: String): Result<DashboardWeeklyDto> {
+        return try {
+            val response = dashboardApi.getWeeklyDashboard(weekStart)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi tải thống kê tuần (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMonthlyDashboard(year: Int, month: Int): Result<DashboardMonthlyDto> {
+        return try {
+            val response = dashboardApi.getMonthlyDashboard(year, month)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi tải thống kê tháng (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

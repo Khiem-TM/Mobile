@@ -3,6 +3,8 @@ package com.vitalai.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.DashboardDto
+import com.vitalai.data.remote.model.DashboardMonthlyDto
+import com.vitalai.data.remote.model.DashboardWeeklyDto
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.StreakDto
 import com.vitalai.data.remote.model.UserDto
@@ -21,6 +23,8 @@ import javax.inject.Inject
 
 data class HomeUiState(
     val dashboard: DashboardDto? = null,
+    val weeklyDashboard: DashboardWeeklyDto? = null,
+    val monthlyDashboard: DashboardMonthlyDto? = null,
     val streaks: StreakDto? = null,
     val mealLogs: List<MealLogDto> = emptyList(),
     val unreadCount: Int = 0,
@@ -53,16 +57,24 @@ class HomeViewModel @Inject constructor(
             val mealLogsDeferred = async { mealLogRepository.getMealLogs(date) }
             val unreadDeferred = async { dashboardRepository.getUnreadCount() }
             val userDeferred = async { userRepository.getCurrentUser() }
+            val selectedLocalDate = LocalDate.parse(date)
+            val weekStart = selectedLocalDate.minusDays((selectedLocalDate.dayOfWeek.value - 1).toLong())
+            val weeklyDeferred = async { dashboardRepository.getWeeklyDashboard(weekStart.toString()) }
+            val monthlyDeferred = async { dashboardRepository.getMonthlyDashboard(selectedLocalDate.year, selectedLocalDate.monthValue) }
 
             val dashboard = dashboardDeferred.await().getOrNull()
             val streaks = streaksDeferred.await().getOrNull()
             val mealLogs = mealLogsDeferred.await().getOrElse { emptyList() }
             val unread = unreadDeferred.await().getOrElse { 0 }
             val user = userDeferred.await().getOrNull()
+            val weekly = weeklyDeferred.await().getOrNull()
+            val monthly = monthlyDeferred.await().getOrNull()
 
             _uiState.update {
                 it.copy(
                     dashboard = dashboard,
+                    weeklyDashboard = weekly,
+                    monthlyDashboard = monthly,
                     streaks = streaks,
                     mealLogs = mealLogs,
                     unreadCount = unread,

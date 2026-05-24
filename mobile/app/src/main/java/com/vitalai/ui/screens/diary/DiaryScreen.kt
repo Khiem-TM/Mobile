@@ -14,6 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,6 +34,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.MealLogDto
+import com.vitalai.data.remote.model.MealLogItemDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
@@ -47,6 +50,7 @@ fun DiaryScreen(
     viewModel: DiaryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var editingItem by remember { mutableStateOf<Triple<String, MealLogItemDto, String>?>(null) }
 
     Scaffold(
         bottomBar = { VitalBottomNavBar(navController = navController) },
@@ -105,11 +109,52 @@ fun DiaryScreen(
                         timeRange = timeRange,
                         mealLog = log,
                         onAddClick = { navController.navigate(Screen.SearchFood(mealType = type.lowercase(), date = uiState.selectedDate)) },
-                        onItemClick = { /* Optional: Navigate to item details */ }
+                        onItemClick = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
+                        onDeleteItem = viewModel::deleteItem,
+                        onDeleteMeal = viewModel::deleteMealLog
                     )
                 }
             }
         }
+    }
+
+    editingItem?.let { (mealLogId, item, _) ->
+        var quantityText by remember(item.id) { mutableStateOf(item.quantity.toString()) }
+        var unitText by remember(item.id) { mutableStateOf(item.servingUnit) }
+        AlertDialog(
+            onDismissRequest = { editingItem = null },
+            title = { Text("Chỉnh khẩu phần") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = quantityText,
+                        onValueChange = { quantityText = it },
+                        label = { Text("Số lượng") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = unitText,
+                        onValueChange = { unitText = it },
+                        label = { Text("Đơn vị") },
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val quantity = quantityText.toFloatOrNull()
+                        if (quantity != null && quantity > 0f) {
+                            viewModel.editItem(mealLogId, item.id, quantity, unitText.ifBlank { item.servingUnit })
+                            editingItem = null
+                        }
+                    }
+                ) { Text("Lưu") }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingItem = null }) { Text("Hủy") }
+            }
+        )
     }
 }
 
@@ -138,7 +183,7 @@ fun DiaryHeader(navController: NavController) {
                 .size(40.dp)
                 .clip(CircleShape)
                 .background(AppSurface2)
-                .clickable { /* Handle Search */ },
+                .clickable { navController.navigate(Screen.MealHistory) },
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Default.Search, contentDescription = "Search", tint = Ink900)
@@ -251,7 +296,9 @@ fun DiaryMealSection(
     timeRange: String,
     mealLog: MealLogDto?,
     onAddClick: () -> Unit,
-    onItemClick: () -> Unit
+    onItemClick: (String, MealLogItemDto) -> Unit,
+    onDeleteItem: (String, String) -> Unit,
+    onDeleteMeal: (String) -> Unit
 ) {
     val totalCalories = mealLog?.totalCalories?.toInt() ?: 0
     val progress = if (totalCalories > 0) 1f else 0f
@@ -276,6 +323,11 @@ fun DiaryMealSection(
                     Text(timeRange, fontSize = 12.sp, color = Ink500)
                 }
                 Column(horizontalAlignment = Alignment.End) {
+                    if (mealLog != null) {
+                        IconButton(onClick = { onDeleteMeal(mealLog.id) }, modifier = Modifier.size(28.dp)) {
+                            Icon(Icons.Default.Delete, contentDescription = "Xóa bữa", tint = MacroProtein, modifier = Modifier.size(18.dp))
+                        }
+                    }
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text("$totalCalories", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
                         Text(" kcal", fontSize = 12.sp, color = Ink500, modifier = Modifier.padding(bottom = 1.dp))
@@ -295,7 +347,7 @@ fun DiaryMealSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp)
-                        .clickable { onItemClick() },
+                        .clickable { onItemClick(mealLog.id, item) },
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (item.imageUrl != null) {
@@ -324,6 +376,12 @@ fun DiaryMealSection(
                         Text("${item.quantity} ${item.servingUnit}", fontSize = 13.sp, color = Ink500)
                     }
                     Text("${item.calories.toInt()} kcal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink700)
+                    IconButton(onClick = { onItemClick(mealLog.id, item) }, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Default.Edit, contentDescription = "Sửa món", tint = Ink500, modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(onClick = { onDeleteItem(mealLog.id, item.id) }, modifier = Modifier.size(34.dp)) {
+                        Icon(Icons.Default.Delete, contentDescription = "Xóa món", tint = MacroProtein, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
             

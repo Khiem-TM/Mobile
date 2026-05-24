@@ -2,6 +2,7 @@ package com.vitalai.data.remote
 
 import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.NotificationDto
+import retrofit2.http.DELETE
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.PATCH
@@ -16,4 +17,7 @@ interface NotificationsApi {
 
     @PATCH("notifications/read-all")
     suspend fun markAllRead(): Response<ApiResponse<Unit>>
+
+    @DELETE("notifications/{id}")
+    suspend fun deleteNotification(@Path("id") id: String): Response<Unit>
 }
