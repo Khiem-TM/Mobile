@@ -23,6 +23,12 @@ data class UserDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class UpdateProfileRequest(
+    @Json(name = "display_name") val displayName: String? = null,
+    @Json(name = "avatar_url") val avatarUrl: String? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class RefreshResponseDto(
     @Json(name = "access_token") val accessToken: String,
     @Json(name = "expires_in") val expiresIn: Int

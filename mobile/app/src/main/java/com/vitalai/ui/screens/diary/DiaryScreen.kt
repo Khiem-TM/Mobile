@@ -38,7 +38,6 @@ import com.vitalai.data.remote.model.MealLogItemDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -52,65 +51,61 @@ fun DiaryScreen(
     val uiState by viewModel.uiState.collectAsState()
     var editingItem by remember { mutableStateOf<Triple<String, MealLogItemDto, String>?>(null) }
 
-    MainTabScaffold(navController = navController) { padding ->
-        when {
-            uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
-            uiState.error != null -> ErrorState(
-                message = uiState.error!!,
-                onRetry = viewModel::loadMealLogs,
-                modifier = Modifier.padding(padding)
-            )
-            else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(bottom = 16.dp)
-            ) {
-                // Top Header
-                item { DiaryHeader(navController) }
-                // Date Switcher
-                item { 
-                    DateSwitcher(
-                        selectedDateStr = uiState.selectedDate,
-                        onPrevDate = {
-                            val prev = LocalDate.parse(uiState.selectedDate).minusDays(1)
-                            viewModel.selectDate(prev.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                        },
-                        onNextDate = {
-                            val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
-                            viewModel.selectDate(next.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                        }
-                    )
-                }
-                // Summary Card
-                item {
-                    val summary = uiState.summary
-                    val consumed = summary?.totalCalories ?: 0f
-                    val goal = 1938f // Or from summary if available
-                    val remaining = (goal - consumed).coerceAtLeast(0f)
-                    DiarySummaryCard(consumed = consumed, goal = goal, remaining = remaining)
-                }
-                
-                // Meal Sections
-                val mealTypes = listOf(
-                    Triple("BREAKFAST", "Sáng (Breakfast)", "7:00 - 9:30"),
-                    Triple("LUNCH", "Trưa (Lunch)", "11:30 - 14:00"),
-                    Triple("DINNER", "Tối (Dinner)", "18:00 - 20:00"),
-                    Triple("SNACK", "Bữa phụ (Snack)", "Tuỳ chọn")
+    when {
+        uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+        uiState.error != null -> ErrorState(
+            message = uiState.error!!,
+            onRetry = viewModel::loadMealLogs,
+            modifier = Modifier.fillMaxSize()
+        )
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp)
+        ) {
+            // Top Header
+            item { DiaryHeader(navController) }
+            // Date Switcher
+            item {
+                DateSwitcher(
+                    selectedDateStr = uiState.selectedDate,
+                    onPrevDate = {
+                        val prev = LocalDate.parse(uiState.selectedDate).minusDays(1)
+                        viewModel.selectDate(prev.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    },
+                    onNextDate = {
+                        val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
+                        viewModel.selectDate(next.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    }
                 )
-                
-                items(mealTypes) { (type, label, timeRange) ->
-                    val log = uiState.mealLogs.find { it.mealType.equals(type, ignoreCase = true) }
-                    DiaryMealSection(
-                        label = label,
-                        timeRange = timeRange,
-                        mealLog = log,
-                        onAddClick = { navController.navigate(Screen.SearchFood(mealType = type.lowercase(), date = uiState.selectedDate)) },
-                        onItemClick = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
-                        onDeleteItem = viewModel::deleteItem,
-                        onDeleteMeal = viewModel::deleteMealLog
-                    )
-                }
+            }
+            // Summary Card
+            item {
+                val summary = uiState.summary
+                val consumed = summary?.totalCalories ?: 0f
+                val goal = 1938f // Or from summary if available
+                val remaining = (goal - consumed).coerceAtLeast(0f)
+                DiarySummaryCard(consumed = consumed, goal = goal, remaining = remaining)
+            }
+
+            // Meal Sections
+            val mealTypes = listOf(
+                Triple("BREAKFAST", "Sáng (Breakfast)", "7:00 - 9:30"),
+                Triple("LUNCH", "Trưa (Lunch)", "11:30 - 14:00"),
+                Triple("DINNER", "Tối (Dinner)", "18:00 - 20:00"),
+                Triple("SNACK", "Bữa phụ (Snack)", "Tuỳ chọn")
+            )
+
+            items(mealTypes) { (type, label, timeRange) ->
+                val log = uiState.mealLogs.find { it.mealType.equals(type, ignoreCase = true) }
+                DiaryMealSection(
+                    label = label,
+                    timeRange = timeRange,
+                    mealLog = log,
+                    onAddClick = { navController.navigate(Screen.SearchFood(mealType = type.lowercase(), date = uiState.selectedDate)) },
+                    onItemClick = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
+                    onDeleteItem = viewModel::deleteItem,
+                    onDeleteMeal = viewModel::deleteMealLog
+                )
             }
         }
     }

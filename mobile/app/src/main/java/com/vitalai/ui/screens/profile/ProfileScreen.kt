@@ -28,7 +28,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
-import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.*
 
 @Composable
@@ -37,23 +36,47 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showEditAvatarDialog by remember { mutableStateOf(false) }
+    var isEditingDisplayName by remember { mutableStateOf(false) }
+    var displayNameDraft by remember { mutableStateOf("") }
 
-    MainTabScaffold(navController = navController) { padding ->
-        Column(
+    LaunchedEffect(uiState.user?.id, uiState.user?.displayName) {
+        if (!isEditingDisplayName) {
+            displayNameDraft = uiState.user?.displayName.orEmpty()
+        }
+    }
+
+    if (showEditAvatarDialog) {
+        EditAvatarDialog(
+            avatarUrl = uiState.user?.avatarUrl.orEmpty(),
+            isSaving = uiState.isUpdatingProfile,
+            error = uiState.updateProfileError,
+            onDismiss = {
+                viewModel.clearUpdateProfileError()
+                showEditAvatarDialog = false
+            },
+            onSave = { avatarUrl ->
+                viewModel.updateProfile(uiState.user?.displayName.orEmpty(), avatarUrl) {
+                    showEditAvatarDialog = false
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        // Top bar
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Top bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink900)
+            Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink900)
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -76,35 +99,123 @@ fun ProfileScreen(
                 Row(verticalAlignment = Alignment.Top) {
                     // Avatar
                     val avatarUrl = uiState.user?.avatarUrl
-                    if (avatarUrl != null) {
-                        AsyncImage(
-                            model = avatarUrl,
-                            contentDescription = "Avatar",
-                            contentScale = ContentScale.Crop,
+                    Box(modifier = Modifier.size(76.dp)) {
+                        if (avatarUrl != null) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "Avatar",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(CircleShape)
+                                    .background(AppSurface2),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                val initial = (uiState.user?.displayName?.firstOrNull() ?: 'U').uppercaseChar()
+                                Text(initial.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink500)
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                viewModel.clearUpdateProfileError()
+                                showEditAvatarDialog = true
+                            },
+                            enabled = !uiState.isUpdatingProfile,
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(32.dp)
+                                .align(Alignment.BottomEnd)
                                 .clip(CircleShape)
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .background(AppSurface2),
-                            contentAlignment = Alignment.Center
+                                .background(AppSurface)
+                                .border(1.dp, AppLine, CircleShape)
                         ) {
-                            val initial = (uiState.user?.displayName?.firstOrNull() ?: 'U').uppercaseChar()
-                            Text(initial.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink500)
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = "Sửa avatar",
+                                tint = Ink700,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = uiState.user?.displayName ?: "Người dùng",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Ink900
-                        )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (isEditingDisplayName) {
+                            OutlinedTextField(
+                                value = displayNameDraft,
+                                onValueChange = { displayNameDraft = it },
+                                singleLine = true,
+                                enabled = !uiState.isUpdatingProfile,
+                                isError = displayNameDraft.trim().length !in 2..100,
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink900
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                TextButton(
+                                    onClick = {
+                                        viewModel.updateProfile(displayNameDraft, uiState.user?.avatarUrl.orEmpty()) {
+                                            isEditingDisplayName = false
+                                        }
+                                    },
+                                    enabled = !uiState.isUpdatingProfile && displayNameDraft.trim().length in 2..100,
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    if (uiState.isUpdatingProfile) {
+                                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                    }
+                                    Text("Lưu", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                                TextButton(
+                                    onClick = {
+                                        viewModel.clearUpdateProfileError()
+                                        displayNameDraft = uiState.user?.displayName.orEmpty()
+                                        isEditingDisplayName = false
+                                    },
+                                    enabled = !uiState.isUpdatingProfile,
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("Hủy", fontSize = 13.sp)
+                                }
+                            }
+                            uiState.updateProfileError?.let { error ->
+                                Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = uiState.user?.displayName ?: "Người dùng",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Ink900,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = {
+                                        viewModel.clearUpdateProfileError()
+                                        displayNameDraft = uiState.user?.displayName.orEmpty()
+                                        isEditingDisplayName = true
+                                    },
+                                    enabled = !uiState.isUpdatingProfile,
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Edit,
+                                        contentDescription = "Sửa tên hiển thị",
+                                        tint = Ink700,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
                         Text(
                             text = uiState.user?.email ?: "email@vital.app",
                             fontSize = 14.sp,
@@ -293,7 +404,6 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
-}
 
 @Composable
 private fun StatCard(value: String, unit: String, label: String, color: Color, modifier: Modifier = Modifier) {
@@ -350,6 +460,65 @@ private fun ProfileMenuItem(
     if (showDivider) {
         HorizontalDivider(color = AppLineSoft, thickness = 1.dp, modifier = Modifier.padding(start = 70.dp))
     }
+}
+
+@Composable
+private fun EditAvatarDialog(
+    avatarUrl: String,
+    isSaving: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onSave: (avatarUrl: String) -> Unit
+) {
+    var avatarUrlDraft by remember(avatarUrl) {
+        mutableStateOf(avatarUrl)
+    }
+
+    AlertDialog(
+        onDismissRequest = {
+            if (!isSaving) onDismiss()
+        },
+        title = {
+            Text("Sửa avatar", fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = avatarUrlDraft,
+                    onValueChange = { avatarUrlDraft = it },
+                    label = { Text("Avatar URL") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    placeholder = { Text("https://example.com/avatar.jpg") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (error != null) {
+                    Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(avatarUrlDraft) },
+                enabled = !isSaving && avatarUrlDraft.trim().isNotBlank()
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text("Lưu")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSaving) {
+                Text("Hủy")
+            }
+        }
+    )
 }
 
 @Preview(showBackground = true, showSystemUi = true)

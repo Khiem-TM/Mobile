@@ -20,7 +20,9 @@ data class ProfileUiState(
     val user: UserDto? = null,
     val healthProfile: HealthProfileDto? = null,
     val streaks: StreakDto? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isUpdatingProfile: Boolean = false,
+    val updateProfileError: String? = null
 )
 
 @HiltViewModel
@@ -66,5 +68,56 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = false) }
             onSuccess()
         }
+    }
+
+    fun updateProfile(displayName: String, avatarUrl: String, onSuccess: () -> Unit) {
+        val currentUser = _uiState.value.user ?: return
+        val trimmedName = displayName.trim()
+        val trimmedAvatarUrl = avatarUrl.trim()
+
+        if (trimmedName.length !in 2..100) {
+            _uiState.update { it.copy(updateProfileError = "Tên hiển thị phải từ 2 đến 100 ký tự") }
+            return
+        }
+
+        val changedName = trimmedName.takeIf { it != currentUser.displayName }
+        val changedAvatarUrl = trimmedAvatarUrl
+            .takeIf { it.isNotBlank() }
+            ?.takeIf { it != currentUser.avatarUrl.orEmpty() }
+
+        if (changedName == null && changedAvatarUrl == null) {
+            _uiState.update { it.copy(updateProfileError = null) }
+            onSuccess()
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingProfile = true, updateProfileError = null) }
+            userRepository.updateProfile(
+                userId = currentUser.id,
+                displayName = changedName,
+                avatarUrl = changedAvatarUrl
+            ).onSuccess { updatedUser ->
+                _uiState.update {
+                    it.copy(
+                        user = updatedUser,
+                        isUpdatingProfile = false,
+                        updateProfileError = null
+                    )
+                }
+                onSuccess()
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isUpdatingProfile = false,
+                        updateProfileError = error.message ?: "Không thể cập nhật hồ sơ"
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearUpdateProfileError() {
+        _uiState.update { it.copy(updateProfileError = null) }
     }
 }

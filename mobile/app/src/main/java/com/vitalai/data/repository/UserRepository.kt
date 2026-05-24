@@ -2,6 +2,7 @@ package com.vitalai.data.repository
 
 import com.vitalai.data.remote.UserApi
 import com.vitalai.data.remote.model.HealthProfileDto
+import com.vitalai.data.remote.model.UpdateProfileRequest
 import com.vitalai.data.remote.model.UserDto
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,6 +33,27 @@ class UserRepository @Inject constructor(
                 Result.success(body)
             } else {
                 Result.failure(Exception("Cannot fetch health profile"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateProfile(
+        userId: String,
+        displayName: String? = null,
+        avatarUrl: String? = null
+    ): Result<UserDto> {
+        return try {
+            val response = userApi.updateProfile(
+                userId,
+                UpdateProfileRequest(displayName = displayName, avatarUrl = avatarUrl)
+            )
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                Result.failure(Exception("Cannot update user profile"))
             }
         } catch (e: Exception) {
             Result.failure(e)

@@ -30,20 +30,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ChatSessionDto
-import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.*
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CoachScreen(
     navController: NavController,
+    onOpenDrawer: () -> Unit = {},
     viewModel: CoachViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
     val suggestions = listOf(
         "Thực đơn hôm nay 🥗",
         "Bài tập cho tôi 💪",
@@ -66,61 +63,44 @@ fun CoachScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ChatHistoryDrawer(
-                sessions = uiState.sessions,
-                currentSessionId = uiState.currentSessionId,
-                onSelectSession = { sessionId ->
-                    viewModel.selectSession(sessionId)
-                    scope.launch { drawerState.close() }
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(Brush.linearGradient(listOf(Mint500, Mint700))),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("V", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text("Vita · AI Coach", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Ink900)
+                            Text("Đang hoạt động", fontSize = 11.sp, color = Mint500)
+                        }
+                    }
                 },
-                onDeleteSession = viewModel::deleteSession,
-                onNewSession = {
-                    viewModel.createNewSession()
-                    scope.launch { drawerState.close() }
-                }
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Lịch sử trò chuyện", tint = Ink700)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { viewModel.createNewSession() }) {
+                        Icon(Icons.Default.Add, contentDescription = "Cuộc trò chuyện mới", tint = Ink700)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
-        }
-    ) {
-        MainTabScaffold(
-            navController = navController,
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(Brush.linearGradient(listOf(Mint500, Mint700))),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("V", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text("Vita · AI Coach", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Ink900)
-                                Text("Đang hoạt động", fontSize = 11.sp, color = Mint500)
-                            }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Default.Menu, contentDescription = "Lịch sử trò chuyện", tint = Ink700)
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { viewModel.createNewSession() }) {
-                            Icon(Icons.Default.Add, contentDescription = "Cuộc trò chuyện mới", tint = Ink700)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
-                )
-            },
-        ) { padding ->
+        },
+        containerColor = AppMutedBackground,
+        contentWindowInsets = WindowInsets(0)
+    ) { padding ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -230,7 +210,6 @@ fun CoachScreen(
                 }
             }
         }
-    }
 }
 
 // ── History Drawer ─────────────────────────────────────────────────────────────
@@ -243,7 +222,7 @@ private val DrawerSubText = Color(0xFF9CA3AF)
 private val DrawerDivider = Color(0xFF374151)
 
 @Composable
-private fun ChatHistoryDrawer(
+internal fun ChatHistoryDrawer(
     sessions: List<ChatSessionDto>,
     currentSessionId: String?,
     onSelectSession: (String) -> Unit,

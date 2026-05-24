@@ -41,7 +41,6 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.AppLine
-import com.vitalai.ui.theme.AppMutedBackground
 import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.Ink400
 import com.vitalai.ui.theme.Mint100
@@ -70,27 +69,6 @@ val bottomNavItemsRight = listOf(
     BottomNavItem("AI Coach", Icons.Default.SmartToy, Screen.Coach),
     BottomNavItem("Hồ sơ", Icons.Default.Person, Screen.Profile)
 )
-
-/**
- * Khung chung cho các tab chính (Home, Diary, Coach, Profile).
- * Gom việc quản lý thanh điều hướng dưới + nền vào một nơi duy nhất để các màn
- * hình tab không phải tự khai báo lại VitalBottomNavBar.
- */
-@Composable
-fun MainTabScaffold(
-    navController: NavController,
-    topBar: @Composable () -> Unit = {},
-    snackbarHost: @Composable () -> Unit = {},
-    content: @Composable (PaddingValues) -> Unit
-) {
-    Scaffold(
-        topBar = topBar,
-        snackbarHost = snackbarHost,
-        bottomBar = { VitalBottomNavBar(navController = navController) },
-        containerColor = AppMutedBackground,
-        content = content
-    )
-}
 
 /**
  * Mô phỏng vật thể trôi trong nước của quả cầu tuyết.

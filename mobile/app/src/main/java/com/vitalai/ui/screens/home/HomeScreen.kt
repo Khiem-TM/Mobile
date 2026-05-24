@@ -35,7 +35,6 @@ import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ArcGauge
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.MainTabScaffold
 import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.AppSurface2
@@ -64,33 +63,29 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    MainTabScaffold(navController = navController) { padding ->
-        when {
-            uiState.isLoading && uiState.dashboard == null -> LoadingState(
-                modifier = Modifier.padding(padding)
-            )
-            else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
-            ) {
-                item { HomeHeader(navController, uiState) }
-                item { WeekStrip(uiState.selectedDate) { date -> viewModel.selectDate(date) } }
-                item { DailyCaloriesCard(uiState) }
-                item { 
-                    WaterAndActivityCards(
-                        uiState = uiState,
-                        onAddWater = { viewModel.addWater() },
-                        onAddSteps = { viewModel.addSteps() }
-                    ) 
-                }
-                item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
-                item { DashboardTrendCard(uiState) }
-                item {
-                    val streak = uiState.streaks?.loginStreak ?: 0
-                    if (streak > 0) StreakBanner(streak)
-                }
+    when {
+        uiState.isLoading && uiState.dashboard == null -> LoadingState(
+            modifier = Modifier.fillMaxSize()
+        )
+        else -> LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
+        ) {
+            item { HomeHeader(navController, uiState) }
+            item { WeekStrip(uiState.selectedDate) { date -> viewModel.selectDate(date) } }
+            item { DailyCaloriesCard(uiState) }
+            item {
+                WaterAndActivityCards(
+                    uiState = uiState,
+                    onAddWater = { viewModel.addWater() },
+                    onAddSteps = { viewModel.addSteps() }
+                )
+            }
+            item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
+            item { DashboardTrendCard(uiState) }
+            item {
+                val streak = uiState.streaks?.loginStreak ?: 0
+                if (streak > 0) StreakBanner(streak)
             }
         }
     }
