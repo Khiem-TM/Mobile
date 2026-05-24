@@ -34,6 +34,16 @@ object FlexibleFloatAdapter {
     @ToJson fun toJson(value: Float): Float = value
 }
 
+// Some profile targets may also arrive as numeric strings/decimals, while the app stores them as Int.
+object FlexibleIntAdapter {
+    @FromJson fun fromJson(reader: JsonReader): Int = when (reader.peek()) {
+        JsonReader.Token.STRING -> reader.nextString().toFloatOrNull()?.toInt() ?: 0
+        JsonReader.Token.NULL -> { reader.nextNull<Any>(); 0 }
+        else -> reader.nextDouble().toInt()
+    }
+    @ToJson fun toJson(value: Int): Int = value
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -83,6 +93,7 @@ object NetworkModule {
     @Singleton
     fun provideMoshi(): Moshi = Moshi.Builder()
         .add(FlexibleFloatAdapter)
+        .add(FlexibleIntAdapter)
         .add(KotlinJsonAdapterFactory())
         .build()
 

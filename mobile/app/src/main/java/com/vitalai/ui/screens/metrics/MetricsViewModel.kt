@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.data.remote.model.BodyMetricsPeriodDto
 import com.vitalai.data.remote.model.BodyMetricsSummaryDto
+import com.vitalai.data.remote.model.HealthProfileDto
 import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import com.vitalai.data.repository.BodyMetricsRepository
+import com.vitalai.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,14 +21,17 @@ data class MetricsUiState(
     val latest: BodyMetricDto? = null,
     val periodData: BodyMetricsPeriodDto? = null,
     val summary: BodyMetricsSummaryDto? = null,
+    val healthProfile: HealthProfileDto? = null,
     val selectedPeriod: String = "week",
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val updateSuccessCount: Int = 0
 )
 
 @HiltViewModel
 class MetricsViewModel @Inject constructor(
-    private val bodyMetricsRepository: BodyMetricsRepository
+    private val bodyMetricsRepository: BodyMetricsRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MetricsUiState())
@@ -43,11 +48,13 @@ class MetricsViewModel @Inject constructor(
             val latestDeferred = async { bodyMetricsRepository.getLatest() }
             val summaryDeferred = async { bodyMetricsRepository.getSummary() }
             val periodDeferred = async { bodyMetricsRepository.getPeriod(period) }
+            val healthProfileDeferred = async { userRepository.getHealthProfile() }
             _uiState.update {
                 it.copy(
                     latest = latestDeferred.await().getOrNull(),
                     summary = summaryDeferred.await().getOrNull(),
                     periodData = periodDeferred.await().getOrNull(),
+                    healthProfile = healthProfileDeferred.await().getOrNull(),
                     isLoading = false
                 )
             }
@@ -73,6 +80,25 @@ class MetricsViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _uiState.update { it.copy(isLoading = false, error = e.message) }
+                }
+            )
+        }
+    }
+
+    fun updateHealthProfile(profile: HealthProfileDto) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(error = null) }
+            userRepository.updateHealthProfile(profile).fold(
+                onSuccess = { updated ->
+                    _uiState.update {
+                        it.copy(
+                            healthProfile = updated,
+                            updateSuccessCount = it.updateSuccessCount + 1
+                        )
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(error = e.message) }
                 }
             )
         }

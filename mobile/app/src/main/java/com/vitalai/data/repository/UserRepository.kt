@@ -43,6 +43,20 @@ class UserRepository @Inject constructor(
         }
     }
 
+    suspend fun updateHealthProfile(profile: HealthProfileDto): Result<HealthProfileDto> {
+        return try {
+            val response = userApi.updateHealthProfile(profile)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) {
+                Result.success(body)
+            } else {
+                Result.failure(Exception("Cannot update health profile"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateProfile(
         userId: String,
         displayName: String? = null,
