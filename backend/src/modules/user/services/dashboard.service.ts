@@ -3,13 +3,13 @@ import { MealLogsService } from '../../food/services/meal-logs.service';
 import { ActivityLogsService } from '../../train/services/activity-logs.service';
 import { BodyMetricsService } from '../../train/services/body-metrics.service';
 import { StreaksService } from './streaks.service';
-import { TrainingService } from '../../train/services/training.service';
+import { TrainingSessionsService } from '../../train/services/training-sessions.service';
 import { RedisService } from '../../support/redis/redis.service';
 
 const TTL = {
-  DAILY: 120,   // 2 min — invalidated on mutation
-  WEEKLY: 600,  // 10 min — stale ok for report
-  MONTHLY: 1800, // 30 min — stale ok for report
+  DAILY: 120,
+  WEEKLY: 600,
+  MONTHLY: 1800,
 };
 
 @Injectable()
@@ -22,8 +22,8 @@ export class DashboardService {
     @Inject(forwardRef(() => BodyMetricsService))
     private readonly bodyMetricsService: BodyMetricsService,
     private readonly streaksService: StreaksService,
-    @Inject(forwardRef(() => TrainingService))
-    private readonly trainingService: TrainingService,
+    @Inject(forwardRef(() => TrainingSessionsService))
+    private readonly trainingSessionsService: TrainingSessionsService,
     private readonly redisService: RedisService,
   ) {}
 
@@ -32,13 +32,13 @@ export class DashboardService {
     const cached = await this.redisService.getJson<object>(key);
     if (cached) return cached;
 
-    const [meals, activity, latestMetric, streaks, recentWorkouts] =
+    const [meals, activity, latestMetric, streaks, recentSessions] =
       await Promise.all([
         this.mealLogsService.getDailySummary(userId, date),
         this.activityLogsService.getByDate(userId, date),
         this.bodyMetricsService.getLatest(userId),
         this.streaksService.getStreaks(userId),
-        this.trainingService.getWorkoutHistory(userId, 5),
+        this.trainingSessionsService.getSessionHistory(userId, 5),
       ]);
 
     const result = {
@@ -53,22 +53,21 @@ export class DashboardService {
       },
       activity: {
         steps: activity?.steps || 0,
-        calories_burned: activity?.caloriesBurned || 0,
-        active_minutes: activity?.activeMinutes || 0,
         water_ml: activity?.waterMl || 0,
+        sleep_hours: activity?.sleepHours || null,
+        mood: activity?.mood || null,
       },
       body: {
         current_weight: latestMetric?.weightKg || null,
         bmi: latestMetric?.bmi || null,
       },
       streaks,
-      recent_workouts: recentWorkouts,
+      recent_sessions: recentSessions,
     };
     await this.redisService.setJson(key, result, TTL.DAILY);
     return result;
   }
 
-  // Called by MealLogsService and ActivityLogsService after mutations
   async invalidateDailyCache(userId: string, date: string): Promise<void> {
     await this.redisService.del(`cache:dashboard:daily:${userId}:${date}`);
   }
@@ -77,16 +76,16 @@ export class DashboardService {
     const key = `cache:dashboard:weekly:${userId}:${weekStart}`;
     const cached = await this.redisService.getJson<object>(key);
     if (cached) return cached;
+
     const endDate = new Date(weekStart);
     endDate.setDate(endDate.getDate() + 6);
-
     const fromDate = weekStart;
     const toDate = endDate.toISOString().split('T')[0];
 
-    const [activityRange, bodyRange, workouts] = await Promise.all([
+    const [activityRange, bodyRange, sessions] = await Promise.all([
       this.activityLogsService.getRange(userId, fromDate, toDate),
       this.bodyMetricsService.getRange(userId, fromDate, toDate),
-      this.trainingService.getWorkoutHistoryRange(userId, fromDate, toDate),
+      this.trainingSessionsService.getSessionHistoryRange(userId, fromDate, toDate),
     ]);
 
     const dailyNutrition = await this.mealLogsService.getDailySummaryRange(userId, fromDate, toDate);
@@ -99,34 +98,30 @@ export class DashboardService {
       (d: any) => d.logs?.length > 0,
     ).length;
 
-    const totalSteps = activityRange.reduce(
-      (sum, a) => sum + (Number(a.steps) || 0),
-      0,
-    );
-    const totalWater = activityRange.reduce(
-      (sum, a) => sum + (Number(a.waterMl) || 0),
+    const totalSteps = activityRange.reduce((sum, a) => sum + (Number(a.steps) || 0), 0);
+    const totalWater = activityRange.reduce((sum, a) => sum + (Number(a.waterMl) || 0), 0);
+    const totalTrainingMinutes = sessions.reduce(
+      (sum, s: any) => sum + (Number(s.totalDurationMinutes) || 0),
       0,
     );
 
     const weekResult = {
       period: { from: fromDate, to: toDate },
       nutrition: {
-        avg_daily_calories:
-          daysLogged > 0 ? Math.round(totalCalories / daysLogged) : 0,
+        avg_daily_calories: daysLogged > 0 ? Math.round(totalCalories / daysLogged) : 0,
         total_calories: Math.round(totalCalories),
         days_logged: daysLogged,
         daily_breakdown: dailyNutrition,
       },
       activity: {
         total_steps: totalSteps,
-        avg_daily_steps: activityRange.length
-          ? Math.round(totalSteps / activityRange.length)
-          : 0,
+        avg_daily_steps: activityRange.length ? Math.round(totalSteps / activityRange.length) : 0,
         total_water_ml: totalWater,
       },
       training: {
-        workout_count: workouts.length,
-        workouts,
+        session_count: sessions.length,
+        total_duration_minutes: totalTrainingMinutes,
+        sessions,
       },
       body_metrics: bodyRange,
     };
@@ -143,38 +138,31 @@ export class DashboardService {
     const lastDay = new Date(year, month, 0).getDate();
     const toDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
-    const [activityRange, bodyRange, workouts] = await Promise.all([
+    const [activityRange, bodyRange, sessions] = await Promise.all([
       this.activityLogsService.getRange(userId, fromDate, toDate),
       this.bodyMetricsService.getRange(userId, fromDate, toDate),
-      this.trainingService.getWorkoutHistoryRange(userId, fromDate, toDate),
+      this.trainingSessionsService.getSessionHistoryRange(userId, fromDate, toDate),
     ]);
 
     const dailyNutrition = await this.mealLogsService.getDailySummaryRange(userId, fromDate, toDate);
     const monthTotalCalories = Object.values(dailyNutrition).reduce(
-      (sum: number, d: any) => sum + (d.total_calories || 0), 0,
+      (sum: number, d: any) => sum + (d.total_calories || 0),
+      0,
     );
     const daysLogged = Object.values(dailyNutrition).filter(
       (d: any) => d.logs?.length > 0,
     ).length;
 
-    const totalSteps = activityRange.reduce(
-      (sum, a) => sum + (Number(a.steps) || 0),
-      0,
-    );
-    const totalWater = activityRange.reduce(
-      (sum, a) => sum + (Number(a.waterMl) || 0),
-      0,
-    );
-    const totalActiveMinutes = activityRange.reduce(
-      (sum, a) => sum + (Number(a.activeMinutes) || 0),
-      0,
-    );
+    const totalSteps = activityRange.reduce((sum, a) => sum + (Number(a.steps) || 0), 0);
+    const totalWater = activityRange.reduce((sum, a) => sum + (Number(a.waterMl) || 0), 0);
 
-    const weights = bodyRange
-      .filter((b) => b.weightKg)
-      .map((b) => Number(b.weightKg));
-    const weightChange =
-      weights.length >= 2 ? weights[weights.length - 1] - weights[0] : null;
+    const weights = bodyRange.filter((b) => b.weightKg).map((b) => Number(b.weightKg));
+    const weightChange = weights.length >= 2 ? weights[weights.length - 1] - weights[0] : null;
+
+    const totalCaloriesBurned = sessions.reduce(
+      (sum, s: any) => sum + (Number(s.totalCaloriesBurned) || 0),
+      0,
+    );
 
     const monthResult = {
       period: { from: fromDate, to: toDate, year, month },
@@ -186,21 +174,17 @@ export class DashboardService {
       },
       activity: {
         total_steps: totalSteps,
-        avg_daily_steps: activityRange.length
-          ? Math.round(totalSteps / activityRange.length)
-          : 0,
+        avg_daily_steps: activityRange.length ? Math.round(totalSteps / activityRange.length) : 0,
         total_water_ml: totalWater,
-        total_active_minutes: totalActiveMinutes,
         active_days: activityRange.length,
       },
       training: {
-        workout_count: workouts.length,
-        avg_workouts_per_week:
-          Math.round((workouts.length / lastDay) * 7 * 10) / 10,
+        session_count: sessions.length,
+        total_calories_burned: Math.round(totalCaloriesBurned),
+        avg_sessions_per_week: Math.round((sessions.length / lastDay) * 7 * 10) / 10,
       },
       body: {
-        weight_change_kg:
-          weightChange !== null ? Math.round(weightChange * 10) / 10 : null,
+        weight_change_kg: weightChange !== null ? Math.round(weightChange * 10) / 10 : null,
         measurements: bodyRange,
       },
     };

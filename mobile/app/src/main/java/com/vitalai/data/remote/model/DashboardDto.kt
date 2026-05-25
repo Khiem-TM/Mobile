@@ -45,10 +45,9 @@ data class DashboardActivityReportDto(
 
 @JsonClass(generateAdapter = true)
 data class DashboardTrainingReportDto(
-    @Json(name = "workout_count") val workoutCount: Int = 0,
-    @Json(name = "avg_workouts_per_week") val avgWorkoutsPerWeek: Float? = null
+    @Json(name = "session_count") val workoutCount: Int = 0,
+    @Json(name = "avg_sessions_per_week") val avgWorkoutsPerWeek: Float? = null
 )
-
 @JsonClass(generateAdapter = true)
 data class DashboardWeeklyDto(
     @Json(name = "period") val period: DashboardPeriodDto,
@@ -82,3 +81,36 @@ data class StreakDto(
 data class UnreadCountDto(
     @Json(name = "count") val count: Int
 )
+
+@JsonClass(generateAdapter = true)
+data class DailyDashboardResponse(
+    @Json(name = "date") val date: String,
+    @Json(name = "nutrition") val nutrition: DailyNutritionDto,
+    @Json(name = "activity") val activity: DailyActivityDto,
+    @Json(name = "body") val body: DailyBodyDto,
+    @Json(name = "streaks") val streaks: StreakDto? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DailyNutritionDto(
+    @Json(name = "total_calories") val totalCalories: Float,
+    @Json(name = "total_protein") val totalProtein: Float,
+    @Json(name = "total_fat") val totalFat: Float,
+    @Json(name = "total_carbs") val totalCarbs: Float,
+    @Json(name = "total_fiber") val totalFiber: Float = 0f
+)
+
+@JsonClass(generateAdapter = true)
+data class DailyActivityDto(
+    @Json(name = "steps") val steps: Int = 0,
+    @Json(name = "water_ml") val waterMl: Int = 0,
+    @Json(name = "sleep_hours") val sleepHours: Float? = null,
+    @Json(name = "mood") val mood: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DailyBodyDto(
+    @Json(name = "current_weight") val currentWeight: Float? = null,
+    @Json(name = "bmi") val bmi: Float? = null
+)
+

@@ -20,23 +20,25 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
     userId: string,
     dto: UpsertBodyMetricDto & { bmi?: number; bmr?: number; tdee?: number },
   ): Promise<BodyMetric> {
-    const dateStr = dto.recordedAt
-      ? new Date(dto.recordedAt).toISOString().split('T')[0]
+    const dateStr = dto.measuredAt
+      ? new Date(dto.measuredAt).toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
 
     const existing = await this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .andWhere("DATE(bm.recorded_at AT TIME ZONE 'UTC') = :date", { date: dateStr })
+      .andWhere("DATE(bm.measured_at AT TIME ZONE 'UTC') = :date", { date: dateStr })
       .getOne();
 
     if (existing) {
       if (dto.weightKg !== undefined) existing.weightKg = dto.weightKg;
-      if (dto.bodyFatPct !== undefined) existing.bodyFatPct = dto.bodyFatPct;
+      if (dto.bodyFatPercent !== undefined) existing.bodyFatPercent = dto.bodyFatPercent;
       if (dto.waistCm !== undefined) existing.waistCm = dto.waistCm;
       if (dto.hipCm !== undefined) existing.hipCm = dto.hipCm;
       if (dto.chestCm !== undefined) existing.chestCm = dto.chestCm;
       if (dto.neckCm !== undefined) existing.neckCm = dto.neckCm;
+      if (dto.heightCm !== undefined) existing.heightCm = dto.heightCm;
+      if (dto.armCm !== undefined) existing.armCm = dto.armCm;
       if (dto.notes !== undefined) existing.notes = dto.notes;
       if (dto.bmi !== undefined) existing.bmi = dto.bmi;
       if (dto.bmr !== undefined) existing.bmr = dto.bmr;
@@ -46,13 +48,15 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
 
     const metric = this.repo.create({
       userId,
-      recordedAt: dto.recordedAt ? new Date(dto.recordedAt) : new Date(),
+      measuredAt: dto.measuredAt ? new Date(dto.measuredAt) : new Date(),
       weightKg: dto.weightKg,
-      bodyFatPct: dto.bodyFatPct,
+      bodyFatPercent: dto.bodyFatPercent,
       waistCm: dto.waistCm,
       hipCm: dto.hipCm,
       chestCm: dto.chestCm,
       neckCm: dto.neckCm,
+      heightCm: dto.heightCm,
+      armCm: dto.armCm,
       notes: dto.notes,
       bmi: dto.bmi,
       bmr: dto.bmr,
@@ -61,71 +65,56 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
     return this.repo.save(metric);
   }
 
-  async findByUserAndDate(
-    userId: string,
-    date: string,
-  ): Promise<BodyMetric | null> {
+  async findByUserAndDate(userId: string, date: string): Promise<BodyMetric | null> {
     return this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .andWhere("DATE(bm.recorded_at AT TIME ZONE 'UTC') = :date", { date })
+      .andWhere("DATE(bm.measured_at AT TIME ZONE 'UTC') = :date", { date })
       .getOne();
   }
 
   async findLatest(userId: string): Promise<BodyMetric | null> {
     return this.repo.findOne({
       where: { userId },
-      order: { recordedAt: 'DESC' },
+      order: { measuredAt: 'DESC' },
     });
   }
 
-  async findHistory(
-    userId: string,
-    query: BodyMetricQueryDto,
-  ): Promise<BodyMetric[]> {
+  async findHistory(userId: string, query: BodyMetricQueryDto): Promise<BodyMetric[]> {
     const qb = this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .orderBy('bm.recorded_at', 'DESC')
+      .orderBy('bm.measured_at', 'DESC')
       .take(query.limit ?? 30);
 
     if (query.date) {
-      qb.andWhere("DATE(bm.recorded_at AT TIME ZONE 'UTC') = :date", { date: query.date });
+      qb.andWhere("DATE(bm.measured_at AT TIME ZONE 'UTC') = :date", { date: query.date });
     } else {
       if (query.fromDate)
-        qb.andWhere('bm.recorded_at >= :fromDate', { fromDate: query.fromDate });
+        qb.andWhere('bm.measured_at >= :fromDate', { fromDate: query.fromDate });
       if (query.toDate)
-        qb.andWhere('bm.recorded_at <= :toDate', { toDate: query.toDate });
+        qb.andWhere('bm.measured_at <= :toDate', { toDate: query.toDate });
     }
 
     return qb.getMany();
   }
 
-  async findRange(
-    userId: string,
-    fromDate: string,
-    toDate: string,
-  ): Promise<BodyMetric[]> {
+  async findRange(userId: string, fromDate: string, toDate: string): Promise<BodyMetric[]> {
     return this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .andWhere('bm.recorded_at >= :fromDate', { fromDate })
-      .andWhere('bm.recorded_at <= :toDate', { toDate })
-      .orderBy('bm.recorded_at', 'ASC')
+      .andWhere('bm.measured_at >= :fromDate', { fromDate })
+      .andWhere('bm.measured_at <= :toDate', { toDate })
+      .orderBy('bm.measured_at', 'ASC')
       .getMany();
   }
 
-  async savePhoto(
-    data: Partial<BodyProgressPhoto>,
-  ): Promise<BodyProgressPhoto> {
+  async savePhoto(data: Partial<BodyProgressPhoto>): Promise<BodyProgressPhoto> {
     const photo = this.photoRepo.create(data);
     return this.photoRepo.save(photo);
   }
 
-  async findPhotosByUser(
-    userId: string,
-    limit: number,
-  ): Promise<BodyProgressPhoto[]> {
+  async findPhotosByUser(userId: string, limit: number): Promise<BodyProgressPhoto[]> {
     return this.photoRepo.find({
       where: { userId },
       order: { takenAt: 'DESC' },

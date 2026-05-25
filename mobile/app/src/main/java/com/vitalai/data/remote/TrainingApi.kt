@@ -6,7 +6,6 @@ import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.CreateWorkoutSessionDto
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.SessionExerciseDto
-import com.vitalai.data.remote.model.UpdateCaloriesBurnedRequest
 import com.vitalai.data.remote.model.UpdateWorkoutSessionRequest
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import retrofit2.Response
@@ -19,43 +18,43 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface TrainingApi {
-    @GET("training/sessions")
+    @GET("training-sessions")
     suspend fun getSessionHistory(): Response<ApiResponse<List<WorkoutSessionDto>>>
 
-    @GET("training/sessions/date/{date}")
+    @GET("training-sessions/date/{date}")
     suspend fun getSessionsByDate(@Path("date") date: String): Response<ApiResponse<List<WorkoutSessionDto>>>
 
-    @GET("training/exercises")
+    @GET("exercises")
     suspend fun getExercises(@Query("muscleGroup") muscleGroup: String? = null): Response<ApiResponse<List<ExerciseDto>>>
 
-    @GET("training/exercises/favorites")
+    @GET("favorite-exercises")
     suspend fun getFavoriteExercises(): Response<ApiResponse<List<ExerciseDto>>>
 
-    @POST("training/exercises/{id}/favorite")
+    @POST("favorite-exercises/{id}")
     suspend fun addFavorite(@Path("id") id: String): Response<ApiResponse<Map<String, String>>>
 
-    @DELETE("training/exercises/{id}/favorite")
+    @DELETE("favorite-exercises/{id}")
     suspend fun removeFavorite(@Path("id") id: String): Response<ApiResponse<Map<String, String>>>
 
-    @POST("training/sessions")
+    @POST("training-sessions")
     suspend fun createSession(@Body request: CreateWorkoutSessionDto): Response<ApiResponse<WorkoutSessionDto>>
 
-    @DELETE("training/sessions/{id}")
+    @DELETE("training-sessions/{id}")
     suspend fun deleteSession(@Path("id") id: String): Response<Unit>
 
-    @PATCH("training/sessions/{id}")
+    @PATCH("training-sessions/{id}")
     suspend fun updateSession(
         @Path("id") id: String,
         @Body request: UpdateWorkoutSessionRequest
     ): Response<ApiResponse<WorkoutSessionDto>>
 
-    @POST("training/sessions/{id}/exercises")
+    @POST("training-sessions/{id}/items")
     suspend fun addExercise(
         @Path("id") sessionId: String,
         @Body request: AddExerciseRequest
     ): Response<ApiResponse<SessionExerciseDto>>
 
-    @DELETE("training/sessions/{id}/exercises/{detailId}")
+    @DELETE("training-sessions/{id}/items/{detailId}")
     suspend fun removeExercise(
         @Path("id") sessionId: String,
         @Path("detailId") detailId: String
@@ -69,7 +68,4 @@ interface TrainingApi {
 
     @PATCH("activity-logs/water")
     suspend fun updateWater(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
-
-    @PATCH("activity-logs/calories-burned")
-    suspend fun updateCaloriesBurned(@Body body: UpdateCaloriesBurnedRequest): Response<ApiResponse<ActivityLogDto>>
 }

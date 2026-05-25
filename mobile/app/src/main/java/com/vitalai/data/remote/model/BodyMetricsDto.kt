@@ -6,9 +6,9 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class BodyMetricDto(
     @Json(name = "id") val id: String,
-    @Json(name = "recordedAt") val date: String,
+    @Json(name = "measuredAt") val date: String,
     @Json(name = "weightKg") val weightKg: Float,
-    @Json(name = "bodyFatPct") val bodyFatPct: Float?,
+    @Json(name = "bodyFatPercent") val bodyFatPct: Float?,
     @Json(name = "waistCm") val waistCm: Float? = null,
     @Json(name = "hipCm") val hipCm: Float? = null,
     @Json(name = "chestCm") val chestCm: Float? = null,
@@ -48,9 +48,9 @@ data class ProgressPhotoDto(
 
 @JsonClass(generateAdapter = true)
 data class UpsertBodyMetricRequest(
-    @Json(name = "recordedAt") val recordedAt: String? = null,
+    @Json(name = "measuredAt") val recordedAt: String? = null,
     @Json(name = "weightKg") val weightKg: Float? = null,
-    @Json(name = "bodyFatPct") val bodyFatPct: Float? = null,
+    @Json(name = "bodyFatPercent") val bodyFatPct: Float? = null,
     @Json(name = "waistCm") val waistCm: Float? = null,
     @Json(name = "hipCm") val hipCm: Float? = null,
     @Json(name = "chestCm") val chestCm: Float? = null,

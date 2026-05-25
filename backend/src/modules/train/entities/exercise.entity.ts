@@ -5,8 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { MuscleGroup } from '../../../common/enums/muscle-group.enum';
-import { TrainingIntensity } from '../../../common/enums/training-intensity.enum';
+import { ExerciseType } from '../enums/exercise-type.enum';
+import { DifficultyLevel } from '../enums/difficulty-level.enum';
+import { IntensityLevel } from '../enums/intensity-level.enum';
 
 @Entity('exercises')
 export class Exercise {
@@ -19,27 +20,41 @@ export class Exercise {
   @Column({ type: 'text', nullable: true })
   description!: string;
 
-  @Column({
-    name: 'primary_muscle_group',
-    type: 'enum',
-    enum: MuscleGroup,
-  })
-  primaryMuscleGroup!: MuscleGroup;
-
-  @Column({
-    type: 'enum',
-    enum: TrainingIntensity,
-  })
-  intensity!: TrainingIntensity;
-
-  @Column({ name: 'met_value', type: 'decimal', precision: 5, scale: 2, default: 0 })
-  metValue!: number; // Metabolic Equivalent of Task
-
   @Column({ type: 'text', nullable: true })
   instructions!: string;
 
+  @Column({
+    name: 'exercise_type',
+    type: 'varchar',
+    length: 10,
+    default: ExerciseType.SPORT,
+  })
+  exerciseType!: ExerciseType;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  category!: string | null;
+
+  @Column({
+    name: 'muscle_group',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  muscleGroup!: string | null;
+
+  @Column({
+    name: 'difficulty_level',
+    type: 'varchar',
+    length: 20,
+    default: DifficultyLevel.BEGINNER,
+  })
+  difficultyLevel!: DifficultyLevel;
+
+  @Column({ name: 'met_value', type: 'decimal', precision: 5, scale: 2, default: 0 })
+  metValue!: number;
+
   @Column({ name: 'video_url', type: 'text', nullable: true })
-  videoUrl!: string;
+  videoUrl!: string | null;
 
   @Column({ name: 'image_avt_url', type: 'text', nullable: true, default: null })
   imageAvtUrl!: string | null;
@@ -59,14 +74,48 @@ export class Exercise {
   @Column({ name: 'secondary_muscle_groups', type: 'simple-json', nullable: true, default: null })
   secondaryMuscleGroups!: string[] | null;
 
-  @Column({ type: 'varchar', length: 20, default: 'bodyweight' })
-  equipment!: string;
+  @Column({ type: 'varchar', length: 30, nullable: true, default: null })
+  equipment!: string | null;
 
   @Column({ name: 'form_tips', type: 'text', nullable: true })
   formTips!: string | null;
 
   @Column({ name: 'is_active', type: 'boolean', default: true })
   isActive!: boolean;
+
+  // ─── GYM-specific fields ─────────────────────────────────────────────────
+  @Column({ name: 'default_sets', type: 'int', nullable: true })
+  defaultSets!: number | null;
+
+  @Column({ name: 'default_reps', type: 'int', nullable: true })
+  defaultReps!: number | null;
+
+  @Column({ name: 'default_weight_kg', type: 'decimal', precision: 6, scale: 2, nullable: true })
+  defaultWeightKg!: number | null;
+
+  @Column({ name: 'target_muscle_group', type: 'varchar', length: 50, nullable: true })
+  targetMuscleGroup!: string | null;
+
+  @Column({ name: 'rest_time_seconds', type: 'int', nullable: true })
+  restTimeSeconds!: number | null;
+
+  // ─── SPORT-specific fields ────────────────────────────────────────────────
+  @Column({ name: 'default_duration_minutes', type: 'int', nullable: true })
+  defaultDurationMinutes!: number | null;
+
+  @Column({
+    name: 'default_intensity_level',
+    type: 'varchar',
+    length: 10,
+    nullable: true,
+  })
+  defaultIntensityLevel!: IntensityLevel | null;
+
+  @Column({ name: 'movement_type', type: 'varchar', length: 50, nullable: true })
+  movementType!: string | null;
+
+  @Column({ name: 'estimated_calories_per_minute', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  estimatedCaloriesPerMinute!: number | null;
 
   @CreateDateColumn()
   createdAt!: Date;

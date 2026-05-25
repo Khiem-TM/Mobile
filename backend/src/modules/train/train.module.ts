@@ -1,30 +1,37 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Exercise } from './entities/exercise.entity';
-import { WorkoutSession } from './entities/workout-session.entity';
-import { WorkoutSessionDetail } from './entities/workout-session-detail.entity';
-import { ExerciseUserFavorite } from './entities/exercise-user-favorite.entity';
+import { TrainingSession } from './entities/training-session.entity';
+import { TrainingSessionItem } from './entities/training-session-item.entity';
+import { FavoriteExercise } from './entities/favorite-exercise.entity';
 import { BodyMetric } from './entities/body-metric.entity';
 import { BodyProgressPhoto } from './entities/body-progress-photo.entity';
 import { ActivityLog } from './entities/activity-log.entity';
 import { SupportModule } from '../support/support.module';
 import { UserModule } from '../user/user.module';
-import { TrainingController } from './controllers/training.controller';
+
+import { ExercisesController } from './controllers/exercises.controller';
+import { TrainingSessionsController } from './controllers/training-sessions.controller';
+import { FavoriteExercisesController } from './controllers/favorite-exercises.controller';
 import { BodyMetricsController } from './controllers/body-metrics.controller';
 import { ActivityLogsController } from './controllers/activity-logs.controller';
-import { TrainingService } from './services/training.service';
+
+import { ExercisesService } from './services/exercises.service';
+import { TrainingSessionsService } from './services/training-sessions.service';
+import { FavoriteExercisesService } from './services/favorite-exercises.service';
+import { CaloriesCalculationService } from './services/calories-calculation.service';
 import { BodyMetricsService } from './services/body-metrics.service';
 import { ActivityLogsService } from './services/activity-logs.service';
-import {
-  ExercisesRepository,
-  WorkoutSessionsRepository,
-} from './repositories/training.repository';
+
+import { ExercisesRepository } from './repositories/exercises.repository';
+import { TrainingSessionsRepository } from './repositories/training-sessions.repository';
 import { BodyMetricsRepository } from './repositories/body-metrics.repository';
 import { BodyProgressPhotosRepository } from './repositories/body-progress-photos.repository';
 import { ActivityLogsRepository } from './repositories/activity-logs.repository';
+
 import {
-  TRAINING_EXERCISES_REPOSITORY,
-  WORKOUT_SESSIONS_REPOSITORY,
+  EXERCISES_REPOSITORY,
+  TRAINING_SESSIONS_REPOSITORY,
   BODY_METRICS_REPOSITORY,
   BODY_PHOTOS_REPOSITORY,
   ACTIVITY_LOGS_REPOSITORY,
@@ -34,9 +41,9 @@ import {
   imports: [
     TypeOrmModule.forFeature([
       Exercise,
-      WorkoutSession,
-      WorkoutSessionDetail,
-      ExerciseUserFavorite,
+      TrainingSession,
+      TrainingSessionItem,
+      FavoriteExercise,
       BodyMetric,
       BodyProgressPhoto,
       ActivityLog,
@@ -44,17 +51,32 @@ import {
     SupportModule,
     forwardRef(() => UserModule),
   ],
-  controllers: [TrainingController, BodyMetricsController, ActivityLogsController],
+  controllers: [
+    ExercisesController,
+    TrainingSessionsController,
+    FavoriteExercisesController,
+    BodyMetricsController,
+    ActivityLogsController,
+  ],
   providers: [
-    TrainingService,
+    ExercisesService,
+    TrainingSessionsService,
+    FavoriteExercisesService,
+    CaloriesCalculationService,
     BodyMetricsService,
     ActivityLogsService,
-    { provide: TRAINING_EXERCISES_REPOSITORY, useClass: ExercisesRepository },
-    { provide: WORKOUT_SESSIONS_REPOSITORY, useClass: WorkoutSessionsRepository },
+    { provide: EXERCISES_REPOSITORY, useClass: ExercisesRepository },
+    { provide: TRAINING_SESSIONS_REPOSITORY, useClass: TrainingSessionsRepository },
     { provide: BODY_METRICS_REPOSITORY, useClass: BodyMetricsRepository },
     { provide: BODY_PHOTOS_REPOSITORY, useClass: BodyProgressPhotosRepository },
     { provide: ACTIVITY_LOGS_REPOSITORY, useClass: ActivityLogsRepository },
   ],
-  exports: [TrainingService, BodyMetricsService, ActivityLogsService],
+  exports: [
+    ExercisesService,
+    TrainingSessionsService,
+    FavoriteExercisesService,
+    BodyMetricsService,
+    ActivityLogsService,
+  ],
 })
 export class TrainModule {}

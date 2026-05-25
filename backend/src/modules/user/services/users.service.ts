@@ -172,7 +172,7 @@ export class UsersService {
     });
 
     await this.bodyMetricsService.upsert(userId, {
-      recordedAt: new Date().toISOString().split('T')[0],
+      measuredAt: new Date().toISOString().split('T')[0],
       weightKg: dto.initialWeightKg,
       notes: 'Initial weight from onboarding',
     });

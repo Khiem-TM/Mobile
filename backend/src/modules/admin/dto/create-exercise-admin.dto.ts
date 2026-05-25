@@ -6,12 +6,14 @@ import {
   IsUrl,
   IsArray,
   IsBoolean,
+  IsInt,
   Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { MuscleGroup } from '../../../common/enums/muscle-group.enum';
-import { TrainingIntensity } from '../../../common/enums/training-intensity.enum';
+import { ExerciseType } from '../../train/enums/exercise-type.enum';
+import { DifficultyLevel } from '../../train/enums/difficulty-level.enum';
+import { IntensityLevel } from '../../train/enums/intensity-level.enum';
 
 export class CreateExerciseAdminDto {
   @ApiProperty()
@@ -23,13 +25,29 @@ export class CreateExerciseAdminDto {
   @IsOptional()
   description?: string;
 
-  @ApiProperty({ enum: MuscleGroup })
-  @IsEnum(MuscleGroup)
-  primaryMuscleGroup!: MuscleGroup;
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  instructions?: string;
 
-  @ApiProperty({ enum: TrainingIntensity })
-  @IsEnum(TrainingIntensity)
-  intensity!: TrainingIntensity;
+  @ApiProperty({ enum: ExerciseType })
+  @IsEnum(ExerciseType)
+  exerciseType!: ExerciseType;
+
+  @ApiPropertyOptional({ example: 'chest' })
+  @IsString()
+  @IsOptional()
+  category?: string;
+
+  @ApiPropertyOptional({ example: 'chest' })
+  @IsString()
+  @IsOptional()
+  muscleGroup?: string;
+
+  @ApiPropertyOptional({ enum: DifficultyLevel, default: DifficultyLevel.BEGINNER })
+  @IsEnum(DifficultyLevel)
+  @IsOptional()
+  difficultyLevel?: DifficultyLevel;
 
   @ApiPropertyOptional({ default: 0 })
   @IsNumber()
@@ -37,11 +55,6 @@ export class CreateExerciseAdminDto {
   @Type(() => Number)
   @IsOptional()
   metValue?: number;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  instructions?: string;
 
   @ApiPropertyOptional()
   @IsUrl()
@@ -54,15 +67,12 @@ export class CreateExerciseAdminDto {
   @IsString({ each: true })
   secondaryMuscleGroups?: string[];
 
-  @ApiPropertyOptional({
-    example: 'bodyweight',
-    enum: ['bodyweight', 'dumbbell', 'barbell', 'cable', 'machine', 'resistance_band', 'kettlebell', 'other'],
-  })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   equipment?: string;
 
-  @ApiPropertyOptional({ example: 'Keep your back straight throughout the movement.' })
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   formTips?: string;
@@ -71,4 +81,57 @@ export class CreateExerciseAdminDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  // GYM-specific
+  @ApiPropertyOptional({ example: 3 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  defaultSets?: number;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  defaultReps?: number;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  defaultWeightKg?: number;
+
+  @ApiPropertyOptional({ example: 'chest' })
+  @IsOptional()
+  @IsString()
+  targetMuscleGroup?: string;
+
+  @ApiPropertyOptional({ example: 60 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  restTimeSeconds?: number;
+
+  // SPORT-specific
+  @ApiPropertyOptional({ example: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  defaultDurationMinutes?: number;
+
+  @ApiPropertyOptional({ enum: IntensityLevel })
+  @IsOptional()
+  @IsEnum(IntensityLevel)
+  defaultIntensityLevel?: IntensityLevel;
+
+  @ApiPropertyOptional({ example: 'running' })
+  @IsOptional()
+  @IsString()
+  movementType?: string;
+
+  @ApiPropertyOptional({ example: 8.5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  estimatedCaloriesPerMinute?: number;
 }

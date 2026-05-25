@@ -16,7 +16,8 @@ data class ExerciseDto(
     @Json(name = "imageAvtUrl") val imageAvtUrl: String? = null,
     @Json(name = "imageUrl") val imageUrl: List<String>? = null,
     @Json(name = "metValue") val metValue: Float = 0f,
-    @Json(name = "caloriesPerMin") val caloriesPerMin: Float = 0f
+    @Json(name = "caloriesPerMin") val caloriesPerMin: Float = 0f,
+    @Json(name = "exerciseType") val exerciseType: String = "SPORT"
 ) {
     val displayImageUrl: String? get() = imageAvtUrl
     val muscleGroup: String get() = primaryMuscleGroup
@@ -25,11 +26,11 @@ data class ExerciseDto(
 @JsonClass(generateAdapter = true)
 data class WorkoutSessionDto(
     @Json(name = "id") val id: String,
-    @Json(name = "sessionName") val sessionName: String? = null,
+    @Json(name = "title") val sessionName: String? = null,
     @Json(name = "sessionDate") val sessionDate: String,
     @Json(name = "totalDurationMinutes") val totalDurationMinutes: Int = 0,
     @Json(name = "totalCaloriesBurned") val totalCaloriesBurned: Float = 0f,
-    @Json(name = "details") val details: List<SessionExerciseDto> = emptyList()
+    @Json(name = "items") val details: List<SessionExerciseDto> = emptyList()
 ) {
     val name: String? get() = sessionName
     val date: String get() = sessionDate
@@ -42,13 +43,14 @@ data class WorkoutSessionDto(
 data class SessionExerciseDto(
     @Json(name = "id") val id: String,
     @Json(name = "exerciseId") val exerciseId: String,
-    @Json(name = "exerciseName") val exerciseName: String = "",
+    @Json(name = "exercise") val exercise: ExerciseDto? = null,
     @Json(name = "sets") val sets: Int? = null,
-    @Json(name = "repsPerSet") val repsPerSet: Int? = null,
+    @Json(name = "reps") val repsPerSet: Int? = null,
     @Json(name = "weightKg") val weightKg: Float? = null,
     @Json(name = "durationMinutes") val durationMinutes: Int = 0,
     @Json(name = "caloriesBurned") val caloriesBurned: Float = 0f
 ) {
+    val exerciseName: String get() = exercise?.name ?: ""
     val reps: Int? get() = repsPerSet
     val durationMin: Int get() = durationMinutes
     val calories: Float get() = caloriesBurned
@@ -57,9 +59,9 @@ data class SessionExerciseDto(
 @JsonClass(generateAdapter = true)
 data class CreateWorkoutSessionDto(
     @Json(name = "sessionDate") val sessionDate: String,
-    @Json(name = "sessionName") val sessionName: String?,
-    @Json(name = "notes") val notes: String? = null,
-    @Json(name = "details") val details: List<WorkoutDetailDto>
+    @Json(name = "title") val sessionName: String?,
+    @Json(name = "note") val notes: String? = null,
+    @Json(name = "items") val details: List<WorkoutDetailDto>
 )
 
 @JsonClass(generateAdapter = true)
@@ -67,25 +69,28 @@ data class WorkoutDetailDto(
     @Json(name = "exerciseId") val exerciseId: String,
     @Json(name = "durationMinutes") val durationMinutes: Int,
     @Json(name = "sets") val sets: Int?,
-    @Json(name = "repsPerSet") val repsPerSet: Int?,
+    @Json(name = "reps") val repsPerSet: Int?,
     @Json(name = "weightKg") val weightKg: Float?,
-    @Json(name = "orderIndex") val orderIndex: Int?
+    @Json(name = "orderIndex") val orderIndex: Int?,
+    @Json(name = "exerciseType") val exerciseType: String = "SPORT"
 )
 
 @JsonClass(generateAdapter = true)
 data class AddExerciseRequest(
     @Json(name = "exerciseId") val exerciseId: String,
+    @Json(name = "exerciseType") val exerciseType: String = "SPORT",
     @Json(name = "sets") val sets: Int?,
-    @Json(name = "repsPerSet") val repsPerSet: Int?,
+    @Json(name = "reps") val repsPerSet: Int?,
     @Json(name = "weightKg") val weightKg: Float?,
-    @Json(name = "durationMinutes") val durationMinutes: Int
+    @Json(name = "durationMinutes") val durationMinutes: Int,
+    @Json(name = "orderIndex") val orderIndex: Int = 0
 )
 
 @JsonClass(generateAdapter = true)
 data class UpdateWorkoutSessionRequest(
     @Json(name = "sessionDate") val sessionDate: String? = null,
-    @Json(name = "sessionName") val sessionName: String? = null,
-    @Json(name = "notes") val notes: String? = null
+    @Json(name = "title") val sessionName: String? = null,
+    @Json(name = "note") val notes: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -100,11 +105,3 @@ data class ActivityLogDto(
     val date: String get() = logDate
     val activeMins: Int get() = activeMinutes
 }
-
-@JsonClass(generateAdapter = true)
-data class UpdateCaloriesBurnedRequest(
-    @Json(name = "logDate") val logDate: String,
-    @Json(name = "caloriesBurned") val caloriesBurned: Float,
-    @Json(name = "activeMinutes") val activeMinutes: Int,
-    @Json(name = "exerciseNotes") val exerciseNotes: String? = null
-)

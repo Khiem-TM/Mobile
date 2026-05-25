@@ -22,32 +22,17 @@ export class ActivityLog {
   @Column({ default: 0 })
   steps!: number;
 
-  @Column({
-    name: 'calories_burned',
-    type: 'decimal',
-    precision: 7,
-    scale: 2,
-    default: 0,
-  })
-  caloriesBurned!: number;
-
-  @Column({
-    name: 'workout_calories_burned',
-    type: 'decimal',
-    precision: 7,
-    scale: 2,
-    default: 0,
-  })
-  workoutCaloriesBurned!: number;
-
-  @Column({ name: 'active_minutes', default: 0 })
-  activeMinutes!: number;
-
   @Column({ name: 'water_ml', default: 0 })
   waterMl!: number;
 
-  @Column({ name: 'exercise_notes', nullable: true })
-  exerciseNotes!: string;
+  @Column({ type: 'text', nullable: true })
+  note!: string | null;
+
+  @Column({ name: 'sleep_hours', type: 'decimal', precision: 4, scale: 2, nullable: true })
+  sleepHours!: number | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  mood!: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

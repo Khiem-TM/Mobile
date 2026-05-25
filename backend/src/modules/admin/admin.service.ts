@@ -13,7 +13,7 @@ import { ConfigService } from '@nestjs/config';
 import { User } from '../user/entities/user.entity';
 import { Food } from '../food/entities/food.entity';
 import { Exercise } from '../train/entities/exercise.entity';
-import { WorkoutSession } from '../train/entities/workout-session.entity';
+import { TrainingSession } from '../train/entities/training-session.entity';
 import { Blog } from '../blog/entities/blog.entity';
 import { FoodRecipe } from '../food/entities/food-recipe.entity';
 import { FoodRecipeStep } from '../food/entities/food-recipe-step.entity';
@@ -35,8 +35,8 @@ export class AdminService {
     private readonly foodRepo: Repository<Food>,
     @InjectRepository(Exercise)
     private readonly exerciseRepo: Repository<Exercise>,
-    @InjectRepository(WorkoutSession)
-    private readonly workoutSessionRepo: Repository<WorkoutSession>,
+    @InjectRepository(TrainingSession)
+    private readonly trainingSessionRepo: Repository<TrainingSession>,
     @InjectRepository(Blog)
     private readonly blogRepo: Repository<Blog>,
     @InjectRepository(FoodRecipe)
@@ -122,14 +122,14 @@ export class AdminService {
     });
     if (!user) throw new NotFoundException('User not found');
 
-    const recentWorkouts = await this.workoutSessionRepo.find({
+    const recentSessions = await this.trainingSessionRepo.find({
       where: { userId: id },
       order: { createdAt: 'DESC' },
       take: 5,
-      relations: ['details', 'details.exercise'],
+      relations: ['items', 'items.exercise'],
     });
 
-    return { ...user, recentWorkouts };
+    return { ...user, recentSessions };
   }
 
   async banUser(id: string): Promise<User> {
@@ -272,11 +272,26 @@ export class AdminService {
     const exercise = this.exerciseRepo.create({
       name: dto.name,
       description: dto.description,
-      primaryMuscleGroup: dto.primaryMuscleGroup,
-      intensity: dto.intensity,
+      exerciseType: dto.exerciseType,
+      category: dto.category,
+      muscleGroup: dto.muscleGroup,
+      difficultyLevel: dto.difficultyLevel,
       metValue: dto.metValue ?? 0,
       instructions: dto.instructions,
       videoUrl: dto.videoUrl,
+      equipment: dto.equipment,
+      formTips: dto.formTips,
+      secondaryMuscleGroups: dto.secondaryMuscleGroups,
+      defaultSets: dto.defaultSets,
+      defaultReps: dto.defaultReps,
+      defaultWeightKg: dto.defaultWeightKg,
+      targetMuscleGroup: dto.targetMuscleGroup,
+      restTimeSeconds: dto.restTimeSeconds,
+      defaultDurationMinutes: dto.defaultDurationMinutes,
+      defaultIntensityLevel: dto.defaultIntensityLevel,
+      movementType: dto.movementType,
+      estimatedCaloriesPerMinute: dto.estimatedCaloriesPerMinute,
+      isActive: dto.isActive ?? true,
     });
     const savedExercise = await this.exerciseRepo.save(exercise);
     const activeUsers = await this.userRepo.find({ select: ['id'], where: { is_active: true } });

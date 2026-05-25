@@ -1,6 +1,7 @@
 package com.vitalai.data.remote
 
 import com.vitalai.data.remote.model.ApiResponse
+import com.vitalai.data.remote.model.DailyDashboardResponse
 import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.DashboardMonthlyDto
 import com.vitalai.data.remote.model.DashboardWeeklyDto
@@ -12,7 +13,7 @@ import retrofit2.http.Query
 
 interface DashboardApi {
     @GET("dashboard")
-    suspend fun getDashboard(@Query("date") date: String? = null): Response<ApiResponse<DashboardDto>>
+    suspend fun getDashboard(@Query("date") date: String? = null): Response<ApiResponse<DailyDashboardResponse>>
 
     @GET("dashboard/weekly")
     suspend fun getWeeklyDashboard(@Query("weekStart") weekStart: String): Response<ApiResponse<DashboardWeeklyDto>>

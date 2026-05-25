@@ -4,26 +4,27 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Column,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Exercise } from './exercise.entity';
 
-@Entity('exercise_user_favorites')
-export class ExerciseUserFavorite {
-  @PrimaryColumn({ type: 'uuid' })
-  user_id: string;
+@Entity('favorite_exercises')
+export class FavoriteExercise {
+  @PrimaryColumn({ name: 'user_id', type: 'uuid' })
+  userId!: string;
 
-  @PrimaryColumn({ type: 'uuid' })
-  exercise_id: string;
+  @PrimaryColumn({ name: 'exercise_id', type: 'uuid' })
+  exerciseId!: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
-  user: User;
+  user!: User;
 
   @ManyToOne(() => Exercise, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'exercise_id' })
-  exercise: Exercise;
+  exercise!: Exercise;
 
-  @CreateDateColumn()
-  created_at: Date;
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt!: Date;
 }

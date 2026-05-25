@@ -2,7 +2,6 @@ import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { ACTIVITY_LOGS_REPOSITORY } from '../train.constants';
 import type { IActivityLogsRepository } from '../repositories/activity-logs.repository.interface';
 import { LogStepsDto } from '../dto/log-steps.dto';
-import { LogCaloriesBurnedDto } from '../dto/log-calories-burned.dto';
 import { LogWaterDto } from '../dto/log-water.dto';
 import { NotificationsService } from '../../user/services/notifications.service';
 import { NotificationType } from '../../user/entities/notification.entity';
@@ -28,18 +27,6 @@ export class ActivityLogsService {
     return this.getByDate(userId, dto.logDate);
   }
 
-  async logCaloriesBurned(userId: string, dto: LogCaloriesBurnedDto) {
-    await this.repository.upsertCaloriesBurned(
-      userId,
-      dto.logDate,
-      dto.caloriesBurned,
-      dto.activeMinutes,
-      dto.exerciseNotes,
-    );
-    void this.dashboardService.invalidateDailyCache(userId, dto.logDate);
-    return this.getByDate(userId, dto.logDate);
-  }
-
   async logWater(userId: string, dto: LogWaterDto) {
     const log = await this.repository.upsertWater(userId, dto.logDate, dto.waterMl);
 
@@ -58,47 +45,38 @@ export class ActivityLogsService {
     return this.getByDate(userId, dto.logDate);
   }
 
+  async logNote(userId: string, logDate: string, note: string) {
+    await this.repository.upsertNote(userId, logDate, note);
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
+    return this.getByDate(userId, logDate);
+  }
+
+  async logSleep(userId: string, logDate: string, sleepHours: number) {
+    await this.repository.upsertSleep(userId, logDate, sleepHours);
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
+    return this.getByDate(userId, logDate);
+  }
+
+  async logMood(userId: string, logDate: string, mood: string) {
+    await this.repository.upsertMood(userId, logDate, mood);
+    void this.dashboardService.invalidateDailyCache(userId, logDate);
+    return this.getByDate(userId, logDate);
+  }
+
   async getByDate(userId: string, date: string) {
     const log = await this.repository.findByDate(userId, date);
     if (!log) {
-      return {
-        userId,
-        logDate: date,
-        steps: 0,
-        caloriesBurned: 0,
-        manualCaloriesBurned: 0,
-        workoutCaloriesBurned: 0,
-        activeMinutes: 0,
-        waterMl: 0,
-        exerciseNotes: null,
-      };
+      return { userId, logDate: date, steps: 0, waterMl: 0, note: null, sleepHours: null, mood: null };
     }
-    return this.withTotalCalories(log);
+    return log;
   }
 
   async getRange(userId: string, fromDate: string, toDate: string) {
-    const logs = await this.repository.findRange(userId, fromDate, toDate);
-    return logs.map((log) => this.withTotalCalories(log));
+    return this.repository.findRange(userId, fromDate, toDate);
   }
 
   async getTodaySummary(userId: string) {
     const today = new Date().toISOString().split('T')[0];
     return this.getByDate(userId, today);
-  }
-
-  async setWorkoutCalories(userId: string, date: string, calories: number): Promise<void> {
-    await this.repository.upsertWorkoutCalories(userId, date, calories);
-    void this.dashboardService.invalidateDailyCache(userId, date);
-  }
-
-  private withTotalCalories(log: any) {
-    const manualCaloriesBurned = Number(log.caloriesBurned ?? 0);
-    const workoutCaloriesBurned = Number(log.workoutCaloriesBurned ?? 0);
-    return {
-      ...log,
-      manualCaloriesBurned,
-      workoutCaloriesBurned,
-      caloriesBurned: Number((manualCaloriesBurned + workoutCaloriesBurned).toFixed(2)),
-    };
   }
 }

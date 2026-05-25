@@ -7,7 +7,7 @@ import { PassportModule } from '@nestjs/passport';
 import { User } from '../user/entities/user.entity';
 import { Food } from '../food/entities/food.entity';
 import { Exercise } from '../train/entities/exercise.entity';
-import { WorkoutSession } from '../train/entities/workout-session.entity';
+import { TrainingSession } from '../train/entities/training-session.entity';
 import { Blog } from '../blog/entities/blog.entity';
 import { FoodRecipe } from '../food/entities/food-recipe.entity';
 import { FoodRecipeStep } from '../food/entities/food-recipe-step.entity';
@@ -22,7 +22,7 @@ import { SupportModule } from '../support/support.module';
   imports: [
     forwardRef(() => UserModule),
     SupportModule,
-    TypeOrmModule.forFeature([User, Food, Exercise, WorkoutSession, Blog, FoodRecipe, FoodRecipeStep]),
+    TypeOrmModule.forFeature([User, Food, Exercise, TrainingSession, Blog, FoodRecipe, FoodRecipeStep]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'khiemhehe',

@@ -33,28 +33,28 @@ export class BodyMetricsService {
   ) {}
 
   async upsert(userId: string, dto: UpsertBodyMetricDto) {
-    if (!dto.recordedAt) {
-      dto.recordedAt = new Date().toISOString().split('T')[0];
+    if (!dto.measuredAt) {
+      dto.measuredAt = new Date().toISOString().split('T')[0];
     }
     const metric: MetricCalculated = { ...dto };
 
     if (dto.weightKg) {
       const profile = await this.usersService.getHealthProfile(userId);
-      if (profile?.heightCm) {
-        metric.bmi = BMIUtil.calculate(dto.weightKg, profile.heightCm);
+      const heightCm = dto.heightCm ?? profile?.heightCm;
+      if (heightCm) {
+        metric.bmi = BMIUtil.calculate(dto.weightKg, heightCm);
 
-        if (profile.birthDate && profile.gender && profile.activityLevel) {
+        if (profile?.birthDate && profile.gender && profile.activityLevel) {
           const birth = new Date(profile.birthDate);
           const today = new Date();
           let age = today.getFullYear() - birth.getFullYear();
           if (
             today.getMonth() < birth.getMonth() ||
-            (today.getMonth() === birth.getMonth() &&
-              today.getDate() < birth.getDate())
+            (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
           ) {
             age--;
           }
-          metric.bmr = TDEEUtil.calculateBMR(dto.weightKg, profile.heightCm, age, profile.gender);
+          metric.bmr = TDEEUtil.calculateBMR(dto.weightKg, heightCm, age, profile.gender);
           metric.tdee = TDEEUtil.calculateTDEE(metric.bmr, profile.activityLevel);
         }
       }
@@ -100,7 +100,7 @@ export class BodyMetricsService {
     }
 
     const sorted = [...history].sort(
-      (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
+      (a, b) => new Date(a.measuredAt).getTime() - new Date(b.measuredAt).getTime(),
     );
 
     const first = sorted[0];
@@ -112,8 +112,8 @@ export class BodyMetricsService {
       startWeight,
       currentWeight,
       weightChange: Number((currentWeight - startWeight).toFixed(1)),
-      startDate: first.recordedAt,
-      latestDate: latest.recordedAt,
+      startDate: first.measuredAt,
+      latestDate: latest.measuredAt,
       totalRecords: history.length,
     };
   }
