@@ -7,11 +7,13 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { TrainingSessionItem } from './training-session-item.entity';
 
 @Entity('training_sessions')
+@Unique(['userId', 'sessionDate'])
 export class TrainingSession {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

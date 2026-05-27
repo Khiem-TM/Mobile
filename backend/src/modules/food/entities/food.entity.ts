@@ -6,11 +6,8 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  OneToMany,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
-import { FoodRecipe } from './food-recipe.entity';
-import { FoodIngredient } from './food-ingredient.entity';
 
 @Entity('foods')
 export class Food {
@@ -44,6 +41,7 @@ export class Food {
   @Column({ type: 'varchar', length: 50, default: 'g' })
   serving_unit: string;
 
+  // ─── Core nutrition (per 100g) ──────────────────────────────────────────────
   @Column({ type: 'decimal', precision: 7, scale: 2 })
   calories_per_100g: number;
 
@@ -57,28 +55,23 @@ export class Food {
   carbs_per_100g: number;
 
   @Column({ type: 'decimal', precision: 7, scale: 2, nullable: true })
-  fiber_per_100g: number;
+  fiber_per_100g: number | null;
 
-  @Column({ type: 'decimal', precision: 7, scale: 2, nullable: true })
-  sugar_per_100g: number;
-
-  @Column({ type: 'decimal', precision: 7, scale: 2, nullable: true })
-  sodium_per_100g: number;
-
-  @Column({ type: 'decimal', precision: 7, scale: 2, nullable: true })
-  cholesterol_per_100g: number;
-
+  // ─── Media ──────────────────────────────────────────────────────────────────
   @Column({ type: 'text', array: true, nullable: true, default: null })
   image_urls: string[] | null = null;
 
   @Column({ type: 'text', array: true, nullable: true, default: null })
   image_public_ids: string[] | null = null;
 
+  // ─── Ownership ──────────────────────────────────────────────────────────────
+  // is_custom=false → system food visible to all users
+  // is_custom=true  → personal food visible only to created_by_user_id
   @Column({ type: 'boolean', default: false })
   is_custom: boolean;
 
   @Column({ type: 'uuid', nullable: true })
-  created_by_user_id: string;
+  created_by_user_id: string | null;
 
   @ManyToOne(() => User)
   @JoinColumn({ name: 'created_by_user_id' })
@@ -95,10 +88,4 @@ export class Food {
 
   @UpdateDateColumn()
   updated_at: Date;
-
-  @OneToMany(() => FoodRecipe, (recipe) => recipe.food)
-  recipes: FoodRecipe[];
-
-  @OneToMany(() => FoodIngredient, (ingredient) => ingredient.customFood)
-  ingredients: FoodIngredient[];
 }

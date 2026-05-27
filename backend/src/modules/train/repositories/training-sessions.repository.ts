@@ -28,6 +28,24 @@ export class TrainingSessionsRepository implements ITrainingSessionsRepository {
     });
   }
 
+  async findByUserAndDate(userId: string, date: string): Promise<TrainingSession | null> {
+    return this.repo.findOne({
+      where: { userId, sessionDate: date },
+      relations: ['items', 'items.exercise'],
+    });
+  }
+
+  async findDistinctSessionDates(userId: string): Promise<string[]> {
+    const rows = await this.repo
+      .createQueryBuilder('ts')
+      .select('DISTINCT ts.sessionDate', 'sessionDate')
+      .where('ts.userId = :userId', { userId })
+      .orderBy('ts.sessionDate', 'ASC')
+      .getRawMany<{ sessionDate: string }>();
+
+    return rows.map((row) => row.sessionDate);
+  }
+
   async findByDateRange(userId: string, from: string, to: string): Promise<TrainingSession[]> {
     return this.repo
       .createQueryBuilder('ts')

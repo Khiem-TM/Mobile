@@ -8,19 +8,35 @@ data class ExerciseDto(
     @Json(name = "id") val id: String,
     @Json(name = "name") val name: String,
     @Json(name = "primaryMuscleGroup") val primaryMuscleGroup: String = "",
+    @Json(name = "muscleGroup") val muscleGroupRaw: String? = null,
+    @Json(name = "category") val category: String? = null,
+    @Json(name = "difficultyLevel") val difficultyLevel: String? = null,
     @Json(name = "equipment") val equipment: String? = null,
     @Json(name = "description") val description: String? = null,
     @Json(name = "instructions") val instructions: String? = null,
     @Json(name = "formTips") val formTips: String? = null,
     @Json(name = "intensity") val intensity: String? = null,
+    @Json(name = "thumbnailUrl") val thumbnailUrl: String? = null,
+    @Json(name = "videoUrl") val videoUrl: String? = null,
     @Json(name = "imageAvtUrl") val imageAvtUrl: String? = null,
     @Json(name = "imageUrl") val imageUrl: List<String>? = null,
     @Json(name = "metValue") val metValue: Float = 0f,
     @Json(name = "caloriesPerMin") val caloriesPerMin: Float = 0f,
+    @Json(name = "estimatedCaloriesPerMinute") val estimatedCaloriesPerMinute: Float? = null,
+    @Json(name = "favoritesCount") val favoritesCount: Int = 0,
+    @Json(name = "isFavorite") val isFavorite: Boolean = false,
+    @Json(name = "defaultSets") val defaultSets: Int? = null,
+    @Json(name = "defaultReps") val defaultReps: Int? = null,
+    @Json(name = "defaultWeightKg") val defaultWeightKg: Float? = null,
+    @Json(name = "targetMuscleGroup") val targetMuscleGroup: String? = null,
+    @Json(name = "restTimeSeconds") val restTimeSeconds: Int? = null,
+    @Json(name = "defaultDurationMinutes") val defaultDurationMinutes: Int? = null,
+    @Json(name = "defaultIntensityLevel") val defaultIntensityLevel: String? = null,
+    @Json(name = "movementType") val movementType: String? = null,
     @Json(name = "exerciseType") val exerciseType: String = "SPORT"
 ) {
-    val displayImageUrl: String? get() = imageAvtUrl
-    val muscleGroup: String get() = primaryMuscleGroup
+    val displayImageUrl: String? get() = thumbnailUrl ?: imageAvtUrl
+    val muscleGroup: String get() = muscleGroupRaw ?: primaryMuscleGroup
 }
 
 @JsonClass(generateAdapter = true)
@@ -48,7 +64,12 @@ data class SessionExerciseDto(
     @Json(name = "reps") val repsPerSet: Int? = null,
     @Json(name = "weightKg") val weightKg: Float? = null,
     @Json(name = "durationMinutes") val durationMinutes: Int = 0,
-    @Json(name = "caloriesBurned") val caloriesBurned: Float = 0f
+    @Json(name = "caloriesBurned") val caloriesBurned: Float = 0f,
+    @Json(name = "exerciseType") val exerciseType: String = "SPORT",
+    @Json(name = "intensityLevel") val intensityLevel: String? = null,
+    @Json(name = "distanceKm") val distanceKm: Float? = null,
+    @Json(name = "avgSpeedKmh") val avgSpeedKmh: Float? = null,
+    @Json(name = "restTimeSeconds") val restTimeSeconds: Int? = null
 ) {
     val exerciseName: String get() = exercise?.name ?: ""
     val reps: Int? get() = repsPerSet
@@ -67,12 +88,16 @@ data class CreateWorkoutSessionDto(
 @JsonClass(generateAdapter = true)
 data class WorkoutDetailDto(
     @Json(name = "exerciseId") val exerciseId: String,
-    @Json(name = "durationMinutes") val durationMinutes: Int,
+    @Json(name = "durationMinutes") val durationMinutes: Int? = null,
     @Json(name = "sets") val sets: Int?,
     @Json(name = "reps") val repsPerSet: Int?,
     @Json(name = "weightKg") val weightKg: Float?,
     @Json(name = "orderIndex") val orderIndex: Int?,
-    @Json(name = "exerciseType") val exerciseType: String = "SPORT"
+    @Json(name = "exerciseType") val exerciseType: String = "SPORT",
+    @Json(name = "intensityLevel") val intensityLevel: String? = null,
+    @Json(name = "distanceKm") val distanceKm: Float? = null,
+    @Json(name = "avgSpeedKmh") val avgSpeedKmh: Float? = null,
+    @Json(name = "restTimeSeconds") val restTimeSeconds: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -82,8 +107,12 @@ data class AddExerciseRequest(
     @Json(name = "sets") val sets: Int?,
     @Json(name = "reps") val repsPerSet: Int?,
     @Json(name = "weightKg") val weightKg: Float?,
-    @Json(name = "durationMinutes") val durationMinutes: Int,
-    @Json(name = "orderIndex") val orderIndex: Int = 0
+    @Json(name = "durationMinutes") val durationMinutes: Int? = null,
+    @Json(name = "orderIndex") val orderIndex: Int = 0,
+    @Json(name = "intensityLevel") val intensityLevel: String? = null,
+    @Json(name = "distanceKm") val distanceKm: Float? = null,
+    @Json(name = "avgSpeedKmh") val avgSpeedKmh: Float? = null,
+    @Json(name = "restTimeSeconds") val restTimeSeconds: Int? = null
 )
 
 @JsonClass(generateAdapter = true)

@@ -1,25 +1,18 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository, ILike } from 'typeorm';
+import { DataSource, Repository, ILike } from 'typeorm';
 import { Food } from '../entities/food.entity';
 import { FoodBarcode } from '../entities/food-barcode.entity';
 import { FoodUserFavorite } from '../entities/food-user-favorite.entity';
-import { FoodRecipe } from '../entities/food-recipe.entity';
-import { FoodRecipeStep } from '../entities/food-recipe-step.entity';
-import { FoodIngredient } from '../entities/food-ingredient.entity';
 import { CreateFoodDto } from '../dto/create-food.dto';
-import { CreateRecipeDto, AddRecipeStepDto } from '../dto/create-recipe.dto';
-import { SetIngredientsDto } from '../dto/set-ingredients.dto';
 import { CloudinaryService } from '../../support/cloudinary/cloudinary.service';
-import { computeNutritionFromIngredients } from '../../../common/utils/nutrition-calculator';
 import { RedisService } from '../../support/redis/redis.service';
 
 const TTL = {
-  FOOD_LIST: 300,    // 5 min — search results
-  FOOD_ONE: 3600,    // 1 hour — individual food item (near-static)
+  FOOD_LIST: 300,    // 5 min
+  FOOD_ONE: 3600,    // 1 hour
   FOOD_BARCODE: 3600,
-  FOOD_RECIPE: 3600,
-  FOOD_EXPLORE: 600, // 10 min — explore/browse page
+  FOOD_EXPLORE: 600, // 10 min
 };
 
 @Injectable()
@@ -31,12 +24,6 @@ export class FoodsService {
     private readonly barcodeRepository: Repository<FoodBarcode>,
     @InjectRepository(FoodUserFavorite)
     private readonly favoriteRepository: Repository<FoodUserFavorite>,
-    @InjectRepository(FoodRecipe)
-    private readonly recipeRepository: Repository<FoodRecipe>,
-    @InjectRepository(FoodRecipeStep)
-    private readonly recipeStepRepository: Repository<FoodRecipeStep>,
-    @InjectRepository(FoodIngredient)
-    private readonly ingredientRepository: Repository<FoodIngredient>,
     private readonly cloudinaryService: CloudinaryService,
     private readonly dataSource: DataSource,
     private readonly redisService: RedisService,
@@ -45,34 +32,39 @@ export class FoodsService {
   private async invalidateFoodCache(foodId?: string): Promise<void> {
     await Promise.all([
       foodId ? this.redisService.del(`cache:foods:one:${foodId}`) : Promise.resolve(),
-      foodId ? this.redisService.del(`cache:foods:recipe:${foodId}`) : Promise.resolve(),
       this.redisService.delByPattern('cache:foods:list:*'),
       this.redisService.delByPattern('cache:foods:explore:*'),
     ]);
   }
 
+  // System foods only — visible to all users
   async findAll(query: string = '', page: number = 1, limit: number = 20) {
     const key = `cache:foods:list:${query}:${page}:${limit}`;
     const cached = await this.redisService.getJson<{ items: Food[]; total: number; page: number; limit: number }>(key);
     if (cached) return cached;
 
+    const where: any = { is_custom: false, is_active: true };
+    if (query) where.name = ILike(`%${query}%`);
+
     const [foods, total] = await this.foodRepository.findAndCount({
-      where: query ? [{ name: ILike(`%${query}%`) }] : {},
+      where,
       take: limit,
       skip: (page - 1) * limit,
+      order: { favorites_count: 'DESC', created_at: 'DESC' },
     });
     const result = { items: foods, total, page, limit };
     await this.redisService.setJson(key, result, TTL.FOOD_LIST);
     return result;
   }
 
+  // System dishes only — for explore/browse page
   async exploreDishe(page: number = 1, limit: number = 20, category?: string) {
     const key = `cache:foods:explore:${page}:${limit}:${category ?? ''}`;
     const cached = await this.redisService.getJson<{ items: Food[]; total: number; page: number; limit: number }>(key);
     if (cached) return cached;
 
-    const where: Record<string, unknown> = { food_type: 'dish', is_active: true };
-    if (category) where['category'] = ILike(`%${category}%`);
+    const where: any = { food_type: 'dish', is_active: true, is_custom: false };
+    if (category) where.category = ILike(`%${category}%`);
 
     const [items, total] = await this.foodRepository.findAndCount({
       where,
@@ -88,11 +80,36 @@ export class FoodsService {
   async findOne(id: string): Promise<Food> {
     const key = `cache:foods:one:${id}`;
     const cached = await this.redisService.getJson<Food>(key);
-    if (cached) return cached;
+    if (cached && !cached.is_custom && cached.is_active) return cached;
 
-    const food = await this.foodRepository.findOne({ where: { id } });
+    const food = await this.foodRepository.findOne({
+      where: { id, is_custom: false, is_active: true },
+    });
     if (!food) throw new NotFoundException('Food not found');
     await this.redisService.setJson(key, food, TTL.FOOD_ONE);
+    return food;
+  }
+
+  // Lookup by ID — allows access to custom food only if owned by the user
+  async findOneForUser(id: string, userId: string): Promise<Food> {
+    const food = await this.foodRepository.findOne({ where: { id } });
+    if (!food || !food.is_active) throw new NotFoundException('Food not found');
+    if (food.is_custom && food.created_by_user_id !== userId) {
+      throw new ForbiddenException('This food is private');
+    }
+    return food;
+  }
+
+  async findCustomForUser(id: string, userId: string): Promise<Food> {
+    const food = await this.foodRepository.findOne({
+      where: {
+        id,
+        is_custom: true,
+        created_by_user_id: userId,
+        is_active: true,
+      },
+    });
+    if (!food) throw new NotFoundException('Food not found');
     return food;
   }
 
@@ -102,25 +119,72 @@ export class FoodsService {
       name_en: data.name_en,
       brand: data.brand,
       category: data.category,
-      food_type: data.food_type,
-      serving_size_g: data.serving_size_g,
-      serving_unit: data.serving_unit,
+      description: data.description,
+      food_type: data.food_type ?? 'ingredient',
+      serving_size_g: data.serving_size_g ?? 100,
+      serving_unit: data.serving_unit ?? 'g',
       calories_per_100g: data.calories_per_100g,
-      protein_per_100g: data.protein_per_100g,
-      fat_per_100g: data.fat_per_100g,
-      carbs_per_100g: data.carbs_per_100g,
+      protein_per_100g: data.protein_per_100g ?? 0,
+      fat_per_100g: data.fat_per_100g ?? 0,
+      carbs_per_100g: data.carbs_per_100g ?? 0,
       fiber_per_100g: data.fiber_per_100g,
-      sugar_per_100g: data.sugar_per_100g,
-      sodium_per_100g: data.sodium_per_100g,
-      cholesterol_per_100g: data.cholesterol_per_100g,
       image_urls: data.image_urls,
       is_custom: true,
       created_by_user_id: userId,
       is_verified: false,
     });
     const saved = await this.foodRepository.save(food);
-    await this.invalidateFoodCache(saved.id);
+    await this.invalidateFoodCache();
     return saved;
+  }
+
+  async updateCustom(userId: string, id: string, data: Partial<CreateFoodDto>): Promise<Food> {
+    const food = await this.foodRepository.findOne({ where: { id } });
+    if (!food || !food.is_active) throw new NotFoundException('Food not found');
+    if (!food.is_custom) throw new ForbiddenException('Cannot edit system foods');
+    if (food.created_by_user_id !== userId) throw new ForbiddenException('Not your food');
+
+    if (data.name !== undefined) food.name = data.name;
+    if (data.name_en !== undefined) food.name_en = data.name_en;
+    if (data.brand !== undefined) food.brand = data.brand;
+    if (data.category !== undefined) food.category = data.category;
+    if (data.description !== undefined) food.description = data.description;
+    if (data.food_type !== undefined) food.food_type = data.food_type;
+    if (data.serving_size_g !== undefined) food.serving_size_g = data.serving_size_g;
+    if (data.serving_unit !== undefined) food.serving_unit = data.serving_unit;
+    if (data.calories_per_100g !== undefined) food.calories_per_100g = data.calories_per_100g;
+    if (data.protein_per_100g !== undefined) food.protein_per_100g = data.protein_per_100g;
+    if (data.fat_per_100g !== undefined) food.fat_per_100g = data.fat_per_100g;
+    if (data.carbs_per_100g !== undefined) food.carbs_per_100g = data.carbs_per_100g;
+    if (data.fiber_per_100g !== undefined) food.fiber_per_100g = data.fiber_per_100g;
+    if (data.image_urls !== undefined) food.image_urls = data.image_urls;
+
+    const saved = await this.foodRepository.save(food);
+    await this.invalidateFoodCache(id);
+    return saved;
+  }
+
+  async deleteCustom(userId: string, id: string): Promise<void> {
+    const food = await this.foodRepository.findOne({ where: { id } });
+    if (!food || !food.is_active) throw new NotFoundException('Food not found');
+    if (!food.is_custom) throw new ForbiddenException('Cannot delete system foods');
+    if (food.created_by_user_id !== userId) throw new ForbiddenException('Not your food');
+    food.is_active = false;
+    await this.foodRepository.save(food);
+    await this.invalidateFoodCache(id);
+  }
+
+  async getUserCustomFoods(userId: string, query = '', page = 1, limit = 20) {
+    const where: any = { is_custom: true, created_by_user_id: userId, is_active: true };
+    if (query) where.name = ILike(`%${query}%`);
+
+    const [items, total] = await this.foodRepository.findAndCount({
+      where,
+      order: { created_at: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { items, total, page, limit };
   }
 
   async getFavorites(userId: string): Promise<Food[]> {
@@ -128,21 +192,32 @@ export class FoodsService {
       where: { user_id: userId },
       relations: ['food'],
     });
-    return favs.map((f) => f.food);
+    return favs
+      .map((f) => f.food)
+      .filter(
+        (food) =>
+          food?.is_active &&
+          (!food.is_custom || food.created_by_user_id === userId),
+      );
   }
 
   async addFavorite(userId: string, foodId: string): Promise<void> {
-    await this.findOne(foodId);
-    const existing = await this.favoriteRepository.findOne({
-      where: { user_id: userId, food_id: foodId },
-    });
-    if (!existing) {
-      await this.dataSource.transaction(async (manager) => {
-        await manager.save(FoodUserFavorite, { user_id: userId, food_id: foodId });
+    await this.findOneForUser(foodId, userId);
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager
+        .createQueryBuilder()
+        .insert()
+        .into(FoodUserFavorite)
+        .values({ user_id: userId, food_id: foodId })
+        .orIgnore()
+        .returning(['user_id', 'food_id'])
+        .execute();
+
+      if (result.raw?.length) {
         await manager.increment(Food, { id: foodId }, 'favorites_count', 1);
-      });
-      await this.invalidateFoodCache(foodId);
-    }
+      }
+    });
+    await this.invalidateFoodCache(foodId);
   }
 
   async removeFavorite(userId: string, foodId: string): Promise<void> {
@@ -152,14 +227,20 @@ export class FoodsService {
     if (existing) {
       await this.dataSource.transaction(async (manager) => {
         await manager.delete(FoodUserFavorite, { user_id: userId, food_id: foodId });
-        await manager.decrement(Food, { id: foodId }, 'favorites_count', 1);
+        await manager
+          .createQueryBuilder()
+          .update(Food)
+          .set({ favorites_count: () => 'GREATEST(favorites_count - 1, 0)' })
+          .where('id = :foodId', { foodId })
+          .execute();
       });
       await this.invalidateFoodCache(foodId);
     }
   }
 
-  async uploadImage(foodId: string, file: Express.Multer.File): Promise<Food> {
-    const food = await this.findOne(foodId);
+  async uploadImage(foodId: string, userId: string, file: Express.Multer.File): Promise<Food> {
+    const food = await this.findOneForUser(foodId, userId);
+    if (!food.is_custom) throw new ForbiddenException('Users cannot edit system foods');
     const { url, publicId } = await this.cloudinaryService.uploadFile(file, 'foods');
     food.image_urls = [...(food.image_urls ?? []), url];
     food.image_public_ids = [...(food.image_public_ids ?? []), publicId];
@@ -168,8 +249,9 @@ export class FoodsService {
     return saved;
   }
 
-  async removeImage(foodId: string, publicId: string): Promise<Food> {
-    const food = await this.findOne(foodId);
+  async removeImage(foodId: string, userId: string, publicId: string): Promise<Food> {
+    const food = await this.findOneForUser(foodId, userId);
+    if (!food.is_custom) throw new ForbiddenException('Users cannot edit system foods');
     const idx = (food.image_public_ids ?? []).indexOf(publicId);
     if (idx === -1) throw new NotFoundException('Image not found on this food');
     await this.cloudinaryService.deleteFile(publicId);
@@ -183,22 +265,23 @@ export class FoodsService {
   async findByBarcode(barcode: string): Promise<Food> {
     const key = `cache:foods:barcode:${barcode}`;
     const cached = await this.redisService.getJson<Food>(key);
-    if (cached) return cached;
+    if (cached && !cached.is_custom && cached.is_active) return cached;
 
     const record = await this.barcodeRepository.findOne({
       where: { barcode },
       relations: ['food'],
     });
     if (record?.food) {
+      if (record.food.is_custom || !record.food.is_active) {
+        throw new NotFoundException(`Food with barcode ${barcode} not found`);
+      }
       await this.redisService.setJson(key, record.food, TTL.FOOD_BARCODE);
       return record.food;
     }
 
     // Fallback: Open Food Facts API
     try {
-      const res = await fetch(
-        `https://world.openfoodfacts.org/api/v3/product/${barcode}.json`,
-      );
+      const res = await fetch(`https://world.openfoodfacts.org/api/v3/product/${barcode}.json`);
       const data = await res.json() as any;
       if (data.status === 'success' && data.product) {
         const p = data.product;
@@ -214,9 +297,7 @@ export class FoodsService {
           protein_per_100g: n['proteins_100g'] ?? 0,
           fat_per_100g: n['fat_100g'] ?? 0,
           carbs_per_100g: n['carbohydrates_100g'] ?? 0,
-          fiber_per_100g: n['fiber_100g'] ?? 0,
-          sugar_per_100g: n['sugars_100g'] ?? 0,
-          sodium_per_100g: n['sodium_100g'] ? n['sodium_100g'] * 1000 : 0,
+          fiber_per_100g: n['fiber_100g'] ?? null,
           is_verified: false,
           is_active: true,
           is_custom: false,
@@ -231,166 +312,5 @@ export class FoodsService {
     }
 
     throw new NotFoundException(`Food with barcode ${barcode} not found`);
-  }
-
-  // ─── Recipe ─────────────────────────────────────────────────────────────────
-
-  async getRecipe(foodId: string): Promise<FoodRecipe> {
-    await this.findOne(foodId);
-    const key = `cache:foods:recipe:${foodId}`;
-    const cached = await this.redisService.getJson<FoodRecipe>(key);
-    if (cached) return cached;
-
-    const recipe = await this.recipeRepository.findOne({
-      where: { food_id: foodId },
-      relations: ['steps'],
-      order: { steps: { step_number: 'ASC' } },
-    });
-    if (!recipe) throw new NotFoundException('Recipe not found for this food');
-    await this.redisService.setJson(key, recipe, TTL.FOOD_RECIPE);
-    return recipe;
-  }
-
-  async upsertRecipe(foodId: string, dto: CreateRecipeDto): Promise<FoodRecipe> {
-    await this.findOne(foodId);
-
-    let recipe = await this.recipeRepository.findOne({ where: { food_id: foodId } });
-    if (!recipe) {
-      recipe = this.recipeRepository.create({ food_id: foodId });
-    }
-    recipe.prep_time_min = dto.prep_time_min ?? recipe.prep_time_min;
-    recipe.cook_time_min = dto.cook_time_min ?? recipe.cook_time_min;
-    recipe.servings = dto.servings ?? recipe.servings;
-    await this.recipeRepository.save(recipe);
-
-    if (dto.steps?.length) {
-      await this.recipeStepRepository.delete({ recipe_id: recipe.id });
-      const steps = dto.steps.map((s) =>
-        this.recipeStepRepository.create({ recipe_id: recipe.id, ...s }),
-      );
-      await this.recipeStepRepository.save(steps);
-    }
-
-    await this.invalidateFoodCache(foodId);
-    return this.getRecipe(foodId);
-  }
-
-  async addRecipeStep(
-    foodId: string,
-    dto: AddRecipeStepDto,
-    file?: Express.Multer.File,
-  ): Promise<FoodRecipeStep> {
-    await this.findOne(foodId);
-    let recipe = await this.recipeRepository.findOne({ where: { food_id: foodId } });
-    if (!recipe) {
-      recipe = await this.recipeRepository.save(
-        this.recipeRepository.create({ food_id: foodId }),
-      );
-    }
-
-    let image_url: string | null = null;
-    let image_public_id: string | null = null;
-    if (file) {
-      const result = await this.cloudinaryService.uploadFile(file, 'recipe-steps');
-      image_url = result.url;
-      image_public_id = result.publicId;
-    } else if (dto.image_base64) {
-      const result = await this.cloudinaryService.uploadBase64(dto.image_base64, 'recipe-steps');
-      image_url = result.url;
-      image_public_id = result.publicId;
-    }
-
-    const step = this.recipeStepRepository.create({
-      recipe_id: recipe.id,
-      step_number: dto.step_number,
-      instruction: dto.instruction,
-      image_url,
-      image_public_id,
-    });
-    const saved = await this.recipeStepRepository.save(step);
-    await this.invalidateFoodCache(foodId);
-    return saved;
-  }
-
-  async removeRecipeStep(foodId: string, stepId: string): Promise<void> {
-    await this.findOne(foodId);
-    const step = await this.recipeStepRepository.findOne({ where: { id: stepId } });
-    if (!step) throw new NotFoundException('Step not found');
-    if (step.image_public_id) {
-      await this.cloudinaryService.deleteFile(step.image_public_id).catch(() => undefined);
-    }
-    await this.recipeStepRepository.delete(stepId);
-    await this.invalidateFoodCache(foodId);
-  }
-
-  // ─── Ingredients ────────────────────────────────────────────────────────────
-
-  async getIngredients(foodId: string): Promise<FoodIngredient[]> {
-    await this.findOne(foodId);
-    return this.ingredientRepository.find({
-      where: { custom_food_id: foodId },
-      relations: ['ingredientFood'],
-    });
-  }
-
-  async setIngredients(
-    userId: string,
-    foodId: string,
-    dto: SetIngredientsDto,
-  ): Promise<Food> {
-    const food = await this.findOne(foodId);
-    if (!food.is_custom) throw new ForbiddenException('Only custom foods can have ingredients');
-    if (food.created_by_user_id !== userId) throw new ForbiddenException('Not your food');
-
-    await this.ingredientRepository.delete({ custom_food_id: foodId });
-
-    const newIngredients = dto.ingredients.map((ing) =>
-      this.ingredientRepository.create({
-        custom_food_id: foodId,
-        ingredient_food_id: ing.ingredient_food_id ?? null,
-        ingredient_name: ing.ingredient_name ?? null,
-        quantity_g: ing.quantity_g,
-        calories_override: ing.calories_override ?? null,
-        protein_override: ing.protein_override ?? null,
-        fat_override: ing.fat_override ?? null,
-        carbs_override: ing.carbs_override ?? null,
-      }),
-    );
-    const saved = await this.ingredientRepository.save(newIngredients);
-
-    const autoCompute = dto.auto_compute_nutrition !== false;
-    if (autoCompute && food.serving_size_g) {
-      // Build a map of referenced food IDs for O(1) lookup
-      const referencedIds = saved
-        .filter((i) => i.ingredient_food_id)
-        .map((i) => i.ingredient_food_id!);
-
-      const referencedFoods = referencedIds.length
-        ? await this.foodRepository.findBy({ id: In(referencedIds) })
-        : [];
-
-      const foodMap = new Map(referencedFoods.map((f) => [f.id, f]));
-      const totals = computeNutritionFromIngredients(saved, foodMap);
-
-      const servingG = Number(food.serving_size_g);
-      food.calories_per_100g = (totals.calories / servingG) * 100;
-      food.protein_per_100g = (totals.protein / servingG) * 100;
-      food.fat_per_100g = (totals.fat / servingG) * 100;
-      food.carbs_per_100g = (totals.carbs / servingG) * 100;
-      await this.foodRepository.save(food);
-    }
-
-    await this.invalidateFoodCache(foodId);
-    return this.findOne(foodId);
-  }
-
-  async getUserCustomFoods(userId: string, page = 1, limit = 20) {
-    const [items, total] = await this.foodRepository.findAndCount({
-      where: { is_custom: true, created_by_user_id: userId },
-      order: { created_at: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-    return { items, total, page, limit };
   }
 }

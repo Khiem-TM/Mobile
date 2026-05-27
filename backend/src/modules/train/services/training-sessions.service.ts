@@ -1,4 +1,4 @@
-import { Injectable, Inject, NotFoundException, ForbiddenException, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, ConflictException, BadRequestException, forwardRef } from '@nestjs/common';
 import { TRAINING_SESSIONS_REPOSITORY, EXERCISES_REPOSITORY } from '../train.constants';
 import type { ITrainingSessionsRepository } from '../repositories/training-sessions.repository.interface';
 import type { IExercisesRepository } from '../repositories/exercises.repository.interface';
@@ -10,7 +10,9 @@ import { StreaksService } from '../../user/services/streaks.service';
 import { StreakType } from '../../../common/enums/streak-type.enum';
 import { TrainingSession } from '../entities/training-session.entity';
 import { TrainingSessionItem } from '../entities/training-session-item.entity';
+import { Exercise } from '../entities/exercise.entity';
 import { ExerciseType } from '../enums/exercise-type.enum';
+import { toExerciseMobileDto } from '../mappers/exercise-mobile.mapper';
 
 @Injectable()
 export class TrainingSessionsService {
@@ -33,30 +35,62 @@ export class TrainingSessionsService {
         weightKg: item.weightKg === null ? null : Number(item.weightKg),
         caloriesBurned: Number(item.caloriesBurned ?? 0),
         distanceKm: item.distanceKm === null ? null : Number(item.distanceKm),
-        exercise: item.exercise ?? null,
+        avgSpeedKmh: item.avgSpeedKmh === null ? null : Number(item.avgSpeedKmh),
+        exercise: item.exercise ? toExerciseMobileDto(item.exercise) : null,
       })),
     };
   }
 
-  private async calcItemCalories(
-    userId: string,
-    item: CreateSessionItemDto,
+  private resolveItemCaloriesAndDuration(
+    exercise: Exercise,
+    item: CreateSessionItemDto | UpdateTrainingSessionItemDto,
+    currentItem: TrainingSessionItem | null,
     userWeightKg: number,
-  ): Promise<number> {
-    const exercise = await this.exerciseRepo.findById(item.exerciseId);
-    if (!exercise) throw new NotFoundException(`Exercise ${item.exerciseId} not found`);
+  ): { calories: number; durationMinutes: number } {
+    const exerciseType =
+      (item as CreateSessionItemDto).exerciseType ?? currentItem?.exerciseType ?? exercise.exerciseType;
+
+    if (exerciseType === ExerciseType.CARDIO) {
+      const distanceKm = (item.distanceKm ?? currentItem?.distanceKm) as number | undefined;
+      const avgSpeedKmh = (item.avgSpeedKmh ?? currentItem?.avgSpeedKmh) as number | undefined;
+      if (!distanceKm || !avgSpeedKmh) {
+        throw new BadRequestException('CARDIO items require distanceKm and avgSpeedKmh');
+      }
+      return this.caloriesCalcService.calculateCardio(exercise, distanceKm, avgSpeedKmh, userWeightKg);
+    }
 
     const durationMinutes =
       item.durationMinutes ??
-      (item.exerciseType === ExerciseType.GYM
-        ? (item.sets ?? 3) * (item.reps ?? 10) * 3 / 60 // rough estimate: 3s per rep
-        : 20);
+      (exerciseType === ExerciseType.GYM
+        ? this.estimateGymDurationMinutes(exercise, item, currentItem)
+        : exercise.defaultDurationMinutes);
 
-    return this.caloriesCalcService.calculateForExercise(exercise, durationMinutes, {
-      intensityLevel: item.intensityLevel,
-      weightKg: item.weightKg,
+    if (!durationMinutes || durationMinutes <= 0) {
+      throw new BadRequestException(`${exerciseType} items require durationMinutes`);
+    }
+
+    const calories = this.caloriesCalcService.calculateForExercise(exercise, durationMinutes, {
+      intensityLevel: item.intensityLevel ?? currentItem?.intensityLevel ?? undefined,
+      weightKg: item.weightKg ?? currentItem?.weightKg ?? undefined,
       userWeightKg,
     });
+    return { calories, durationMinutes };
+  }
+
+  private estimateGymDurationMinutes(
+    exercise: Exercise,
+    item: CreateSessionItemDto | UpdateTrainingSessionItemDto,
+    currentItem: TrainingSessionItem | null,
+  ): number {
+    const sets = item.sets ?? currentItem?.sets ?? exercise.defaultSets;
+    const reps = item.reps ?? currentItem?.reps ?? exercise.defaultReps;
+    const restSeconds = item.restTimeSeconds ?? currentItem?.restTimeSeconds ?? exercise.restTimeSeconds ?? 0;
+
+    if (!sets || !reps) {
+      throw new BadRequestException('GYM items require sets and reps when durationMinutes is not provided');
+    }
+
+    return Math.max(1, Math.ceil((sets * reps * 3 + Math.max(sets - 1, 0) * restSeconds) / 60));
   }
 
   private async recalcSessionTotals(sessionId: string): Promise<{ totalDurationMinutes: number; totalCaloriesBurned: number }> {
@@ -68,7 +102,20 @@ export class TrainingSessionsService {
     return { totalDurationMinutes, totalCaloriesBurned };
   }
 
+  private async refreshWorkoutStreak(userId: string) {
+    const dates = await this.sessionRepo.findDistinctSessionDates(userId);
+    return this.streaksService.recomputeFromActivityDates(userId, StreakType.WORKOUT, dates);
+  }
+
   async createSession(userId: string, dto: CreateTrainingSessionDto): Promise<any> {
+    const existing = await this.sessionRepo.findByUserAndDate(userId, dto.sessionDate);
+    if (existing) {
+      throw new ConflictException({
+        message: `A training session already exists for ${dto.sessionDate}`,
+        existingSessionId: existing.id,
+      });
+    }
+
     const userWeightKg = await this.caloriesCalcService.getUserWeight(userId);
     const exercises = await this.exerciseRepo.findByIds(dto.items.map((i) => i.exerciseId));
     const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
@@ -81,30 +128,32 @@ export class TrainingSessionsService {
       const exercise = exerciseMap.get(item.exerciseId);
       if (!exercise) throw new NotFoundException(`Exercise ${item.exerciseId} not found`);
 
-      const duration = item.durationMinutes ?? 0;
-      const calories = this.caloriesCalcService.calculateForExercise(exercise, duration, {
-        intensityLevel: item.intensityLevel,
-        weightKg: item.weightKg,
+      const { calories, durationMinutes } = this.resolveItemCaloriesAndDuration(
+        exercise,
+        item,
+        null,
         userWeightKg,
-      });
+      );
 
       itemDataList.push({
         exerciseId: item.exerciseId,
         exerciseType: item.exerciseType,
         orderIndex: item.orderIndex ?? 0,
-        durationMinutes: duration,
+        durationMinutes,
         caloriesBurned: calories,
         note: item.note ?? null,
-        sets: item.sets ?? null,
-        reps: item.reps ?? null,
+        sets: item.sets ?? (item.exerciseType === ExerciseType.GYM ? exercise.defaultSets : null),
+        reps: item.reps ?? (item.exerciseType === ExerciseType.GYM ? exercise.defaultReps : null),
         weightKg: item.weightKg ?? null,
-        restTimeSeconds: item.restTimeSeconds ?? null,
+        restTimeSeconds:
+          item.restTimeSeconds ?? (item.exerciseType === ExerciseType.GYM ? exercise.restTimeSeconds : null),
         intensityLevel: item.intensityLevel ?? null,
         distanceKm: item.distanceKm ?? null,
+        avgSpeedKmh: item.avgSpeedKmh ?? null,
         pace: item.pace ?? null,
       });
 
-      totalDurationMinutes += duration;
+      totalDurationMinutes += durationMinutes;
       totalCaloriesBurned += calories;
     }
 
@@ -121,7 +170,7 @@ export class TrainingSessionsService {
       await this.sessionRepo.addItem({ ...itemData, sessionId: session.id });
     }
 
-    await this.streaksService.updateActivity(userId, StreakType.WORKOUT, dto.sessionDate);
+    await this.refreshWorkoutStreak(userId);
 
     const saved = await this.sessionRepo.findById(session.id);
     return this.formatSession(saved as TrainingSession);
@@ -152,11 +201,23 @@ export class TrainingSessionsService {
     if (!session || session.userId !== userId) throw new NotFoundException('Training session not found');
 
     const updateData: Partial<TrainingSession> = {};
-    if (dto.sessionDate !== undefined) updateData.sessionDate = dto.sessionDate;
+    if (dto.sessionDate !== undefined) {
+      const existing = await this.sessionRepo.findByUserAndDate(userId, dto.sessionDate);
+      if (existing && existing.id !== sessionId) {
+        throw new ConflictException({
+          message: `A training session already exists for ${dto.sessionDate}`,
+          existingSessionId: existing.id,
+        });
+      }
+      updateData.sessionDate = dto.sessionDate;
+    }
     if (dto.title !== undefined) updateData.title = dto.title;
     if (dto.note !== undefined) updateData.note = dto.note;
 
     const updated = await this.sessionRepo.updateSession(sessionId, updateData);
+    if (dto.sessionDate !== undefined && dto.sessionDate !== session.sessionDate) {
+      await this.refreshWorkoutStreak(userId);
+    }
     return this.formatSession(updated);
   }
 
@@ -164,6 +225,7 @@ export class TrainingSessionsService {
     const session = await this.sessionRepo.findById(sessionId);
     if (!session || session.userId !== userId) throw new NotFoundException('Training session not found');
     await this.sessionRepo.deleteSession(sessionId);
+    await this.refreshWorkoutStreak(userId);
   }
 
   async addItem(userId: string, sessionId: string, dto: CreateSessionItemDto): Promise<any> {
@@ -174,27 +236,29 @@ export class TrainingSessionsService {
     if (!exercise) throw new NotFoundException('Exercise not found');
 
     const userWeightKg = await this.caloriesCalcService.getUserWeight(userId);
-    const duration = dto.durationMinutes ?? 0;
-    const calories = this.caloriesCalcService.calculateForExercise(exercise, duration, {
-      intensityLevel: dto.intensityLevel,
-      weightKg: dto.weightKg,
+    const { calories, durationMinutes } = this.resolveItemCaloriesAndDuration(
+      exercise,
+      dto,
+      null,
       userWeightKg,
-    });
+    );
 
     await this.sessionRepo.addItem({
       sessionId,
       exerciseId: dto.exerciseId,
       exerciseType: dto.exerciseType,
       orderIndex: dto.orderIndex ?? 0,
-      durationMinutes: duration,
+      durationMinutes,
       caloriesBurned: calories,
       note: dto.note ?? null,
-      sets: dto.sets ?? null,
-      reps: dto.reps ?? null,
+      sets: dto.sets ?? (dto.exerciseType === ExerciseType.GYM ? exercise.defaultSets : null),
+      reps: dto.reps ?? (dto.exerciseType === ExerciseType.GYM ? exercise.defaultReps : null),
       weightKg: dto.weightKg ?? null,
-      restTimeSeconds: dto.restTimeSeconds ?? null,
+      restTimeSeconds:
+        dto.restTimeSeconds ?? (dto.exerciseType === ExerciseType.GYM ? exercise.restTimeSeconds : null),
       intensityLevel: dto.intensityLevel ?? null,
       distanceKm: dto.distanceKm ?? null,
+      avgSpeedKmh: dto.avgSpeedKmh ?? null,
       pace: dto.pace ?? null,
     });
 
@@ -219,7 +283,6 @@ export class TrainingSessionsService {
 
     const updateData: Partial<TrainingSessionItem> = {};
     if (dto.orderIndex !== undefined) updateData.orderIndex = dto.orderIndex;
-    if (dto.durationMinutes !== undefined) updateData.durationMinutes = dto.durationMinutes;
     if (dto.note !== undefined) updateData.note = dto.note;
     if (dto.sets !== undefined) updateData.sets = dto.sets;
     if (dto.reps !== undefined) updateData.reps = dto.reps;
@@ -227,20 +290,35 @@ export class TrainingSessionsService {
     if (dto.restTimeSeconds !== undefined) updateData.restTimeSeconds = dto.restTimeSeconds;
     if (dto.intensityLevel !== undefined) updateData.intensityLevel = dto.intensityLevel;
     if (dto.distanceKm !== undefined) updateData.distanceKm = dto.distanceKm;
+    if (dto.avgSpeedKmh !== undefined) updateData.avgSpeedKmh = dto.avgSpeedKmh;
     if (dto.pace !== undefined) updateData.pace = dto.pace;
 
-    // Recalculate calories if duration or intensity changed
-    if (dto.durationMinutes !== undefined || dto.intensityLevel !== undefined) {
+    // Recalculate calories + duration whenever any computation-relevant field changes
+    const needsRecalc =
+      dto.durationMinutes !== undefined ||
+      dto.intensityLevel !== undefined ||
+      dto.distanceKm !== undefined ||
+      dto.avgSpeedKmh !== undefined ||
+      dto.weightKg !== undefined ||
+      dto.sets !== undefined ||
+      dto.reps !== undefined ||
+      dto.restTimeSeconds !== undefined;
+
+    if (needsRecalc) {
       const exercise = await this.exerciseRepo.findById(item.exerciseId);
       if (exercise) {
         const userWeightKg = await this.caloriesCalcService.getUserWeight(userId);
-        const duration = dto.durationMinutes ?? item.durationMinutes;
-        updateData.caloriesBurned = this.caloriesCalcService.calculateForExercise(exercise, duration, {
-          intensityLevel: dto.intensityLevel ?? item.intensityLevel ?? undefined,
-          weightKg: dto.weightKg ?? item.weightKg ?? undefined,
+        const { calories, durationMinutes } = this.resolveItemCaloriesAndDuration(
+          exercise,
+          dto,
+          item,
           userWeightKg,
-        });
+        );
+        updateData.caloriesBurned = calories;
+        updateData.durationMinutes = durationMinutes;
       }
+    } else if (dto.durationMinutes !== undefined) {
+      updateData.durationMinutes = dto.durationMinutes;
     }
 
     await this.sessionRepo.updateItem(itemId, updateData);

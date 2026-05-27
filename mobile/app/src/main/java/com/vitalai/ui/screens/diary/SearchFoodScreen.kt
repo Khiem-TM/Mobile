@@ -332,8 +332,6 @@ fun SearchFoodScreenPreview() {
             proteinPer100g = 31f,
             fatPer100g = 3.6f,
             fiberPer100g = 0f,
-            sugarPer100g = 0f,
-            sodiumPer100g = 75f,
             isVerified = true,
             isCustom = false
         ),
@@ -350,8 +348,6 @@ fun SearchFoodScreenPreview() {
             proteinPer100g = 2.6f,
             fatPer100g = 0.9f,
             fiberPer100g = 1.8f,
-            sugarPer100g = 0f,
-            sodiumPer100g = 5f,
             isVerified = true,
             isCustom = false
         )

@@ -6,9 +6,6 @@ import { UserModule } from '../user/user.module';
 import { Food } from './entities/food.entity';
 import { FoodBarcode } from './entities/food-barcode.entity';
 import { FoodUserFavorite } from './entities/food-user-favorite.entity';
-import { FoodRecipe } from './entities/food-recipe.entity';
-import { FoodRecipeStep } from './entities/food-recipe-step.entity';
-import { FoodIngredient } from './entities/food-ingredient.entity';
 import { MealLog } from './entities/meal-log.entity';
 import { MealLogItem } from './entities/meal-log-item.entity';
 import { AiScanLog } from './entities/ai-scan-log.entity';
@@ -30,9 +27,6 @@ import { MealLogsRepository } from './repositories/meal-logs.repository';
       Food,
       FoodBarcode,
       FoodUserFavorite,
-      FoodRecipe,
-      FoodRecipeStep,
-      FoodIngredient,
       MealLog,
       MealLogItem,
       AiScanLog,

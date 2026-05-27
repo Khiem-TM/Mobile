@@ -15,16 +15,10 @@ import { Food } from '../food/entities/food.entity';
 import { Exercise } from '../train/entities/exercise.entity';
 import { TrainingSession } from '../train/entities/training-session.entity';
 import { Blog } from '../blog/entities/blog.entity';
-import { FoodRecipe } from '../food/entities/food-recipe.entity';
-import { FoodRecipeStep } from '../food/entities/food-recipe-step.entity';
 import { CreateFoodAdminDto } from './dto/create-food-admin.dto';
 import { UpdateFoodAdminDto } from './dto/update-food-admin.dto';
 import { CreateExerciseAdminDto } from './dto/create-exercise-admin.dto';
 import { UpdateExerciseAdminDto } from './dto/update-exercise-admin.dto';
-import {
-  CreateRecipeDto,
-  AddRecipeStepDto,
-} from '../food/dto/create-recipe.dto';
 
 @Injectable()
 export class AdminService {
@@ -39,10 +33,6 @@ export class AdminService {
     private readonly trainingSessionRepo: Repository<TrainingSession>,
     @InjectRepository(Blog)
     private readonly blogRepo: Repository<Blog>,
-    @InjectRepository(FoodRecipe)
-    private readonly foodRecipeRepo: Repository<FoodRecipe>,
-    @InjectRepository(FoodRecipeStep)
-    private readonly foodRecipeStepRepo: Repository<FoodRecipeStep>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly notificationsService: NotificationsService,
@@ -84,7 +74,9 @@ export class AdminService {
       this.userRepo.count(),
       this.userRepo.count({ where: { is_active: true } }),
       this.foodRepo.count({ where: { is_active: true } }),
-      this.foodRepo.count({ where: { is_verified: false, is_active: true } }),
+      this.foodRepo.count({
+        where: { is_custom: false, is_verified: false, is_active: true },
+      }),
       this.blogRepo.count(),
       this.exerciseRepo.count(),
     ]);
@@ -189,10 +181,16 @@ export class AdminService {
       category: dto.category,
       food_type: dto.foodType ?? 'ingredient',
       serving_size_g: dto.servingSizeG ?? 100,
+      serving_unit: dto.servingUnit ?? 'g',
+      description: dto.description,
       calories_per_100g: dto.caloriesPer100g,
       protein_per_100g: dto.proteinPer100g ?? 0,
       fat_per_100g: dto.fatPer100g ?? 0,
       carbs_per_100g: dto.carbsPer100g ?? 0,
+      fiber_per_100g: dto.fiberPer100g ?? null,
+      image_urls: dto.imageUrls ?? null,
+      is_custom: false,
+      created_by_user_id: null,
       is_verified: dto.isVerified ?? true,
       is_active: true,
     });
@@ -213,22 +211,24 @@ export class AdminService {
     if (dto.category !== undefined) food.category = dto.category;
     if (dto.foodType !== undefined) food.food_type = dto.foodType;
     if (dto.servingSizeG !== undefined) food.serving_size_g = dto.servingSizeG;
+    if (dto.servingUnit !== undefined) food.serving_unit = dto.servingUnit;
+    if (dto.description !== undefined) food.description = dto.description;
     if (dto.caloriesPer100g !== undefined)
       food.calories_per_100g = dto.caloriesPer100g;
     if (dto.proteinPer100g !== undefined)
       food.protein_per_100g = dto.proteinPer100g;
     if (dto.fatPer100g !== undefined) food.fat_per_100g = dto.fatPer100g;
     if (dto.carbsPer100g !== undefined) food.carbs_per_100g = dto.carbsPer100g;
+    if (dto.fiberPer100g !== undefined) food.fiber_per_100g = dto.fiberPer100g;
+    if (dto.imageUrls !== undefined) food.image_urls = dto.imageUrls;
     if (dto.isVerified !== undefined) food.is_verified = dto.isVerified;
     if (dto.isActive !== undefined) food.is_active = dto.isActive;
     return this.foodRepo.save(food);
   }
 
-  // logic duyệt food từ user đóng góp lên cho cộng đồng --> Check lại user đã có logic này chưa
-
   async getPendingFoods(page = 1, limit = 20) {
     const [foods, total] = await this.foodRepo.findAndCount({
-      where: { is_verified: false, is_active: true },
+      where: { is_custom: false, is_verified: false, is_active: true },
       order: { created_at: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -279,6 +279,7 @@ export class AdminService {
       metValue: dto.metValue ?? 0,
       instructions: dto.instructions,
       videoUrl: dto.videoUrl,
+      imageAvtUrl: dto.imageAvtUrl,
       equipment: dto.equipment,
       formTips: dto.formTips,
       secondaryMuscleGroups: dto.secondaryMuscleGroups,
@@ -317,70 +318,4 @@ export class AdminService {
     await this.exerciseRepo.delete(id);
   }
 
-  // ─── Food Recipes (Admin) ─────────────────────────────────────────────────
-
-  async upsertFoodRecipe(
-    foodId: string,
-    dto: CreateRecipeDto,
-  ): Promise<FoodRecipe> {
-    const food = await this.foodRepo.findOne({ where: { id: foodId } });
-    if (!food) throw new NotFoundException('Food not found');
-
-    let recipe = await this.foodRecipeRepo.findOne({
-      where: { food_id: foodId },
-    });
-    if (!recipe) {
-      recipe = this.foodRecipeRepo.create({ food_id: foodId });
-    }
-    if (dto.prep_time_min !== undefined)
-      recipe.prep_time_min = dto.prep_time_min;
-    if (dto.cook_time_min !== undefined)
-      recipe.cook_time_min = dto.cook_time_min;
-    if (dto.servings !== undefined) recipe.servings = dto.servings;
-    await this.foodRecipeRepo.save(recipe);
-
-    if (dto.steps?.length) {
-      await this.foodRecipeStepRepo.delete({ recipe_id: recipe.id });
-      const steps = dto.steps.map((s) =>
-        this.foodRecipeStepRepo.create({ recipe_id: recipe.id, ...s }),
-      );
-      await this.foodRecipeStepRepo.save(steps);
-    }
-
-    return this.foodRecipeRepo.findOne({
-      where: { id: recipe.id },
-      relations: ['steps'],
-      order: { steps: { step_number: 'ASC' } },
-    }) as Promise<FoodRecipe>;
-  }
-
-  async addFoodRecipeStep(
-    foodId: string,
-    dto: AddRecipeStepDto,
-  ): Promise<FoodRecipeStep> {
-    const food = await this.foodRepo.findOne({ where: { id: foodId } });
-    if (!food) throw new NotFoundException('Food not found');
-
-    let recipe = await this.foodRecipeRepo.findOne({
-      where: { food_id: foodId },
-    });
-    if (!recipe) {
-      recipe = await this.foodRecipeRepo.save(
-        this.foodRecipeRepo.create({ food_id: foodId }),
-      );
-    }
-    const step = this.foodRecipeStepRepo.create({
-      recipe_id: recipe.id,
-      ...dto,
-    });
-    return this.foodRecipeStepRepo.save(step);
-  }
-
-  async deleteFoodRecipeStep(stepId: string): Promise<void> {
-    const step = await this.foodRecipeStepRepo.findOne({
-      where: { id: stepId },
-    });
-    if (!step) throw new NotFoundException('Recipe step not found');
-    await this.foodRecipeStepRepo.delete(stepId);
-  }
 }

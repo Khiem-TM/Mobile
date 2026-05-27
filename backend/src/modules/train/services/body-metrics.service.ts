@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { BODY_METRICS_REPOSITORY } from '../train.constants';
 import type { IBodyMetricsRepository } from '../repositories/body-metrics.repository.interface';
-import { UpsertBodyMetricDto } from '../dto/upsert-body-metric.dto';
+import {
+  AdvancedBodyMetricDto,
+  BasicBodyMetricDto,
+  UpsertBodyMetricDto,
+} from '../dto/upsert-body-metric.dto';
 import { BodyMetricQueryDto } from '../dto/body-metric-query.dto';
 import { UsersService } from '../../user/services/users.service';
 import { BMIUtil } from '../../../common/utils/bmi.util';
@@ -32,33 +36,62 @@ export class BodyMetricsService {
     private readonly ragEmbedService: RagEmbedService,
   ) {}
 
-  async upsert(userId: string, dto: UpsertBodyMetricDto) {
-    if (!dto.measuredAt) {
-      dto.measuredAt = new Date().toISOString().split('T')[0];
+  private getAge(birthDate: string): number {
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    if (
+      today.getMonth() < birth.getMonth() ||
+      (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
+    ) {
+      age--;
     }
-    const metric: MetricCalculated = { ...dto };
+    return age;
+  }
 
-    if (dto.weightKg) {
-      const profile = await this.usersService.getHealthProfile(userId);
-      const heightCm = dto.heightCm ?? profile?.heightCm;
-      if (heightCm) {
-        metric.bmi = BMIUtil.calculate(dto.weightKg, heightCm);
+  private async prepareMetric(userId: string, dto: UpsertBodyMetricDto): Promise<MetricCalculated> {
+    const measuredAt = dto.measuredAt ?? new Date().toISOString().split('T')[0];
+    const metric: MetricCalculated = { ...dto, measuredAt };
 
-        if (profile?.birthDate && profile.gender && profile.activityLevel) {
-          const birth = new Date(profile.birthDate);
-          const today = new Date();
-          let age = today.getFullYear() - birth.getFullYear();
-          if (
-            today.getMonth() < birth.getMonth() ||
-            (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
-          ) {
-            age--;
-          }
-          metric.bmr = TDEEUtil.calculateBMR(dto.weightKg, heightCm, age, profile.gender);
-          metric.tdee = TDEEUtil.calculateTDEE(metric.bmr, profile.activityLevel);
-        }
+    const [profile, latestMetric] = await Promise.all([
+      this.usersService.getHealthProfile(userId),
+      this.repository.findLatest(userId),
+    ]);
+
+    const weightKg = dto.weightKg ?? latestMetric?.weightKg ?? profile?.initialWeightKg;
+    const heightCm = dto.heightCm ?? latestMetric?.heightCm ?? profile?.heightCm;
+
+    if (weightKg && heightCm) {
+      const numericWeight = Number(weightKg);
+      const numericHeight = Number(heightCm);
+      metric.bmi = BMIUtil.calculate(numericWeight, numericHeight);
+
+      if (profile?.birthDate && profile.gender && profile.activityLevel) {
+        metric.bmr = Number(
+          TDEEUtil.calculateBMR(
+            numericWeight,
+            numericHeight,
+            this.getAge(profile.birthDate),
+            profile.gender,
+          ).toFixed(2),
+        );
+        metric.tdee = Number(TDEEUtil.calculateTDEE(metric.bmr, profile.activityLevel).toFixed(2));
       }
     }
+
+    return metric;
+  }
+
+  async upsertBasic(userId: string, dto: BasicBodyMetricDto) {
+    return this.upsert(userId, dto);
+  }
+
+  async upsertAdvanced(userId: string, dto: AdvancedBodyMetricDto) {
+    return this.upsert(userId, dto);
+  }
+
+  async upsert(userId: string, dto: UpsertBodyMetricDto) {
+    const metric = await this.prepareMetric(userId, dto);
 
     const saved = await this.repository.upsert(userId, metric);
     this.ragEmbedService.triggerUserEmbed(userId);

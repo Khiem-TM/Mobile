@@ -34,7 +34,7 @@ export class Streak {
   longest_streak!: number;
 
   @Column({ type: 'date', nullable: true })
-  last_activity_date!: string;
+  last_activity_date!: string | null;
 
   @CreateDateColumn()
   created_at!: Date;

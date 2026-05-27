@@ -9,12 +9,9 @@ import { Food } from '../food/entities/food.entity';
 import { Exercise } from '../train/entities/exercise.entity';
 import { TrainingSession } from '../train/entities/training-session.entity';
 import { Blog } from '../blog/entities/blog.entity';
-import { FoodRecipe } from '../food/entities/food-recipe.entity';
-import { FoodRecipeStep } from '../food/entities/food-recipe-step.entity';
 import { AdminService } from './admin.service';
 import { AdminController } from './admin.controller';
 import { AdminAuthController } from './admin-auth.controller';
-import { RecipeAdminController } from './recipe.controller';
 import { JwtStrategy } from '../user/strategies/jwt.strategy';
 import { SupportModule } from '../support/support.module';
 
@@ -22,14 +19,14 @@ import { SupportModule } from '../support/support.module';
   imports: [
     forwardRef(() => UserModule),
     SupportModule,
-    TypeOrmModule.forFeature([User, Food, Exercise, TrainingSession, Blog, FoodRecipe, FoodRecipeStep]),
+    TypeOrmModule.forFeature([User, Food, Exercise, TrainingSession, Blog]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'khiemhehe',
       signOptions: { expiresIn: '7d' },
     }),
   ],
-  controllers: [AdminController, AdminAuthController, RecipeAdminController],
+  controllers: [AdminController, AdminAuthController],
   providers: [AdminService, JwtStrategy],
 })
 export class AdminModule {}

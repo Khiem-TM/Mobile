@@ -1,6 +1,8 @@
 package com.vitalai.data.repository
 
 import com.vitalai.data.remote.BodyMetricsApi
+import com.vitalai.data.remote.model.AdvancedBodyMetricRequest
+import com.vitalai.data.remote.model.BasicBodyMetricRequest
 import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.data.remote.model.BodyMetricsPeriodDto
 import com.vitalai.data.remote.model.BodyMetricsSummaryDto
@@ -57,6 +59,28 @@ class BodyMetricsRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi lưu số liệu (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateBasic(metric: BasicBodyMetricRequest): Result<BodyMetricDto> {
+        return try {
+            val response = bodyMetricsApi.updateBasic(metric)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi lưu số liệu cơ bản (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateAdvanced(metric: AdvancedBodyMetricRequest): Result<BodyMetricDto> {
+        return try {
+            val response = bodyMetricsApi.updateAdvanced(metric)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi lưu số liệu nâng cao (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

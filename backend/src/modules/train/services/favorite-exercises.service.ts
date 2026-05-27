@@ -5,6 +5,7 @@ import { EXERCISES_REPOSITORY } from '../train.constants';
 import type { IExercisesRepository } from '../repositories/exercises.repository.interface';
 import { FavoriteExercise } from '../entities/favorite-exercise.entity';
 import { Exercise } from '../entities/exercise.entity';
+import { toExerciseMobileDto } from '../mappers/exercise-mobile.mapper';
 
 @Injectable()
 export class FavoriteExercisesService {
@@ -22,7 +23,7 @@ export class FavoriteExercisesService {
       relations: ['exercise'],
       order: { createdAt: 'DESC' },
     });
-    return favs.map((f) => ({ ...f.exercise, isFavorite: true }));
+    return favs.map((f) => toExerciseMobileDto(f.exercise, true));
   }
 
   async checkIsFavorite(userId: string, exerciseId: string): Promise<{ isFavorite: boolean }> {
@@ -31,25 +32,38 @@ export class FavoriteExercisesService {
   }
 
   async addFavorite(userId: string, exerciseId: string): Promise<void> {
-    const exercise = await this.exerciseRepo.findById(exerciseId);
-    if (!exercise) throw new NotFoundException('Exercise not found');
-
-    const existing = await this.favoriteRepo.findOne({ where: { userId, exerciseId } });
-    if (existing) throw new ConflictException('Exercise is already in favorites');
-
     await this.dataSource.transaction(async (manager) => {
-      await manager.save(FavoriteExercise, { userId, exerciseId });
+      const exercise = await manager.findOne(Exercise, { where: { id: exerciseId } });
+      if (!exercise) throw new NotFoundException('Exercise not found');
+
+      const result = await manager
+        .createQueryBuilder()
+        .insert()
+        .into(FavoriteExercise)
+        .values({ userId, exerciseId })
+        .orIgnore()
+        .returning(['user_id', 'exercise_id'])
+        .execute();
+
+      if (!result.raw?.length) {
+        throw new ConflictException('Exercise is already in favorites');
+      }
+
       await manager.increment(Exercise, { id: exerciseId }, 'favoritesCount', 1);
     });
   }
 
   async removeFavorite(userId: string, exerciseId: string): Promise<void> {
-    const existing = await this.favoriteRepo.findOne({ where: { userId, exerciseId } });
-    if (!existing) throw new NotFoundException('Exercise is not in favorites');
-
     await this.dataSource.transaction(async (manager) => {
-      await manager.delete(FavoriteExercise, { userId, exerciseId });
-      await manager.decrement(Exercise, { id: exerciseId }, 'favoritesCount', 1);
+      const result = await manager.delete(FavoriteExercise, { userId, exerciseId });
+      if (!result.affected) throw new NotFoundException('Exercise is not in favorites');
+
+      await manager
+        .createQueryBuilder()
+        .update(Exercise)
+        .set({ favoritesCount: () => 'GREATEST(favorites_count - 1, 0)' })
+        .where('id = :exerciseId', { exerciseId })
+        .execute();
     });
   }
 }

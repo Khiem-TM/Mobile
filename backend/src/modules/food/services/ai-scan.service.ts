@@ -97,8 +97,8 @@ export class AiScanService {
   private async buildResult(item: PredictResult): Promise<AiScanResultDto> {
     const matched = await this.foodRepo.find({
       where: [
-        { name: ILike(`%${item.label}%`), is_active: true },
-        { name_en: ILike(`%${item.label}%`), is_active: true },
+        { name: ILike(`%${item.label}%`), is_active: true, is_custom: false },
+        { name_en: ILike(`%${item.label}%`), is_active: true, is_custom: false },
       ],
       take: 5,
       select: [

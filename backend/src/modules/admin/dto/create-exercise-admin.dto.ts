@@ -61,6 +61,11 @@ export class CreateExerciseAdminDto {
   @IsOptional()
   videoUrl?: string;
 
+  @ApiPropertyOptional()
+  @IsUrl()
+  @IsOptional()
+  imageAvtUrl?: string;
+
   @ApiPropertyOptional({ type: [String], example: ['biceps', 'core'] })
   @IsOptional()
   @IsArray()

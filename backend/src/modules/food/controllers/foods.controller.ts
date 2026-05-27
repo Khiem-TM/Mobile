@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Query,
@@ -9,8 +10,9 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { SetIngredientsDto } from '../dto/set-ingredients.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { buildMulterOptions } from '../../../common/utils/multer.config';
@@ -18,7 +20,7 @@ import { FoodsService } from '../services/foods.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
-import { CreateFoodDto } from '../dto/create-food.dto';
+import { CreateFoodDto, UpdateFoodDto } from '../dto/create-food.dto';
 import { IsString, IsNotEmpty } from 'class-validator';
 import { Public } from '../../../common/decorators/public.decorator';
 
@@ -83,10 +85,24 @@ export class FoodsController {
   @Get('custom')
   getMyCustomFoods(
     @CurrentUser() user: JwtPayload,
+    @Query('search') search = '',
     @Query('page') page = '1',
     @Query('limit') limit = '20',
   ) {
-    return this.foodsService.getUserCustomFoods(user.sub, parseInt(page, 10), parseInt(limit, 10));
+    return this.foodsService.getUserCustomFoods(
+      user.sub,
+      search,
+      parseInt(page, 10),
+      parseInt(limit, 10),
+    );
+  }
+
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get my custom food by ID' })
+  @UseGuards(JwtAuthGuard)
+  @Get('custom/:id')
+  getMyCustomFood(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.foodsService.findCustomForUser(id, user.sub);
   }
 
   @ApiOperation({ summary: 'Get food by ID (public)' })
@@ -95,19 +111,33 @@ export class FoodsController {
     return this.foodsService.findOne(id);
   }
 
-  @ApiOperation({ summary: 'Get recipe for a dish (public)' })
-  @Public()
-  @Get(':id/recipe')
-  getRecipe(@Param('id') id: string) {
-    return this.foodsService.getRecipe(id);
-  }
-
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Create custom food' })
   @UseGuards(JwtAuthGuard)
   @Post()
   createCustomFood(@CurrentUser() user: JwtPayload, @Body() body: CreateFoodDto) {
     return this.foodsService.createCustom(user.sub, body);
+  }
+
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Update my custom food' })
+  @UseGuards(JwtAuthGuard)
+  @Patch('custom/:id')
+  updateCustomFood(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() body: UpdateFoodDto,
+  ) {
+    return this.foodsService.updateCustom(user.sub, id, body);
+  }
+
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Delete my custom food' })
+  @UseGuards(JwtAuthGuard)
+  @Delete('custom/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteCustomFood(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.foodsService.deleteCustom(user.sub, id);
   }
 
   @ApiBearerAuth('access-token')
@@ -124,10 +154,11 @@ export class FoodsController {
   @Post(':id/image')
   @UseInterceptors(FileInterceptor('file', buildMulterOptions('foods')))
   uploadFoodImage(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.foodsService.uploadImage(id, file);
+    return this.foodsService.uploadImage(id, user.sub, file);
   }
 
   @ApiBearerAuth('access-token')
@@ -135,10 +166,11 @@ export class FoodsController {
   @UseGuards(JwtAuthGuard)
   @Delete(':id/image')
   removeFoodImage(
+    @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
     @Body() body: RemoveFoodImageDto,
   ) {
-    return this.foodsService.removeImage(id, body.publicId);
+    return this.foodsService.removeImage(id, user.sub, body.publicId);
   }
 
   @ApiBearerAuth('access-token')
@@ -157,26 +189,5 @@ export class FoodsController {
   async removeFavorite(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     await this.foodsService.removeFavorite(user.sub, id);
     return { message: 'Removed from favorites' };
-  }
-
-  // ─── Ingredients ────────────────────────────────────────────────────────────
-
-  @Public()
-  @ApiOperation({ summary: 'Get ingredients for a food item' })
-  @Get(':id/ingredients')
-  getIngredients(@Param('id') id: string) {
-    return this.foodsService.getIngredients(id);
-  }
-
-  @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Set ingredients for a custom food (replaces all, auto-computes nutrition)' })
-  @UseGuards(JwtAuthGuard)
-  @Post(':id/ingredients')
-  setIngredients(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') id: string,
-    @Body() dto: SetIngredientsDto,
-  ) {
-    return this.foodsService.setIngredients(user.sub, id, dto);
   }
 }

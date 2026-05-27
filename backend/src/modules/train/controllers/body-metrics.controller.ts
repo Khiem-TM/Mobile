@@ -27,7 +27,12 @@ import { BodyMetricsService } from '../services/body-metrics.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt.guard';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
-import { UpsertBodyMetricDto } from '../dto/upsert-body-metric.dto';
+import {
+  AdvancedBodyMetricDto,
+  BasicBodyMetricDto,
+  UploadBodyProgressPhotoDto,
+  UpsertBodyMetricDto,
+} from '../dto/upsert-body-metric.dto';
 import { BodyMetricQueryDto } from '../dto/body-metric-query.dto';
 
 @ApiTags('body-metrics')
@@ -50,6 +55,18 @@ export class BodyMetricsController {
   @Post()
   upsert(@CurrentUser() user: JwtPayload, @Body() dto: UpsertBodyMetricDto) {
     return this.bodyMetricsService.upsert(user.sub, dto);
+  }
+
+  @ApiOperation({ summary: 'Create or update basic body metric (weight / height)' })
+  @Post('basic')
+  upsertBasic(@CurrentUser() user: JwtPayload, @Body() dto: BasicBodyMetricDto) {
+    return this.bodyMetricsService.upsertBasic(user.sub, dto);
+  }
+
+  @ApiOperation({ summary: 'Create or update advanced body metric details' })
+  @Post('advanced')
+  upsertAdvanced(@CurrentUser() user: JwtPayload, @Body() dto: AdvancedBodyMetricDto) {
+    return this.bodyMetricsService.upsertAdvanced(user.sub, dto);
   }
 
   @ApiOperation({ summary: 'Get latest body metric' })
@@ -124,9 +141,10 @@ export class BodyMetricsController {
   uploadPhoto(
     @CurrentUser() user: JwtPayload,
     @UploadedFile() file: Express.Multer.File,
-    @Body('photoType') photoType = 'front',
-    @Body('bodyMetricId') bodyMetricId?: string,
+    @Body() dto: UploadBodyProgressPhotoDto,
   ) {
+    const photoType = dto.photoType ?? 'front';
+    const bodyMetricId = dto.bodyMetricId;
     return this.bodyMetricsService.uploadPhoto(user.sub, file, photoType, bodyMetricId);
   }
 

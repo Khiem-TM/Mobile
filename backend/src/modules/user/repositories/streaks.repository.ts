@@ -38,7 +38,7 @@ export class StreaksRepository implements IStreaksRepository {
     streakId: string,
     current: number,
     longest: number,
-    lastDate: string,
+    lastDate: string | null,
   ): Promise<Streak> {
     await this.repo.update(streakId, {
       current_streak: current,

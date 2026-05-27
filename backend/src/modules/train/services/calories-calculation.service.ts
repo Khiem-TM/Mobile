@@ -17,6 +17,8 @@ const GYM_INTENSITY_FACTOR: Record<IntensityLevel, number> = {
   [IntensityLevel.HIGH]: 6.5,
 };
 
+const CYCLING_PATTERN = /cycl|bike|bicycle|đạp xe/i;
+
 @Injectable()
 export class CaloriesCalculationService {
   constructor(
@@ -36,6 +38,49 @@ export class CaloriesCalculationService {
     return 70;
   }
 
+  // MET lookup by speed — cycling vs running
+  private getCardioMet(avgSpeedKmh: number, isCycling: boolean): number {
+    if (isCycling) {
+      if (avgSpeedKmh < 16) return 4.0;
+      if (avgSpeedKmh < 22) return 8.0;
+      if (avgSpeedKmh < 26) return 10.0;
+      return 12.0;
+    }
+    // Running / walking
+    if (avgSpeedKmh < 6) return 3.5;
+    if (avgSpeedKmh < 8) return 6.0;
+    if (avgSpeedKmh < 10) return 8.3;
+    if (avgSpeedKmh < 12) return 9.8;
+    if (avgSpeedKmh < 14) return 11.0;
+    return 12.8;
+  }
+
+  // CARDIO: derive duration from distance + speed, then compute calories
+  calculateCardio(
+    exercise: Exercise,
+    distanceKm: number,
+    avgSpeedKmh: number,
+    userWeightKg: number,
+  ): { calories: number; durationMinutes: number } {
+    const durationHours = distanceKm / avgSpeedKmh;
+    const durationMinutes = Number((durationHours * 60).toFixed(1));
+
+    const metValue = Number(exercise.metValue ?? 0);
+    let calories: number;
+
+    if (metValue > 0) {
+      calories = Number((metValue * userWeightKg * durationHours).toFixed(2));
+    } else {
+      const isCycling = CYCLING_PATTERN.test(
+        `${exercise.movementType ?? ''} ${exercise.category ?? ''} ${exercise.name}`,
+      );
+      const met = this.getCardioMet(avgSpeedKmh, isCycling);
+      calories = Number((met * userWeightKg * durationHours).toFixed(2));
+    }
+
+    return { calories, durationMinutes };
+  }
+
   calculateForExercise(
     exercise: Exercise,
     durationMinutes: number,
@@ -48,13 +93,11 @@ export class CaloriesCalculationService {
     const userWeight = options.userWeightKg ?? 70;
     const metValue = Number(exercise.metValue ?? 0);
 
-    // Primary: MET-based formula if metValue is set
     if (metValue > 0) {
       return Number((metValue * userWeight * (durationMinutes / 60)).toFixed(2));
     }
 
     if (exercise.exerciseType === ExerciseType.SPORT) {
-      // Use estimatedCaloriesPerMinute if available
       if (exercise.estimatedCaloriesPerMinute) {
         return Number((Number(exercise.estimatedCaloriesPerMinute) * durationMinutes).toFixed(2));
       }
@@ -62,7 +105,7 @@ export class CaloriesCalculationService {
       return Number((INTENSITY_CALORIES_PER_MINUTE[intensity] * durationMinutes).toFixed(2));
     }
 
-    // GYM: use intensity factor * weight * duration
+    // GYM
     const intensity = options.intensityLevel ?? IntensityLevel.MEDIUM;
     const factor = GYM_INTENSITY_FACTOR[intensity];
     return Number(((factor * userWeight * durationMinutes) / 60).toFixed(2));

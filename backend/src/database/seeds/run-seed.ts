@@ -49,9 +49,6 @@ async function bootstrap() {
         fat_per_100g: f.fat_per_100g,
         carbs_per_100g: f.carbs_per_100g,
         fiber_per_100g: f.fiber_per_100g,
-        sugar_per_100g: f.sugar_per_100g,
-        sodium_per_100g: f.sodium_per_100g,
-        cholesterol_per_100g: f.cholesterol_per_100g,
         is_verified: f.is_verified,
         is_custom: f.is_custom,
         image_urls: finalImgPath ? [finalImgPath] : []

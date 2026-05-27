@@ -61,6 +61,25 @@ ALTER TABLE exercises ADD COLUMN IF NOT EXISTS default_duration_minutes  INT;
 ALTER TABLE exercises ADD COLUMN IF NOT EXISTS default_intensity_level   VARCHAR(10);
 ALTER TABLE exercises ADD COLUMN IF NOT EXISTS movement_type             VARCHAR(50);
 ALTER TABLE exercises ADD COLUMN IF NOT EXISTS estimated_calories_per_minute DECIMAL(5,2);
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS video_url       TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS image_avt_url   TEXT;
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS image_avt_public_id VARCHAR(255);
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS image_url       TEXT[];
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS image_public_ids TEXT[];
+ALTER TABLE exercises ADD COLUMN IF NOT EXISTS favorites_count INT NOT NULL DEFAULT 0;
+
+UPDATE exercises e
+SET favorites_count = counts.total
+FROM (
+  SELECT exercise_id, COUNT(*)::INT AS total
+  FROM favorite_exercises
+  GROUP BY exercise_id
+) counts
+WHERE e.id = counts.exercise_id;
+
+UPDATE exercises e
+SET favorites_count = 0
+WHERE favorites_count IS NULL;
 
 -- 5. Update body_metrics table — rename columns
 ALTER TABLE body_metrics RENAME COLUMN recorded_at     TO measured_at;
@@ -69,6 +88,7 @@ ALTER TABLE body_metrics RENAME COLUMN body_fat_pct    TO body_fat_percent;
 -- New columns on body_metrics
 ALTER TABLE body_metrics ADD COLUMN IF NOT EXISTS height_cm DECIMAL(5,1);
 ALTER TABLE body_metrics ADD COLUMN IF NOT EXISTS arm_cm    DECIMAL(5,1);
+ALTER TABLE body_metrics ADD COLUMN IF NOT EXISTS notes     TEXT;
 
 -- 6. Update activity_logs table — remove old columns, add new ones
 ALTER TABLE activity_logs DROP COLUMN IF EXISTS calories_burned;
@@ -84,8 +104,15 @@ ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS mood        VARCHAR(20);
 ALTER TABLE training_session_items ADD COLUMN IF NOT EXISTS exercise_type    VARCHAR(10) NOT NULL DEFAULT 'SPORT';
 ALTER TABLE training_session_items ADD COLUMN IF NOT EXISTS intensity_level  VARCHAR(10);
 ALTER TABLE training_session_items ADD COLUMN IF NOT EXISTS distance_km      DECIMAL(7,3);
+ALTER TABLE training_session_items ADD COLUMN IF NOT EXISTS avg_speed_kmh    DECIMAL(5,2);
 ALTER TABLE training_session_items ADD COLUMN IF NOT EXISTS pace             VARCHAR(20);
 ALTER TABLE training_session_items ADD COLUMN IF NOT EXISTS rest_time_seconds INT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_training_sessions_user_date
+  ON training_sessions(user_id, session_date);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_favorite_exercises_user_exercise
+  ON favorite_exercises(user_id, exercise_id);
 
 -- ============================================================
 -- Done. Start the backend — TypeORM synchronize will add any

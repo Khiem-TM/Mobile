@@ -67,6 +67,10 @@ export class TrainingSessionItem {
   @Column({ name: 'distance_km', type: 'decimal', precision: 7, scale: 3, nullable: true })
   distanceKm!: number | null;
 
+  // CARDIO: avg speed used to auto-compute durationMinutes and calories
+  @Column({ name: 'avg_speed_kmh', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  avgSpeedKmh!: number | null;
+
   @Column({ type: 'varchar', length: 20, nullable: true })
   pace!: string | null;
 

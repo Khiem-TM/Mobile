@@ -5,6 +5,8 @@ export interface ITrainingSessionsRepository {
   createSession(data: Partial<TrainingSession>): Promise<TrainingSession>;
   findByUser(userId: string, limit: number): Promise<TrainingSession[]>;
   findByDateRange(userId: string, from: string, to: string): Promise<TrainingSession[]>;
+  findByUserAndDate(userId: string, date: string): Promise<TrainingSession | null>;
+  findDistinctSessionDates(userId: string): Promise<string[]>;
   findById(id: string): Promise<TrainingSession | null>;
   updateTotals(id: string, totalDurationMinutes: number, totalCaloriesBurned: number): Promise<void>;
   updateSession(id: string, data: Partial<TrainingSession>): Promise<TrainingSession>;

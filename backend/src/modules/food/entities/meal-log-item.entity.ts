@@ -54,12 +54,6 @@ export class MealLogItem {
   @Column({ type: 'decimal', precision: 7, scale: 2, nullable: true })
   fiber_snapshot: number;
 
-  @Column({ type: 'decimal', precision: 7, scale: 2, nullable: true })
-  sugar_snapshot: number;
-
-  @Column({ type: 'decimal', precision: 7, scale: 2, nullable: true })
-  sodium_snapshot: number;
-
   @Column({ type: 'varchar', length: 20, default: 'manual' })
   source: 'manual' | 'ai_scan' | 'barcode' | 'history' | 'favorite';
 

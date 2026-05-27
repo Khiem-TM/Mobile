@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.AddMealItemRequest
 import com.vitalai.data.remote.model.CreateFoodRequest
 import com.vitalai.data.remote.model.FoodDto
-import com.vitalai.data.remote.model.FoodIngredientDto
-import com.vitalai.data.remote.model.RecipeDto
 import com.vitalai.data.repository.FoodRepository
 import com.vitalai.data.repository.MealLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,8 +23,6 @@ data class FoodUiState(
     val exploreFoods: List<FoodDto> = emptyList(),
     val favorites: List<FoodDto> = emptyList(),
     val selectedFood: FoodDto? = null,
-    val selectedRecipe: RecipeDto? = null,
-    val selectedIngredients: List<FoodIngredientDto> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingAll: Boolean = false,
     val isSearching: Boolean = false,
@@ -107,18 +103,13 @@ class FoodViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             foodRepository.getFoodById(id).onSuccess { food ->
                 _uiState.update { it.copy(selectedFood = food, isLoading = false) }
-                loadRecipeAndIngredients(id)
             }.onFailure { err ->
-                _uiState.update { it.copy(isLoading = false, error = err.message) }
+                foodRepository.getCustomFoodById(id).onSuccess { food ->
+                    _uiState.update { it.copy(selectedFood = food, isLoading = false) }
+                }.onFailure {
+                    _uiState.update { it.copy(isLoading = false, error = err.message) }
+                }
             }
-        }
-    }
-
-    private fun loadRecipeAndIngredients(id: String) {
-        viewModelScope.launch {
-            val recipe = foodRepository.getRecipe(id).getOrNull()
-            val ingredients = foodRepository.getIngredients(id).getOrElse { emptyList() }
-            _uiState.update { it.copy(selectedRecipe = recipe, selectedIngredients = ingredients) }
         }
     }
 

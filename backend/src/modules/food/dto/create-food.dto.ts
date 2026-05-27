@@ -2,13 +2,12 @@ import {
   IsString,
   IsOptional,
   IsNumber,
-  IsBoolean,
   IsArray,
   IsUrl,
   Min,
-  Max,
   IsIn,
 } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
 
 export class CreateFoodDto {
   @IsString()
@@ -25,6 +24,10 @@ export class CreateFoodDto {
   @IsString()
   @IsOptional()
   category?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
 
   @IsIn(['ingredient', 'dish', 'product'])
   @IsOptional()
@@ -62,24 +65,11 @@ export class CreateFoodDto {
   @IsOptional()
   fiber_per_100g?: number;
 
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  sugar_per_100g?: number;
-
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  sodium_per_100g?: number;
-
-  @IsNumber()
-  @Min(0)
-  @IsOptional()
-  cholesterol_per_100g?: number;
-
   @IsArray()
   @IsString({ each: true })
   @IsUrl({}, { each: true })
   @IsOptional()
   image_urls?: string[];
 }
+
+export class UpdateFoodDto extends PartialType(CreateFoodDto) {}

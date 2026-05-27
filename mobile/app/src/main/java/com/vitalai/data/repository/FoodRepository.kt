@@ -3,9 +3,7 @@ package com.vitalai.data.repository
 import com.vitalai.data.remote.FoodApi
 import com.vitalai.data.remote.model.CreateFoodRequest
 import com.vitalai.data.remote.model.FoodDto
-import com.vitalai.data.remote.model.FoodIngredientDto
 import com.vitalai.data.remote.model.FoodPageDto
-import com.vitalai.data.remote.model.RecipeDto
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,9 +33,9 @@ class FoodRepository @Inject constructor(
         }
     }
 
-    suspend fun getCustomFoods(page: Int = 1, limit: Int = 20): Result<FoodPageDto> {
+    suspend fun getCustomFoods(search: String? = null, page: Int = 1, limit: Int = 20): Result<FoodPageDto> {
         return try {
-            val response = foodApi.getCustomFoods(page, limit)
+            val response = foodApi.getCustomFoods(search, page, limit)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi tải món của tôi (${response.code()})"))
@@ -68,23 +66,33 @@ class FoodRepository @Inject constructor(
         }
     }
 
-    suspend fun getRecipe(id: String): Result<RecipeDto> {
+    suspend fun getCustomFoodById(id: String): Result<FoodDto> {
         return try {
-            val response = foodApi.getRecipe(id)
+            val response = foodApi.getCustomFoodById(id)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
-            else Result.failure(Exception("Món ăn chưa có công thức"))
+            else Result.failure(Exception("Không tìm thấy món của tôi"))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun getIngredients(id: String): Result<List<FoodIngredientDto>> {
+    suspend fun updateCustomFood(id: String, request: CreateFoodRequest): Result<FoodDto> {
         return try {
-            val response = foodApi.getIngredients(id)
+            val response = foodApi.updateCustomFood(id, request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
-            else Result.success(emptyList())
+            else Result.failure(Exception("Lỗi cập nhật món ăn (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun deleteCustomFood(id: String): Result<Unit> {
+        return try {
+            val response = foodApi.deleteCustomFood(id)
+            if (response.isSuccessful) Result.success(Unit)
+            else Result.failure(Exception("Lỗi xoá món ăn (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

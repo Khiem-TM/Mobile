@@ -50,10 +50,30 @@ data class ProgressPhotoDto(
 data class UpsertBodyMetricRequest(
     @Json(name = "measuredAt") val recordedAt: String? = null,
     @Json(name = "weightKg") val weightKg: Float? = null,
+    @Json(name = "heightCm") val heightCm: Float? = null,
     @Json(name = "bodyFatPercent") val bodyFatPct: Float? = null,
     @Json(name = "waistCm") val waistCm: Float? = null,
     @Json(name = "hipCm") val hipCm: Float? = null,
     @Json(name = "chestCm") val chestCm: Float? = null,
     @Json(name = "neckCm") val neckCm: Float? = null,
+    @Json(name = "notes") val notes: String? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class BasicBodyMetricRequest(
+    @Json(name = "measuredAt") val measuredAt: String? = null,
+    @Json(name = "weightKg") val weightKg: Float,
+    @Json(name = "heightCm") val heightCm: Float
+)
+
+@JsonClass(generateAdapter = true)
+data class AdvancedBodyMetricRequest(
+    @Json(name = "measuredAt") val measuredAt: String? = null,
+    @Json(name = "bodyFatPercent") val bodyFatPct: Float? = null,
+    @Json(name = "waistCm") val waistCm: Float? = null,
+    @Json(name = "hipCm") val hipCm: Float? = null,
+    @Json(name = "chestCm") val chestCm: Float? = null,
+    @Json(name = "neckCm") val neckCm: Float? = null,
+    @Json(name = "armCm") val armCm: Float? = null,
     @Json(name = "notes") val notes: String? = null
 )

@@ -42,6 +42,18 @@ export class MealLogsService {
     return log.log_date ?? new Date().toISOString().split('T')[0];
   }
 
+  private async findVisibleFood(userId: string, foodId: string): Promise<Food> {
+    const food = await this.foodRepository.findOne({ where: { id: foodId } });
+    if (
+      !food ||
+      !food.is_active ||
+      (food.is_custom && food.created_by_user_id !== userId)
+    ) {
+      throw new NotFoundException('Food not found');
+    }
+    return food;
+  }
+
   async create(userId: string, dto: CreateMealLogDto): Promise<MealLog> {
     const logDate = dto.log_date || new Date().toISOString().split('T')[0];
     const log = await this.repository.findOrCreate(
@@ -134,8 +146,7 @@ export class MealLogsService {
   ): Promise<MealLogItem> {
     const log = await this.findOne(userId, logId);
 
-    const food = await this.foodRepository.findOne({ where: { id: itemDto.food_id } });
-    if (!food) throw new NotFoundException('Food not found');
+    const food = await this.findVisibleFood(userId, itemDto.food_id);
 
     const servingSizeG = Number(food.serving_size_g) || 100;
     let quantity_in_grams = Number(itemDto.quantity);
@@ -155,8 +166,6 @@ export class MealLogsService {
       fat_snapshot: Number(food.fat_per_100g) * ratio,
       carbs_snapshot: Number(food.carbs_per_100g) * ratio,
       fiber_snapshot: Number(food.fiber_per_100g || 0) * ratio,
-      sugar_snapshot: Number(food.sugar_per_100g || 0) * ratio,
-      sodium_snapshot: Number(food.sodium_per_100g || 0) * ratio,
       source: itemDto.source || 'manual',
     };
 
@@ -182,8 +191,7 @@ export class MealLogsService {
       throw new NotFoundException('Meal log not found');
     }
 
-    const food = await this.foodRepository.findOne({ where: { id: item.food_id } });
-    if (!food) throw new NotFoundException('Food not found');
+    const food = await this.findVisibleFood(userId, item.food_id);
 
     const newQuantity = Number(dto.quantity ?? item.quantity);
     const newUnit = dto.serving_unit ?? item.serving_unit ?? 'g';
@@ -204,8 +212,6 @@ export class MealLogsService {
       fat_snapshot: Number(food.fat_per_100g) * ratio,
       carbs_snapshot: Number(food.carbs_per_100g) * ratio,
       fiber_snapshot: Number(food.fiber_per_100g || 0) * ratio,
-      sugar_snapshot: Number(food.sugar_per_100g || 0) * ratio,
-      sodium_snapshot: Number(food.sodium_per_100g || 0) * ratio,
     });
     const logDate = this.getLogDate(log);
     void this.dashboardService.invalidateDailyCache(userId, logDate);
@@ -264,8 +270,6 @@ export class MealLogsService {
     let totalFat = 0;
     let totalCarbs = 0;
     let totalFiber = 0;
-    let totalSugar = 0;
-    let totalSodium = 0;
     for (const log of logs) {
       for (const item of log.items || []) {
         totalCalories += Number(item.calories_snapshot || 0);
@@ -273,8 +277,6 @@ export class MealLogsService {
         totalFat += Number(item.fat_snapshot || 0);
         totalCarbs += Number(item.carbs_snapshot || 0);
         totalFiber += Number(item.fiber_snapshot || 0);
-        totalSugar += Number(item.sugar_snapshot || 0);
-        totalSodium += Number(item.sodium_snapshot || 0);
       }
     }
     return {
@@ -284,8 +286,6 @@ export class MealLogsService {
       total_fat: Math.round(totalFat * 100) / 100,
       total_carbs: Math.round(totalCarbs * 100) / 100,
       total_fiber: Math.round(totalFiber * 100) / 100,
-      total_sugar: Math.round(totalSugar * 100) / 100,
-      total_sodium: Math.round(totalSodium * 100) / 100,
       logs,
     };
   }

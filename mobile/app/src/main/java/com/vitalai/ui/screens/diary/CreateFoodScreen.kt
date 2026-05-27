@@ -45,7 +45,6 @@ fun CreateFoodScreen(
     var protein by remember { mutableStateOf("") }
     var fat by remember { mutableStateOf("") }
     var fiber by remember { mutableStateOf("") }
-    var sugar by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState.createSuccess) {
         if (uiState.createSuccess) navController.popBackStack()
@@ -97,8 +96,7 @@ fun CreateFoodScreen(
                                         carbsPer100g = carbs.toFloatOrNull() ?: 0f,
                                         proteinPer100g = protein.toFloatOrNull() ?: 0f,
                                         fatPer100g = fat.toFloatOrNull() ?: 0f,
-                                        fiberPer100g = fiber.toFloatOrNull(),
-                                        sugarPer100g = sugar.toFloatOrNull()
+                                        fiberPer100g = fiber.toFloatOrNull()
                                     )
                                 )
                             }
@@ -163,8 +161,6 @@ fun CreateFoodScreen(
                         NutritionField("Fat", fat, "g") { fat = it }
                         HorizontalDivider(color = AppLineSoft, thickness = 1.dp)
                         NutritionField("Fiber", fiber, "g") { fiber = it }
-                        HorizontalDivider(color = AppLineSoft, thickness = 1.dp)
-                        NutritionField("Sugar", sugar, "g") { sugar = it }
                     }
                 }
 

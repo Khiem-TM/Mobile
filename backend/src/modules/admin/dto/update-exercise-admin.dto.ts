@@ -63,6 +63,11 @@ export class UpdateExerciseAdminDto {
   @IsOptional()
   videoUrl?: string;
 
+  @ApiPropertyOptional()
+  @IsUrl()
+  @IsOptional()
+  imageAvtUrl?: string;
+
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()

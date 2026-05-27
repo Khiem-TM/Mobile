@@ -6,6 +6,7 @@ import { CloudinaryService } from '../../support/cloudinary/cloudinary.service';
 import { FavoriteExercise } from '../entities/favorite-exercise.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { toExerciseMobileDto } from '../mappers/exercise-mobile.mapper';
 
 @Injectable()
 export class ExercisesService {
@@ -19,29 +20,29 @@ export class ExercisesService {
 
   async getExercises(query: ExerciseQueryDto, userId?: string) {
     const exercises = await this.exerciseRepo.findAll(query);
-    if (!userId) return exercises;
+    if (!userId) return exercises.map((e) => toExerciseMobileDto(e));
 
     const favs = await this.favoriteRepo.find({ where: { userId } });
     const favSet = new Set(favs.map((f) => f.exerciseId));
-    return exercises.map((e) => ({ ...e, isFavorite: favSet.has(e.id) }));
+    return exercises.map((e) => toExerciseMobileDto(e, favSet.has(e.id)));
   }
 
   async getExerciseById(id: string, userId?: string) {
     const exercise = await this.exerciseRepo.findById(id);
     if (!exercise) throw new NotFoundException('Exercise not found');
-    if (!userId) return exercise;
+    if (!userId) return toExerciseMobileDto(exercise);
 
     const fav = await this.favoriteRepo.findOne({ where: { userId, exerciseId: id } });
-    return { ...exercise, isFavorite: !!fav };
+    return toExerciseMobileDto(exercise, !!fav);
   }
 
   async getPopularExercises(limit = 10, userId?: string) {
     const exercises = await this.exerciseRepo.findPopular(limit);
-    if (!userId) return exercises;
+    if (!userId) return exercises.map((e) => toExerciseMobileDto(e));
 
     const favs = await this.favoriteRepo.find({ where: { userId } });
     const favSet = new Set(favs.map((f) => f.exerciseId));
-    return exercises.map((e) => ({ ...e, isFavorite: favSet.has(e.id) }));
+    return exercises.map((e) => toExerciseMobileDto(e, favSet.has(e.id)));
   }
 
   async uploadExerciseAvtImage(exerciseId: string, file: Express.Multer.File) {

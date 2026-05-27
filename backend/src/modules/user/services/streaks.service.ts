@@ -23,7 +23,48 @@ export class StreaksService {
   ) {}
 
   async getStreaks(userId: string): Promise<Streak[]> {
-    return this.repository.findByUser(userId);
+    const streaks = await this.repository.findByUser(userId);
+    return streaks.map((streak) => this.formatStreak(streak)) as Streak[];
+  }
+
+  private formatStreak(streak: Streak) {
+    return {
+      ...streak,
+      currentStreak: streak.current_streak,
+      maxStreak: streak.longest_streak,
+      lastActivityDate: streak.last_activity_date,
+    };
+  }
+
+  private toDayNumber(date: string): number {
+    const [year, month, day] = date.split('-').map(Number);
+    return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+  }
+
+  async recomputeFromActivityDates(
+    userId: string,
+    type: StreakType,
+    activityDates: string[],
+  ) {
+    const streak = await this.repository.findOrCreate(userId, type);
+    const dates = [...new Set(activityDates)].sort();
+
+    if (!dates.length) {
+      const updated = await this.repository.updateStreak(streak.id, 0, 0, null);
+      return this.formatStreak(updated);
+    }
+
+    let longest = 1;
+    let runLength = 1;
+    for (let i = 1; i < dates.length; i++) {
+      const diff = this.toDayNumber(dates[i]) - this.toDayNumber(dates[i - 1]);
+      runLength = diff === 1 ? runLength + 1 : 1;
+      longest = Math.max(longest, runLength);
+    }
+
+    const lastDate = dates[dates.length - 1];
+    const updated = await this.repository.updateStreak(streak.id, runLength, longest, lastDate);
+    return this.formatStreak(updated);
   }
 
   async updateActivity(userId: string, type: StreakType, activityDate: string) {
@@ -37,7 +78,7 @@ export class StreaksService {
     const today = activityDate;
 
     if (lastDate === today) {
-      return streak;
+      return this.formatStreak(streak);
     }
 
     const yesterday = new Date(today);
@@ -64,7 +105,7 @@ export class StreaksService {
       );
     }
 
-    return updated;
+    return this.formatStreak(updated);
   }
 
   async resetExpiredStreaks() {

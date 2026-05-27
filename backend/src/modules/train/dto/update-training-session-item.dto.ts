@@ -64,6 +64,12 @@ export class UpdateTrainingSessionItemDto {
   @Min(0)
   distanceKm?: number;
 
+  @ApiPropertyOptional({ example: 10.5, description: 'Average speed km/h (CARDIO type only)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0.1)
+  avgSpeedKmh?: number;
+
   @ApiPropertyOptional({ example: '5:30' })
   @IsOptional()
   @IsString()

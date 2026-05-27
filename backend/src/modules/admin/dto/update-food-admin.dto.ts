@@ -4,6 +4,8 @@ import {
   IsNumber,
   IsBoolean,
   IsEnum,
+  IsArray,
+  IsUrl,
   Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
@@ -44,6 +46,11 @@ export class UpdateFoodAdminDto {
   servingSizeG?: number;
 
   @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  servingUnit?: string;
+
+  @ApiProperty({ required: false })
   @IsNumber()
   @Min(0)
   @Type(() => Number)
@@ -70,6 +77,25 @@ export class UpdateFoodAdminDto {
   @Type(() => Number)
   @IsOptional()
   carbsPer100g?: number;
+
+  @ApiProperty({ required: false })
+  @IsNumber()
+  @Min(0)
+  @Type(() => Number)
+  @IsOptional()
+  fiberPer100g?: number;
+
+  @ApiProperty({ required: false })
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @ApiProperty({ required: false, type: [String] })
+  @IsArray()
+  @IsString({ each: true })
+  @IsUrl({}, { each: true })
+  @IsOptional()
+  imageUrls?: string[];
 
   @ApiProperty({ required: false })
   @IsBoolean()
