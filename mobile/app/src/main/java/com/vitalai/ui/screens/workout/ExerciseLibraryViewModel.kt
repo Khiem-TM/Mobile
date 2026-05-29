@@ -16,6 +16,7 @@ data class ExerciseLibraryUiState(
     val filteredExercises: List<ExerciseDto> = emptyList(),
     val selectedMuscleGroup: String? = null,
     val selectedIntensity: String? = null,
+    val selectedType: String? = null,
     val searchQuery: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -35,14 +36,19 @@ class ExerciseLibraryViewModel @Inject constructor(
         loadFavorites()
     }
 
-    fun loadExercises(muscleGroup: String? = null) {
+    fun loadExercises() {
         viewModelScope.launch {
+            val state = _uiState.value
             _uiState.update { it.copy(isLoading = true, error = null) }
-            trainingRepository.getExercises(muscleGroup).fold(
+            trainingRepository.getExercises(
+                type = state.selectedType,
+                name = state.searchQuery.takeIf { it.isNotBlank() },
+                muscleGroup = state.selectedMuscleGroup
+            ).fold(
                 onSuccess = { list ->
-                    _uiState.update { state ->
-                        state.copy(exercises = list, isLoading = false).let { s ->
-                            s.copy(filteredExercises = applyFilters(s))
+                    _uiState.update { s ->
+                        s.copy(exercises = list, isLoading = false).let { updated ->
+                            updated.copy(filteredExercises = applyLocalFilters(updated))
                         }
                     }
                 },
@@ -51,26 +57,26 @@ class ExerciseLibraryViewModel @Inject constructor(
         }
     }
 
+    fun selectType(type: String?) {
+        _uiState.update { it.copy(selectedType = type) }
+        loadExercises()
+    }
+
     fun setMuscleFilter(group: String?) {
-        _uiState.update { state ->
-            val updated = state.copy(selectedMuscleGroup = group)
-            updated.copy(filteredExercises = applyFilters(updated))
-        }
-        loadExercises(group)
+        _uiState.update { it.copy(selectedMuscleGroup = group) }
+        loadExercises()
     }
 
     fun setIntensityFilter(intensity: String?) {
         _uiState.update { state ->
             val updated = state.copy(selectedIntensity = intensity)
-            updated.copy(filteredExercises = applyFilters(updated))
+            updated.copy(filteredExercises = applyLocalFilters(updated))
         }
     }
 
     fun setSearchQuery(query: String) {
-        _uiState.update { state ->
-            val updated = state.copy(searchQuery = query)
-            updated.copy(filteredExercises = applyFilters(updated))
-        }
+        _uiState.update { it.copy(searchQuery = query) }
+        loadExercises()
     }
 
     fun toggleFavorite(exerciseId: String) {
@@ -117,17 +123,15 @@ class ExerciseLibraryViewModel @Inject constructor(
         }
     }
 
-    private fun applyFilters(state: ExerciseLibraryUiState): List<ExerciseDto> {
+    // Local filter for difficulty; type/name/muscleGroup are handled server-side.
+    private fun applyLocalFilters(state: ExerciseLibraryUiState): List<ExerciseDto> {
         var list = state.exercises
-        if (!state.searchQuery.isBlank()) {
-            list = list.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
-        }
-        if (state.selectedMuscleGroup != null) {
-            list = list.filter { it.muscleGroup.equals(state.selectedMuscleGroup, ignoreCase = true) }
-        }
         if (state.selectedIntensity != null) {
-            list = list.filter { it.intensity.equals(state.selectedIntensity, ignoreCase = true) }
+            list = list.filter {
+                it.difficultyLevel.equals(state.selectedIntensity, ignoreCase = true) ||
+                    it.intensity.equals(state.selectedIntensity, ignoreCase = true)
+            }
         }
-        return list
+        return list.sortedByDescending { it.favoritesCount }
     }
 }

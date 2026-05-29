@@ -4,64 +4,40 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AccessibilityNew
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.FrontHand
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.LocalDrink
+import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
-import com.vitalai.data.remote.model.ActivityLogDto
-import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.theme.*
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-data class WorkoutCategory(
-    val icon: ImageVector,
-    val name: String,
-    val muscleGroup: String,
-    val subtitle: String,
-    val tintColor: Color
-)
-
-val workoutCategories = listOf(
-    WorkoutCategory(Icons.Default.FitnessCenter, "Ngực", "CHEST", "Phát triển thân trên", Color(0xFFE53935)),
-    WorkoutCategory(Icons.Default.AccessibilityNew, "Lưng", "BACK", "Cơ xô & kéo", Color(0xFF1E88E5)),
-    WorkoutCategory(Icons.Default.DirectionsRun, "Chân", "LEGS", "Sức mạnh thân dưới", Color(0xFF43A047)),
-    WorkoutCategory(Icons.Default.FrontHand, "Tay", "ARMS", "Bắp tay trước & sau", Color(0xFFFDD835)),
-    WorkoutCategory(Icons.Default.Favorite, "Cardio", "CARDIO", "Đốt mỡ, tim mạch", Color(0xFFE91E63)),
-    WorkoutCategory(Icons.Default.SelfImprovement, "Core", "CORE", "Cơ bụng săn chắc", Color(0xFF8E24AA))
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutScreen(
     navController: NavController,
@@ -69,292 +45,109 @@ fun WorkoutScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    WorkoutScreenContent(
+    WorkoutDashboard(
         uiState = uiState,
-        onBackClick = { navController.popBackStack() },
-        onActivityClick = { navController.navigate(Screen.Activity) },
-        onStartWorkoutClick = { navController.navigate(Screen.WorkoutBuilder) },
-        onLibraryClick = { navController.navigate(Screen.ExerciseLibrary) },
-        onFilterByMuscleGroup = viewModel::filterByMuscleGroup,
-        onUpdateSession = viewModel::updateSession,
-        onDeleteSession = viewModel::deleteSession,
+        onNavigateWorkoutBuilder = { navController.navigate(Screen.WorkoutBuilder) },
+        onNavigateLibrary = { navController.navigate(Screen.ExerciseLibrary) },
+        onNavigateMetrics = { navController.navigate(Screen.Metrics) },
+        onNavigateActivity = { navController.navigate(Screen.Activity) },
+        onUpdateSteps = viewModel::updateSteps,
         onRetry = viewModel::loadData
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkoutScreenContent(
+private fun WorkoutDashboard(
     uiState: WorkoutUiState,
-    onBackClick: () -> Unit,
-    onActivityClick: () -> Unit,
-    onStartWorkoutClick: () -> Unit,
-    onLibraryClick: () -> Unit,
-    onFilterByMuscleGroup: (String?) -> Unit,
-    onUpdateSession: (String, String, String?) -> Unit,
-    onDeleteSession: (String) -> Unit,
+    onNavigateWorkoutBuilder: () -> Unit,
+    onNavigateLibrary: () -> Unit,
+    onNavigateMetrics: () -> Unit,
+    onNavigateActivity: () -> Unit,
+    onUpdateSteps: (Int) -> Unit,
     onRetry: () -> Unit
 ) {
-    var editingSession by remember { mutableStateOf<WorkoutSessionDto?>(null) }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Luyện tập", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = onActivityClick) {
-                        Text("Hoạt động", color = Mint500, fontSize = 13.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onStartWorkoutClick,
-                containerColor = Mint500,
-                contentColor = Color.White
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Bắt đầu tập")
-                }
-        },
-        containerColor = AppMutedBackground
-    ) { padding ->
+    var showStepsDialog by remember { mutableStateOf(false) }
+
+    TrainScreen {
         when {
-            uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
+            uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
             uiState.error != null -> ErrorState(
-                message = uiState.error!!,
+                message = uiState.error,
                 onRetry = onRetry,
-                modifier = Modifier.padding(padding)
+                modifier = Modifier.fillMaxSize()
             )
-            else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                // Today summary
-                item {
-                    val activity = uiState.activityLog
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                            .clip(RoundedCornerShape(VitalRadius.Xl))
-                            .background(Brush.horizontalGradient(listOf(Mint500, Mint700)))
-                            .padding(20.dp)
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            // Header Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Hôm nay đã đốt", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                                Surface(
-                                    color = Color.White.copy(alpha = 0.2f),
-                                    shape = androidx.compose.foundation.shape.CircleShape
-                                ) {
-                                    Text(
-                                        text = "🔥 12 ngày",
-                                        color = Color.White,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Main Value Row
-                            Row(
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                Text(
-                                    text = "${activity?.caloriesBurned?.toInt() ?: 0}",
-                                    color = Color.White,
-                                    fontSize = 40.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "kcal · ${activity?.activeMinutes ?: 0} phút",
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Divider & Footer Row
-                            HorizontalDivider(color = Color.White.copy(alpha = 0.2f), thickness = 1.dp)
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(horizontalAlignment = Alignment.Start) {
-                                    Text("${activity?.steps ?: 0}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                    Text("steps", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                                }
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("${activity?.waterMl ?: 0} ml", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                    Text("water", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                                }
-                                Column(horizontalAlignment = Alignment.End) {
-                                    Text("${uiState.sessions.size}", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                                    Text("sessions", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Quick actions
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Card 1
-                        Card(
-                            onClick = onLibraryClick,
-                            modifier = Modifier.weight(1f),
-                            colors = CardDefaults.cardColors(containerColor = AppSurface),
-                            shape = RoundedCornerShape(VitalRadius.Xl),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-                            elevation = CardDefaults.cardElevation(0.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Mint50),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.AutoMirrored.Filled.MenuBook,
-                                            contentDescription = null,
-                                            tint = Mint500,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                    Text("A", fontSize = 12.sp, color = Ink500, fontWeight = FontWeight.Medium)
-                                }
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Thư viện bài tập", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Ink900)
-                                Text("Danh sách bài tập", fontSize = 12.sp, color = Ink500)
-                            }
-                        }
-
-                        // Card 2
-                        Card(
-                            onClick = onStartWorkoutClick,
-                            modifier = Modifier.weight(1f),
-                            colors = CardDefaults.cardColors(containerColor = AppSurface),
-                            shape = RoundedCornerShape(VitalRadius.Xl),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-                            elevation = CardDefaults.cardElevation(0.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color(0xFFE3F2FD)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Default.PlayArrow,
-                                            contentDescription = null,
-                                            tint = Color(0xFF1976D2),
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                    Text("B", fontSize = 12.sp, color = Ink500, fontWeight = FontWeight.Medium)
-                                }
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Bắt đầu tập", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Ink900)
-                                Text("Khởi động ngay", fontSize = 12.sp, color = Ink500)
-                            }
-                        }
-                    }
-                }
-
-                // Categories
-                item {
-                    Text(
-                        "Danh mục",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Ink900,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-                item {
-                    CategoryGrid(
-                        categories = workoutCategories,
-                        selected = uiState.selectedMuscleGroup,
-                        onSelect = onFilterByMuscleGroup
-                    )
-                }
-
-                // Exercises
-                item {
-                    Text(
-                        "Bài tập gợi ý",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = Ink900,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-                if (uiState.exercises.isEmpty()) {
-                    item {
-                        Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                            Text("Chưa có bài tập nào", color = Ink500)
-                        }
-                    }
-                } else {
-                    items(uiState.exercises) { exercise ->
-                        ExerciseItem(exercise = exercise)
-                    }
-                }
-
-                // Today sessions
-                if (uiState.sessions.isNotEmpty()) {
-                    item {
-                        Text(
-                            "Phiên tập hôm nay",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = Ink900,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            else -> Column(Modifier.fillMaxSize()) {
+                TrainHeader(
+                    title = "Luyện tập",
+                    large = true,
+                    right = {
+                        TrainRoundIconButton(
+                            icon = Icons.Default.AccessibilityNew,
+                            contentDescription = "Chỉ số cơ thể",
+                            onClick = onNavigateMetrics
                         )
                     }
-                    items(uiState.sessions) { session ->
-                        SessionItem(
-                            session = session,
-                            onEdit = { editingSession = session },
-                            onDelete = { onDeleteSession(session.id) }
+                )
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    item {
+                        StreakBanner(
+                            streak = uiState.workoutStreak,
+                            longestStreak = uiState.longestStreak
+                        )
+                    }
+                    item {
+                        TodaySummary(
+                            calories = uiState.todayCaloriesBurned.toInt(),
+                            minutes = uiState.todayDurationMinutes
+                        )
+                    }
+                    item {
+                        WeeklyCaloriesCard(uiState.weeklyChartData)
+                    }
+                    item {
+                        TrainPrimaryButton(
+                            text = if (uiState.hasSessionToday) "Tiếp tục buổi tập hôm nay" else "Bắt đầu buổi tập hôm nay",
+                            icon = Icons.Default.Add,
+                            onClick = onNavigateWorkoutBuilder
+                        )
+                    }
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            QuickLinkCard(
+                                icon = Icons.Default.FitnessCenter,
+                                label = "Thư viện bài tập",
+                                tone = TrainTone.Keylime,
+                                onClick = onNavigateLibrary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickLinkCard(
+                                icon = Icons.Default.MonitorWeight,
+                                label = "Chỉ số cơ thể",
+                                tone = TrainTone.Slate,
+                                onClick = onNavigateMetrics,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    item {
+                        RecentHistory(
+                            sessions = uiState.recentSessions,
+                            onSessionClick = onNavigateWorkoutBuilder
+                        )
+                    }
+                    item {
+                        ActivityLogRow(onNavigateActivity)
+                    }
+                    item {
+                        TodayActivityMini(
+                            waterMl = uiState.todayActivityLog?.waterMl ?: 0,
+                            steps = uiState.todayActivityLog?.steps ?: 0,
+                            onStepsClick = { showStepsDialog = true }
                         )
                     }
                 }
@@ -362,260 +155,254 @@ fun WorkoutScreenContent(
         }
     }
 
-    editingSession?.let { session ->
-        var name by remember(session.id) { mutableStateOf(session.sessionName ?: "") }
+    if (showStepsDialog) {
+        var stepsInput by remember(uiState.todayActivityLog?.steps) {
+            mutableStateOf((uiState.todayActivityLog?.steps ?: 0).toString())
+        }
         AlertDialog(
-            onDismissRequest = { editingSession = null },
-            title = { Text("Sửa phiên tập") },
+            onDismissRequest = { showStepsDialog = false },
+            title = { Text("Nhập số bước chân", color = TrainColors.Ink) },
             text = {
                 OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Tên phiên") },
-                    singleLine = true
+                    value = stepsInput,
+                    onValueChange = { stepsInput = it.filter(Char::isDigit) },
+                    singleLine = true,
+                    label = { Text("Số bước") }
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    onUpdateSession(session.id, name.ifBlank { "Phiên tập" }, session.sessionDate)
-                    editingSession = null
-                }) { Text("Lưu") }
+                TextButton(
+                    onClick = {
+                        onUpdateSteps(stepsInput.toIntOrNull() ?: 0)
+                        showStepsDialog = false
+                    }
+                ) { Text("Lưu", color = TrainColors.Forest) }
             },
             dismissButton = {
-                TextButton(onClick = { editingSession = null }) { Text("Hủy") }
-            }
+                TextButton(onClick = { showStepsDialog = false }) { Text("Hủy", color = TrainColors.Charcoal) }
+            },
+            containerColor = TrainColors.Cream
         )
     }
 }
 
-
-
 @Composable
-private fun CategoryGrid(
-    categories: List<WorkoutCategory>,
-    selected: String?,
-    onSelect: (String?) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-    ) {
-        for (row in categories.chunked(2)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                row.forEach { cat ->
-                    val isSelected = selected == cat.muscleGroup
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(145.dp)
-                            .clickable { onSelect(if (isSelected) null else cat.muscleGroup) },
-                        shape = RoundedCornerShape(VitalRadius.Xl),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (isSelected) cat.tintColor.copy(alpha = 0.05f) else AppSurface
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(1.5.dp, if (isSelected) cat.tintColor else AppLine),
-                        elevation = CardDefaults.cardElevation(0.dp)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                            // Top-Start Icon
-                            Box(
-                                modifier = Modifier
-                                    .size(46.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(cat.tintColor.copy(alpha = 0.15f))
-                                    .align(Alignment.TopStart),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = cat.icon,
-                                    contentDescription = null,
-                                    tint = cat.tintColor,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-                            
-                            // Bottom-Start Texts
-                            Column(modifier = Modifier.align(Alignment.BottomStart)) {
-                                Text(
-                                    text = cat.name,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = Ink900
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = cat.subtitle,
-                                    fontSize = 13.sp,
-                                    color = Ink500,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-                }
-                if (row.size < 2) Spacer(Modifier.weight(1f))
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-    }
-}
-
-@Composable
-private fun ExerciseItem(exercise: ExerciseDto) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+private fun StreakBanner(streak: Int, longestStreak: Int) {
+    TrainCard(tone = TrainTone.Mint, padding = PaddingValues(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Mint50),
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(TrainColors.Forest),
                 contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = exercise.displayImageUrl,
-                    contentDescription = exercise.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                Icon(
+                    Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = TrainColors.MintGlaze,
+                    modifier = Modifier.size(27.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(exercise.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Ink900)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(exercise.muscleGroup, fontSize = 13.sp, color = Ink500)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text("${exercise.caloriesPerMin.toInt()}", fontSize = 19.sp, color = Mint500, fontWeight = FontWeight.Bold)
-                Text("kcal/phút", fontSize = 12.sp, color = Ink500)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Chuỗi $streak ngày liên tiếp",
+                    color = TrainColors.Forest,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 22.sp
+                )
+                Text(
+                    "Kỷ lục của bạn: $longestStreak ngày",
+                    color = TrainColors.Forest.copy(alpha = 0.75f),
+                    fontSize = 12.5.sp
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SessionItem(
-    session: WorkoutSessionDto,
-    onEdit: () -> Unit = {},
-    onDelete: () -> Unit = {}
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
+private fun TodaySummary(calories: Int, minutes: Int) {
+    val today = LocalDate.now()
+    val title = "Hôm nay · ${today.format(DateTimeFormatter.ofPattern("EEEE, dd/MM/yyyy", Locale("vi")))}"
+        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("vi")) else it.toString() }
+    Column {
+        TrainSectionTitle(title, modifier = Modifier.padding(bottom = 11.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TrainStatTile(
+                icon = Icons.Default.LocalFireDepartment,
+                value = calories.toString(),
+                label = "Kcal đã đốt",
+                tone = TrainTone.Keylime,
+                modifier = Modifier.weight(1f)
+            )
+            TrainStatTile(
+                icon = Icons.Default.AccessTime,
+                value = minutes.toString(),
+                label = "Phút tập luyện",
+                tone = TrainTone.Kiss,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyCaloriesCard(data: List<DayCalorieData>) {
+    val total = data.sumOf { it.calories.toDouble() }.toInt()
+    val activeDays = data.count { it.hasSession }
+    val maxIndex = data.indices.maxByOrNull { data[it].calories } ?: -1
+    TrainCard(tone = TrainTone.Cream, padding = PaddingValues(18.dp)) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom
         ) {
+            Text("Calories đốt · 7 ngày", color = TrainColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text("$total kcal", color = TrainColors.Charcoal, fontSize = 12.sp)
+        }
+        TrainBarChart(
+            values = data.map { it.dayLabel to it.calories },
+            highlightIndex = maxIndex,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "$activeDays/7 ngày có buổi tập trong tuần này",
+            color = TrainColors.Charcoal.copy(alpha = 0.7f),
+            fontSize = 11.5.sp,
+            modifier = Modifier.padding(top = 14.dp)
+        )
+    }
+}
+
+@Composable
+private fun QuickLinkCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    tone: TrainTone,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TrainCard(
+        modifier = modifier.height(92.dp),
+        tone = tone,
+        padding = PaddingValues(16.dp),
+        onClick = onClick
+    ) {
+        Icon(icon, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(10.dp))
+        Text(label, color = TrainColors.Forest, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun RecentHistory(sessions: List<WorkoutSessionDto>, onSessionClick: () -> Unit) {
+    Column {
+        TrainSectionTitle("Lịch sử gần đây", modifier = Modifier.padding(bottom = 11.dp))
+        if (sessions.isEmpty()) {
+            TrainCard(tone = TrainTone.Keylime, padding = PaddingValues(22.dp)) {
+                Text(
+                    "Chưa có buổi tập gần đây",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    color = TrainColors.Forest,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                sessions.forEach { session ->
+                    RecentSessionRow(session = session, onClick = onSessionClick)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentSessionRow(session: WorkoutSessionDto, onClick: () -> Unit) {
+    val date = runCatching { LocalDate.parse(session.sessionDate) }.getOrNull()
+    val day = date?.dayOfMonth?.toString()?.padStart(2, '0') ?: "--"
+    val month = date?.monthValue?.toString()?.padStart(2, '0') ?: "--"
+    TrainCard(tone = TrainTone.Cream, padding = PaddingValues(15.dp), onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(46.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Mint100),
+                    .background(TrainColors.KeylimeWash),
                 contentAlignment = Alignment.Center
-            ) { Text("🏃", fontSize = 20.sp) }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(session.sessionName ?: "Phiên tập", fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = Ink900)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text("06:30 · ${session.totalDurationMinutes} min", fontSize = 13.sp, color = Ink500)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(day, color = TrainColors.Forest, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 15.sp)
+                    Text(month, color = TrainColors.Forest.copy(alpha = 0.7f), fontSize = 9.sp)
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    session.name ?: "Buổi tập",
+                    color = TrainColors.Ink,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${session.details.size} bài tập · ${session.totalDurationMinutes} phút",
+                    color = TrainColors.Charcoal,
+                    fontSize = 12.5.sp
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text("${session.totalCaloriesBurned.toInt()}", fontSize = 19.sp, color = Mint500, fontWeight = FontWeight.Bold)
-                Text("kcal", fontSize = 12.sp, color = Ink500)
-            }
-            IconButton(onClick = onEdit, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Edit, contentDescription = "Sửa phiên", tint = Ink500, modifier = Modifier.size(18.dp))
-            }
-            IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = "Xóa phiên", tint = MacroProtein, modifier = Modifier.size(18.dp))
+                Text(
+                    session.totalCaloriesBurned.toInt().toString(),
+                    color = TrainColors.Forest,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text("kcal", color = TrainColors.Charcoal, fontSize = 10.5.sp)
             }
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun WorkoutScreenPreview() {
-    val mockState = WorkoutUiState(
-        sessions = listOf(
-            WorkoutSessionDto(
-                id = "1",
-                sessionName = "Morning Cardio",
-                sessionDate = "2026-05-13",
-                totalDurationMinutes = 35,
-                totalCaloriesBurned = 320f,
-                details = emptyList()
+private fun ActivityLogRow(onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(TrainCardRadius))
+            .background(TrainColors.SlateMist)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 15.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.LocalDrink, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(11.dp))
+            Text(
+                "Nhật ký hoạt động hôm nay",
+                color = TrainColors.Forest,
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
             )
-        ),
-        exercises = listOf(
-            ExerciseDto(
-                id = "1",
-                name = "Chạy bộ",
-                primaryMuscleGroup = "CARDIO",
-                equipment = null,
-                description = null,
-                imageAvtUrl = null,
-                caloriesPerMin = 10f
-            ),
-            ExerciseDto(
-                id = "2",
-                name = "Push Up",
-                primaryMuscleGroup = "CHEST",
-                equipment = null,
-                description = null,
-                imageAvtUrl = null,
-                caloriesPerMin = 8f
-            )
-        ),
-        activityLog = ActivityLogDto(
-            id = "log-1",
-            logDate = "2026-05-23",
-            steps = 8240,
-            caloriesBurned = 320f,
-            activeMinutes = 45,
-            waterMl = 0
-        ),
-        selectedMuscleGroup = "CARDIO",
-        isLoading = false,
-        error = null
-    )
+            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(18.dp))
+        }
+    }
+}
 
-    VitalAITheme {
-        WorkoutScreenContent(
-            uiState = mockState,
-            onBackClick = {},
-            onActivityClick = {},
-            onStartWorkoutClick = {},
-            onLibraryClick = {},
-            onFilterByMuscleGroup = {},
-            onUpdateSession = { _, _, _ -> },
-            onDeleteSession = {},
-            onRetry = {}
-        )
+@Composable
+private fun TodayActivityMini(waterMl: Int, steps: Int, onStepsClick: () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        TrainCard(tone = TrainTone.Cream, modifier = Modifier.weight(1f), padding = PaddingValues(15.dp)) {
+            Text("Nước", color = TrainColors.Charcoal, fontSize = 12.sp)
+            Text("${waterMl}ml", color = TrainColors.Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        TrainCard(tone = TrainTone.Cream, modifier = Modifier.weight(1f), padding = PaddingValues(15.dp), onClick = onStepsClick) {
+            Text("Bước chân", color = TrainColors.Charcoal, fontSize = 12.sp)
+            Text("$steps", color = TrainColors.Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
     }
 }

@@ -25,6 +25,7 @@ export class ActivityLog {
   @Column({ name: 'water_ml', default: 0 })
   waterMl!: number;
 
+  // Thêm lời nhắn
   @Column({ type: 'text', nullable: true })
   note!: string | null;
 

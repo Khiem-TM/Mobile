@@ -32,11 +32,14 @@ describe('TrainingSessionsService', () => {
       recomputeFromActivityDates: jest.fn().mockResolvedValue(undefined),
     };
 
+    const dataSource = { transaction: jest.fn() };
+
     const service = new TrainingSessionsService(
       sessionRepo as any,
       exerciseRepo as any,
       caloriesCalcService as any,
       streaksService as any,
+      dataSource as any,
     );
 
     await service.addItem('user-1', 'session-1', {

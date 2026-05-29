@@ -8,15 +8,17 @@ data class BodyMetricDto(
     @Json(name = "id") val id: String,
     @Json(name = "measuredAt") val date: String,
     @Json(name = "weightKg") val weightKg: Float,
-    @Json(name = "bodyFatPercent") val bodyFatPct: Float?,
+    @Json(name = "heightCm") val heightCm: Float? = null,
+    @Json(name = "bodyFatPercent") val bodyFatPct: Float? = null,
     @Json(name = "waistCm") val waistCm: Float? = null,
     @Json(name = "hipCm") val hipCm: Float? = null,
     @Json(name = "chestCm") val chestCm: Float? = null,
     @Json(name = "neckCm") val neckCm: Float? = null,
-    @Json(name = "bmi") val bmi: Float?,
+    @Json(name = "armCm") val armCm: Float? = null,
+    @Json(name = "bmi") val bmi: Float? = null,
     @Json(name = "bmr") val bmr: Float? = null,
     @Json(name = "tdee") val tdee: Float? = null,
-    @Json(name = "notes") val notes: String?
+    @Json(name = "notes") val notes: String? = null
 )
 
 @JsonClass(generateAdapter = true)

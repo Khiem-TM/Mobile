@@ -1,55 +1,45 @@
 package com.vitalai.ui.screens.workout
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-data class RingData(
-    val label: String,
-    val current: Float,
-    val target: Float,
-    val color: Color,
-    val unit: String
+private val MOOD_OPTIONS = listOf(
+    "happy" to "😊",
+    "neutral" to "😐",
+    "sad" to "😔",
+    "angry" to "😤",
+    "energetic" to "💪"
 )
 
-data class ActivityLogEntry(
-    val icon: String,
-    val title: String,
-    val subtitle: String,
-    val time: String
-)
+private val DAY_LABELS = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,9 +52,19 @@ fun ActivityScreen(
     ActivityScreenContent(
         uiState = uiState,
         onBackClick = { navController.popBackStack() },
+        onPrevDay = {
+            val prev = LocalDate.parse(uiState.selectedDate).minusDays(1).toString()
+            viewModel.selectDate(prev)
+        },
+        onNextDay = {
+            val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
+            if (!next.isAfter(LocalDate.now())) viewModel.selectDate(next.toString())
+        },
+        onAddWater = { viewModel.addWater(it) },
         onUpdateSteps = { viewModel.updateSteps(it) },
-        onUpdateWater = { viewModel.updateWater(it) },
-        onUpdateCalories = { calories, minutes -> viewModel.updateCaloriesBurned(calories, minutes) }
+        onUpdateSleep = { viewModel.updateSleep(it) },
+        onUpdateMood = { viewModel.updateMood(it) },
+        onNoteChange = { viewModel.scheduleNoteUpdate(it) }
     )
 }
 
@@ -73,45 +73,36 @@ fun ActivityScreen(
 fun ActivityScreenContent(
     uiState: ActivityUiState,
     onBackClick: () -> Unit,
+    onPrevDay: () -> Unit,
+    onNextDay: () -> Unit,
+    onAddWater: (Int) -> Unit,
     onUpdateSteps: (Int) -> Unit,
-    onUpdateWater: (Int) -> Unit,
-    onUpdateCalories: (Float, Int) -> Unit
+    onUpdateSleep: (Float) -> Unit,
+    onUpdateMood: (String) -> Unit,
+    onNoteChange: (String) -> Unit
 ) {
     val log = uiState.log
-    var showCaloriesDialog by remember { mutableStateOf(false) }
+    val today = LocalDate.now().toString()
+    val isToday = uiState.selectedDate == today
+    val isNextDisabled = isToday
 
-    val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi")))
+    val selectedDateDisplay = runCatching {
+        val date = LocalDate.parse(uiState.selectedDate)
+        if (isToday) "Hôm nay"
+        else date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi")))
+    }.getOrDefault(uiState.selectedDate)
 
-    val rings = listOf(
-        RingData("Move", log?.caloriesBurned ?: 0f, 500f, MacroProtein, "kcal"),
-        RingData("Steps", (log?.steps ?: 0).toFloat(), 10000f, Mint500, "bước"),
-        RingData("Water", (log?.waterMl ?: 0).toFloat(), 2000f, MacroWater, "ml"),
-        RingData("Active", (log?.activeMinutes ?: 0).toFloat(), 60f, MacroCarbs, "phút")
-    )
-
-    val hourlySteps = remember {
-        List(24) { 0 }
-    }
-
-    val activityLogs = remember { emptyList<ActivityLogEntry>() }
+    var stepsText by remember(log?.steps) { mutableStateOf((log?.steps ?: 0).toString()) }
+    var noteText by remember(log?.note) { mutableStateOf(log?.note ?: "") }
+    var showStepsDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
-                        Text("Hoạt động hôm nay", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(today, fontSize = 12.sp, color = Ink500)
-                    }
-                },
+                title = { Text("Nhật ký hoạt động", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.Settings, contentDescription = "Cài đặt", tint = Ink500)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
@@ -120,370 +111,408 @@ fun ActivityScreenContent(
         containerColor = AppMutedBackground
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            modifier = Modifier.fillMaxSize().padding(padding),
+            contentPadding = PaddingValues(bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Concentric rings
+            // Date selector
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(VitalRadius.Xl),
-                    colors = CardDefaults.cardColors(containerColor = AppSurface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-                    elevation = CardDefaults.cardElevation(0.dp)
-                ) {
+                DateSelector(
+                    label = selectedDateDisplay,
+                    onPrev = onPrevDay,
+                    onNext = onNextDay,
+                    nextDisabled = isNextDisabled
+                )
+            }
+
+            // Water card
+            item {
+                ActivityCard(title = "💧 Nước uống") {
+                    val waterMl = log?.waterMl ?: 0
+                    val goal = uiState.waterGoalMl
+                    val progress = (waterMl.toFloat() / goal).coerceIn(0f, 1f)
+
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ConcentricRings(rings = rings, modifier = Modifier.size(160.dp))
-                        Spacer(Modifier.width(20.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            rings.forEach { ring ->
-                                RingLegendItem(ring = ring)
+                        Text(
+                            "$waterMl ml",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ink900
+                        )
+                        Text(" / $goal ml", fontSize = 14.sp, color = Ink500, modifier = Modifier.padding(top = 4.dp))
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)),
+                        color = MacroWater,
+                        trackColor = MacroWater.copy(alpha = 0.15f)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        WaterButton("-500", Modifier.weight(1f)) { onAddWater(-500) }
+                        WaterButton("-250", Modifier.weight(1f)) { onAddWater(-250) }
+                        WaterButton("+250", Modifier.weight(1f), primary = true) { onAddWater(250) }
+                        WaterButton("+500", Modifier.weight(1f), primary = true) { onAddWater(500) }
+                    }
+                    if (progress >= 1f) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "🎉 Đã đạt mục tiêu uống nước hôm nay!",
+                            fontSize = 13.sp,
+                            color = MacroWater,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+
+            // Steps card
+            item {
+                ActivityCard(title = "👣 Bước chân") {
+                    val steps = log?.steps ?: 0
+                    val goal = uiState.stepGoal
+                    val progress = (steps.toFloat() / goal).coerceIn(0f, 1f)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("$steps", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                            Text("/ $goal bước", fontSize = 13.sp, color = Ink500)
+                        }
+                        TextButton(onClick = { showStepsDialog = true }) {
+                            Text("Nhập tay", color = Mint500, fontSize = 13.sp)
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)),
+                        color = Mint500,
+                        trackColor = Mint500.copy(alpha = 0.15f)
+                    )
+                }
+            }
+
+            // Sleep card
+            item {
+                ActivityCard(title = "😴 Giấc ngủ") {
+                    val sleepVal = log?.sleepHours ?: 0f
+                    var sliderVal by remember(sleepVal) { mutableFloatStateOf(sleepVal) }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            if (sliderVal == 0f) "Chưa ghi" else "${formatSleep(sliderVal)} giờ",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (sliderVal == 0f) Ink400 else Ink900
+                        )
+                        Text(
+                            when {
+                                sliderVal == 0f -> ""
+                                sliderVal < 6f -> "😴 Thiếu ngủ"
+                                sliderVal < 9f -> "✅ Đủ giấc"
+                                else -> "😪 Quá nhiều"
+                            },
+                            fontSize = 13.sp,
+                            color = when {
+                                sliderVal < 6f && sliderVal > 0f -> Color(0xFFF87171)
+                                sliderVal in 6f..9f -> Color(0xFF34D399)
+                                else -> Ink500
                             }
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Slider(
+                        value = sliderVal,
+                        onValueChange = { sliderVal = it },
+                        onValueChangeFinished = { onUpdateSleep(sliderVal) },
+                        valueRange = 0f..12f,
+                        steps = 23,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Mint500,
+                            activeTrackColor = Mint500,
+                            inactiveTrackColor = Mint500.copy(alpha = 0.15f)
+                        )
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("0h", fontSize = 11.sp, color = Ink400)
+                        Text("6h", fontSize = 11.sp, color = Ink400)
+                        Text("12h", fontSize = 11.sp, color = Ink400)
+                    }
+                }
+            }
+
+            // Mood card
+            item {
+                ActivityCard(title = "🎭 Tâm trạng") {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        MOOD_OPTIONS.forEach { (key, emoji) ->
+                            val selected = log?.mood == key
+                            MoodChip(emoji = emoji, selected = selected, onClick = { onUpdateMood(key) })
                         }
                     }
                 }
             }
 
-            // Hourly bar chart
+            // Note card
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(VitalRadius.Lg),
-                    colors = CardDefaults.cardColors(containerColor = AppSurface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-                    elevation = CardDefaults.cardElevation(0.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            "Bước chân theo giờ",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            color = Ink900
+                ActivityCard(title = "📝 Ghi chú") {
+                    OutlinedTextField(
+                        value = noteText,
+                        onValueChange = {
+                            noteText = it
+                            onNoteChange(it)
+                        },
+                        placeholder = { Text("Ghi lại cảm nhận hôm nay...", color = Ink400, fontSize = 13.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                        maxLines = 4,
+                        shape = RoundedCornerShape(VitalRadius.Md),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Mint500,
+                            unfocusedBorderColor = AppLine
                         )
-                        Spacer(Modifier.height(12.dp))
-                        HourlyStepsChart(hourlyData = hourlySteps)
-                    }
-                }
-            }
-
-            // Quick actions
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    QuickActionButton(
-                        icon = { Icon(Icons.Default.DirectionsWalk, contentDescription = null, tint = Mint500, modifier = Modifier.size(18.dp)) },
-                        label = "Cập nhật bước",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onUpdateSteps((log?.steps ?: 0) + 500) }
-                    )
-                    QuickActionButton(
-                        icon = { Icon(Icons.Default.WaterDrop, contentDescription = null, tint = MacroWater, modifier = Modifier.size(18.dp)) },
-                        label = "+250ml nước",
-                        modifier = Modifier.weight(1f),
-                        onClick = { onUpdateWater((log?.waterMl ?: 0) + 250) }
-                    )
-                    QuickActionButton(
-                        icon = { Icon(Icons.Default.Edit, contentDescription = null, tint = MacroCarbs, modifier = Modifier.size(18.dp)) },
-                        label = "Calories",
-                        modifier = Modifier.weight(1f),
-                        onClick = { showCaloriesDialog = true }
                     )
                 }
             }
 
-            // Activity log header
+            // 7-day achievement calendar
             item {
-                Text(
-                    "Nhật ký hoạt động",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = Ink900,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                )
-            }
+                ActivityCard(title = "📅 Tuần này") {
+                    val today7 = LocalDate.now()
+                    val days = (6 downTo 0).map { today7.minusDays(it.toLong()) }
 
-            // Activity log items
-            if (activityLogs.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                            .clip(RoundedCornerShape(VitalRadius.Lg))
-                            .background(AppSurface)
-                            .padding(20.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Chưa có nhật ký hoạt động chi tiết", color = Ink500, fontSize = 13.sp)
+                        days.forEach { day ->
+                            val logForDay = uiState.weeklyLogs.find { it.logDate == day.toString() }
+                            val waterOk = (logForDay?.waterMl ?: 0) >= uiState.waterGoalMl
+                            val stepsOk = (logForDay?.steps ?: 0) >= uiState.stepGoal
+                            val sleepOk = (logForDay?.sleepHours ?: 0f) >= 6f
+                            val allOk = waterOk && stepsOk
+                            val isSelected = day.toString() == uiState.selectedDate
+
+                            CalendarDayCell(
+                                dayLabel = DAY_LABELS[day.dayOfWeek.value - 1],
+                                dayNum = day.dayOfMonth.toString(),
+                                waterOk = waterOk,
+                                stepsOk = stepsOk,
+                                sleepOk = sleepOk,
+                                allOk = allOk,
+                                isToday = day == today7,
+                                isSelected = isSelected
+                            )
+                        }
                     }
-                }
-            } else {
-                items(activityLogs.size) { idx ->
-                    val entry = activityLogs[idx]
-                    ActivityLogItem(entry = entry)
                 }
             }
         }
     }
 
-    if (showCaloriesDialog) {
-        var caloriesText by remember(log?.caloriesBurned) { mutableStateOf((log?.caloriesBurned?.toInt() ?: 0).toString()) }
-        var minutesText by remember(log?.activeMinutes) { mutableStateOf((log?.activeMinutes ?: 0).toString()) }
+    // Steps input dialog
+    if (showStepsDialog) {
+        var stepsInput by remember { mutableStateOf((log?.steps ?: 0).toString()) }
         AlertDialog(
-            onDismissRequest = { showCaloriesDialog = false },
-            title = { Text("Ghi calories đã đốt") },
+            onDismissRequest = { showStepsDialog = false },
+            title = { Text("Nhập số bước chân") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    OutlinedTextField(
-                        value = caloriesText,
-                        onValueChange = { caloriesText = it },
-                        label = { Text("Calories") },
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = minutesText,
-                        onValueChange = { minutesText = it },
-                        label = { Text("Phút vận động") },
-                        singleLine = true
-                    )
-                }
+                OutlinedTextField(
+                    value = stepsInput,
+                    onValueChange = { stepsInput = it.filter { c -> c.isDigit() } },
+                    label = { Text("Số bước") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val calories = caloriesText.toFloatOrNull()
-                    val minutes = minutesText.toIntOrNull()
-                    if (calories != null && minutes != null) {
-                        onUpdateCalories(calories, minutes)
-                        showCaloriesDialog = false
-                    }
-                }) { Text("Lưu") }
+                    stepsInput.toIntOrNull()?.let { onUpdateSteps(it) }
+                    showStepsDialog = false
+                }) { Text("Lưu", color = Mint500) }
             },
             dismissButton = {
-                TextButton(onClick = { showCaloriesDialog = false }) { Text("Hủy") }
+                TextButton(onClick = { showStepsDialog = false }) { Text("Hủy") }
             }
         )
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ActivityScreenPreview() {
-    val mockState = ActivityUiState(
-        log = com.vitalai.data.remote.model.ActivityLogDto(
-            id = "mock-id",
-            logDate = "2026-05-23",
-            steps = 4500,
-            caloriesBurned = 250f,
-            activeMinutes = 45,
-            waterMl = 1250
-        ),
-        isLoading = false,
-        error = null
-    )
-    VitalAITheme {
-        ActivityScreenContent(
-            uiState = mockState,
-            onBackClick = {},
-            onUpdateSteps = {},
-            onUpdateWater = {},
-            onUpdateCalories = { _, _ -> }
-        )
-    }
-}
+// ─── Private composables ──────────────────────────────────────────────────────
 
 @Composable
-private fun ConcentricRings(rings: List<RingData>, modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val centerX = size.width / 2f
-        val centerY = size.height / 2f
-        val maxRadius = minOf(size.width, size.height) / 2f - 8f
-        val strokeWidth = 14f
-        val gap = 20f
-
-        rings.forEachIndexed { index, ring ->
-            val radius = maxRadius - index * (strokeWidth + gap)
-            val progress = (ring.current / ring.target).coerceIn(0f, 1f)
-
-            // Background track
-            drawArc(
-                color = ring.color.copy(alpha = 0.15f),
-                startAngle = -90f,
-                sweepAngle = 360f,
-                useCenter = false,
-                topLeft = Offset(centerX - radius, centerY - radius),
-                size = Size(radius * 2, radius * 2),
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-
-            // Progress arc
-            drawArc(
-                color = ring.color,
-                startAngle = -90f,
-                sweepAngle = 360f * progress,
-                useCenter = false,
-                topLeft = Offset(centerX - radius, centerY - radius),
-                size = Size(radius * 2, radius * 2),
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-        }
-    }
-}
-
-@Composable
-private fun RingLegendItem(ring: RingData) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(ring.color)
-        )
-        Spacer(Modifier.width(8.dp))
-        Column {
-            Text(ring.label, fontSize = 11.sp, color = Ink500, fontWeight = FontWeight.Medium)
-            Text(
-                "${ring.current.toInt()}/${ring.target.toInt()} ${ring.unit}",
-                fontSize = 12.sp,
-                color = Ink900,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-    }
-}
-
-@Composable
-private fun HourlyStepsChart(hourlyData: List<Int>) {
-    val maxVal = hourlyData.maxOrNull()?.toFloat() ?: 1f
-    if (hourlyData.all { it <= 0 }) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-                .clip(RoundedCornerShape(VitalRadius.Md))
-                .background(AppSurface2),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Chưa có dữ liệu theo giờ", fontSize = 12.sp, color = Ink500)
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            listOf("0h", "6h", "12h", "18h", "23h").forEach { label ->
-                Text(label, fontSize = 10.sp, color = Ink500)
-            }
-        }
-        return
-    }
-    val threshold = maxVal * 0.7f
-
-    Canvas(
+private fun DateSelector(
+    label: String,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    nextDisabled: Boolean
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp)
-    ) {
-        val barWidth = size.width / hourlyData.size
-        val maxHeight = size.height - 16f
-
-        hourlyData.forEachIndexed { index, steps ->
-            val barHeight = if (maxVal > 0) (steps / maxVal) * maxHeight else 0f
-            val color = if (steps >= threshold) Mint500 else Ink200
-            val left = index * barWidth + barWidth * 0.15f
-            val right = (index + 1) * barWidth - barWidth * 0.15f
-            val top = size.height - barHeight
-            val bottom = size.height
-
-            drawRoundRect(
-                color = color,
-                topLeft = Offset(left, top),
-                size = Size(right - left, barHeight.coerceAtLeast(2f)),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(3f, 3f)
-            )
-        }
-    }
-
-    // Hour labels
-    Row(
-        modifier = Modifier.fillMaxWidth(),
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        listOf("0h", "6h", "12h", "18h", "23h").forEach { label ->
-            Text(label, fontSize = 10.sp, color = Ink500)
+        IconButton(onClick = onPrev) {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Ngày trước", tint = Ink700)
+        }
+        Text(
+            label,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 15.sp,
+            color = Ink900
+        )
+        IconButton(onClick = onNext, enabled = !nextDisabled) {
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Ngày sau",
+                tint = if (nextDisabled) Ink400 else Ink700
+            )
         }
     }
 }
 
 @Composable
-private fun QuickActionButton(
-    icon: @Composable () -> Unit,
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+private fun ActivityCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(VitalRadius.Md),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
         border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            icon()
-            Spacer(Modifier.height(4.dp))
-            Text(
-                label,
-                fontSize = 10.sp,
-                color = Ink700,
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Medium
-            )
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink700)
+            Spacer(Modifier.height(12.dp))
+            content()
         }
     }
 }
 
 @Composable
-private fun ActivityLogItem(entry: ActivityLogEntry) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun WaterButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+    onClick: () -> Unit
+) {
+    val bg = if (primary) Mint500.copy(alpha = 0.12f) else AppSurface2
+    val textColor = if (primary) Mint700 else Ink700
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(VitalRadius.Md))
+            .background(bg)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Mint50),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(entry.icon, fontSize = 18.sp)
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(entry.title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
-            Text(entry.subtitle, fontSize = 12.sp, color = Ink500)
-        }
-        Text(entry.time, fontSize = 11.sp, color = Ink500)
+        Text(label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textColor)
     }
+}
+
+@Composable
+private fun MoodChip(emoji: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(if (selected) Mint500.copy(alpha = 0.18f) else Color.Transparent)
+            .border(
+                width = if (selected) 2.dp else 1.dp,
+                color = if (selected) Mint500 else AppLine,
+                shape = CircleShape
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(emoji, fontSize = 20.sp, textAlign = TextAlign.Center)
+    }
+}
+
+@Composable
+private fun CalendarDayCell(
+    dayLabel: String,
+    dayNum: String,
+    waterOk: Boolean,
+    stepsOk: Boolean,
+    sleepOk: Boolean,
+    allOk: Boolean,
+    isToday: Boolean,
+    isSelected: Boolean
+) {
+    val bgColor = when {
+        isSelected -> Mint500.copy(alpha = 0.2f)
+        allOk -> Mint500.copy(alpha = 0.1f)
+        else -> Color.Transparent
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(VitalRadius.Md))
+            .background(bgColor)
+            .padding(horizontal = 4.dp, vertical = 6.dp)
+    ) {
+        Text(
+            dayLabel,
+            fontSize = 10.sp,
+            color = if (isToday) Mint500 else Ink500,
+            fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal
+        )
+        Text(
+            dayNum,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isToday) Mint500 else Ink900
+        )
+        // Achievement dots
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            AchievementDot(waterOk, MacroWater)
+            AchievementDot(stepsOk, Mint500)
+            AchievementDot(sleepOk, MacroCarbs)
+        }
+    }
+}
+
+@Composable
+private fun AchievementDot(achieved: Boolean, color: Color) {
+    Box(
+        modifier = Modifier
+            .size(5.dp)
+            .clip(CircleShape)
+            .background(if (achieved) color else AppLine)
+    )
+}
+
+private fun formatSleep(hours: Float): String {
+    val h = hours.toInt()
+    val m = ((hours - h) * 60).toInt()
+    return if (m == 0) "$h" else "$h:${m.toString().padStart(2, '0')}"
 }

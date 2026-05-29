@@ -23,6 +23,7 @@ export class Exercise {
   @Column({ type: 'text', nullable: true })
   instructions!: string;
 
+  // Thể loại bài tập (Sport hoặc Gym)
   @Column({
     name: 'exercise_type',
     type: 'varchar',

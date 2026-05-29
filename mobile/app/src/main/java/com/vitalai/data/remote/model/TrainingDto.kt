@@ -129,7 +129,10 @@ data class ActivityLogDto(
     @Json(name = "steps") val steps: Int = 0,
     @Json(name = "caloriesBurned") val caloriesBurned: Float = 0f,
     @Json(name = "activeMinutes") val activeMinutes: Int = 0,
-    @Json(name = "waterMl") val waterMl: Int = 0
+    @Json(name = "waterMl") val waterMl: Int = 0,
+    @Json(name = "sleepHours") val sleepHours: Float? = null,
+    @Json(name = "mood") val mood: String? = null,
+    @Json(name = "note") val note: String? = null
 ) {
     val date: String get() = logDate
     val activeMins: Int get() = activeMinutes

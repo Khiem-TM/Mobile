@@ -4,3 +4,4 @@ CLAUDE.md
 .idea/
 .vscode/
 local.properties
+backend/public/

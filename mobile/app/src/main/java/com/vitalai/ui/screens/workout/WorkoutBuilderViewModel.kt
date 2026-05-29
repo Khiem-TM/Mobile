@@ -25,7 +25,14 @@ data class SetEntry(
 
 data class BuilderExercise(
     val exercise: ExerciseDto,
-    val sets: MutableList<SetEntry> = mutableListOf(SetEntry(1))
+    // GYM fields
+    val sets: MutableList<SetEntry> = mutableListOf(SetEntry(1)),
+    // SPORT fields
+    val durationMinutes: Int = 30,
+    val intensityLevel: String = "MEDIUM",
+    // CARDIO fields
+    val distanceKm: Float = 5f,
+    val avgSpeedKmh: Float = 10f
 )
 
 data class WorkoutBuilderUiState(
@@ -112,8 +119,45 @@ class WorkoutBuilderViewModel @Inject constructor(
     fun addExercise(exercise: ExerciseDto) {
         _uiState.update { state ->
             val updated = state.exercises.toMutableList()
-            updated.add(BuilderExercise(exercise = exercise))
+            updated.add(
+                BuilderExercise(
+                    exercise = exercise,
+                    durationMinutes = exercise.defaultDurationMinutes ?: 30,
+                    intensityLevel = exercise.defaultIntensityLevel ?: "MEDIUM",
+                    sets = mutableListOf(
+                        SetEntry(1, reps = (exercise.defaultReps ?: 10).toString(), kg = (exercise.defaultWeightKg ?: 0f).toString())
+                    )
+                )
+            )
             state.copy(exercises = updated, showExercisePicker = false)
+        }
+    }
+
+    fun updateSportEntry(idx: Int, durationMinutes: Int? = null, intensityLevel: String? = null) {
+        _uiState.update { state ->
+            val updated = state.exercises.toMutableList()
+            if (idx in updated.indices) {
+                val ex = updated[idx]
+                updated[idx] = ex.copy(
+                    durationMinutes = durationMinutes ?: ex.durationMinutes,
+                    intensityLevel = intensityLevel ?: ex.intensityLevel
+                )
+            }
+            state.copy(exercises = updated)
+        }
+    }
+
+    fun updateCardioEntry(idx: Int, distanceKm: Float? = null, avgSpeedKmh: Float? = null) {
+        _uiState.update { state ->
+            val updated = state.exercises.toMutableList()
+            if (idx in updated.indices) {
+                val ex = updated[idx]
+                updated[idx] = ex.copy(
+                    distanceKm = distanceKm ?: ex.distanceKm,
+                    avgSpeedKmh = avgSpeedKmh ?: ex.avgSpeedKmh
+                )
+            }
+            state.copy(exercises = updated)
         }
     }
 
@@ -127,7 +171,7 @@ class WorkoutBuilderViewModel @Inject constructor(
     private fun loadAvailableExercises() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingExercises = true, error = null) }
-            trainingRepository.getExercises(null).fold(
+            trainingRepository.getExercises().fold(
                 onSuccess = { exercises ->
                     _uiState.update {
                         it.copy(
@@ -152,21 +196,42 @@ class WorkoutBuilderViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
             val state = _uiState.value
-            val durationPerExercise = max(
-                1,
-                state.elapsedSeconds / 60 / max(1, state.exercises.size)
-            )
             val details = state.exercises.mapIndexed { index, builderExercise ->
-                val reps = builderExercise.sets.mapNotNull { it.reps.toIntOrNull() }
-                val weights = builderExercise.sets.mapNotNull { it.kg.toFloatOrNull() }
-                WorkoutDetailDto(
-                    exerciseId = builderExercise.exercise.id,
-                    durationMinutes = durationPerExercise,
-                    sets = builderExercise.sets.size,
-                    repsPerSet = reps.takeIf { it.isNotEmpty() }?.average()?.toInt()?.coerceAtLeast(1),
-                    weightKg = weights.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
-                    orderIndex = index
-                )
+                val ex = builderExercise.exercise
+                when (ex.exerciseType) {
+                    "GYM" -> {
+                        val reps = builderExercise.sets.mapNotNull { it.reps.toIntOrNull() }
+                        val weights = builderExercise.sets.mapNotNull { it.kg.toFloatOrNull() }
+                        WorkoutDetailDto(
+                            exerciseId = ex.id,
+                            exerciseType = "GYM",
+                            sets = builderExercise.sets.size,
+                            repsPerSet = reps.takeIf { it.isNotEmpty() }?.average()?.toInt()?.coerceAtLeast(1),
+                            weightKg = weights.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+                            orderIndex = index
+                        )
+                    }
+                    "CARDIO" -> {
+                        WorkoutDetailDto(
+                            exerciseId = ex.id,
+                            exerciseType = "CARDIO",
+                            distanceKm = builderExercise.distanceKm,
+                            avgSpeedKmh = builderExercise.avgSpeedKmh,
+                            sets = null, repsPerSet = null, weightKg = null,
+                            orderIndex = index
+                        )
+                    }
+                    else -> { // SPORT
+                        WorkoutDetailDto(
+                            exerciseId = ex.id,
+                            exerciseType = "SPORT",
+                            durationMinutes = builderExercise.durationMinutes,
+                            intensityLevel = builderExercise.intensityLevel,
+                            sets = null, repsPerSet = null, weightKg = null,
+                            orderIndex = index
+                        )
+                    }
+                }
             }
             val request = CreateWorkoutSessionDto(
                 sessionDate = state.date,

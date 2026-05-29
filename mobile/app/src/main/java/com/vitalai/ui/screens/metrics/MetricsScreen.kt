@@ -1,19 +1,31 @@
 package com.vitalai.ui.screens.metrics
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,25 +33,29 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import android.widget.Toast
+import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.BodyMetricDto
-import com.vitalai.data.remote.model.HealthProfileDto
+import com.vitalai.data.remote.model.BodyMetricsPeriodDto
+import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.MetricTile
+import com.vitalai.ui.components.SectionHeader
+import com.vitalai.ui.components.VitalCard
 import com.vitalai.ui.theme.*
-import java.time.Instant
+import java.io.File
 import java.time.LocalDate
-import java.time.Period
-import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,8 +65,7 @@ fun MetricsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var showAddMetricDialog by remember { mutableStateOf(false) }
-    var editingSection by remember { mutableStateOf<HealthProfileSection?>(null) }
+    var showUpdateSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.updateSuccessCount) {
         if (uiState.updateSuccessCount > 0) {
@@ -61,18 +76,18 @@ fun MetricsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Số liệu cơ thể", fontWeight = FontWeight.Bold) },
+                title = { Text("Chỉ số cơ thể", fontWeight = FontWeight.Bold, color = Ink900) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showAddMetricDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Thêm số liệu", tint = Mint500)
-                    }
-                    TextButton(onClick = { navController.navigate(Screen.MetricsHistory) }) {
-                        Text("Lịch sử", color = Mint500, fontSize = 13.sp)
+                    TextButton(onClick = {
+                        viewModel.setUpdateTab(0)
+                        showUpdateSheet = true
+                    }) {
+                        Text("Cập nhật", color = Mint500, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
@@ -87,147 +102,149 @@ fun MetricsScreen(
                 onRetry = viewModel::loadData,
                 modifier = Modifier.padding(padding)
             )
-            else -> Column(
+            else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(20.dp),
+                    .padding(padding),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Latest metrics summary
+                // 1. Latest metric + weight/height/BMI card
+                item {
+                    WeightHeightBmiCard(latest = uiState.latest)
+                }
+
+                // 2. BMI progress bar
+                uiState.latest?.bmi?.let { bmi ->
+                    item { BmiBar(bmi = bmi) }
+                }
+
+                // 3. BMR + TDEE row
                 uiState.latest?.let { latest ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        MetricCard("Cân nặng", "${latest.weightKg} kg", Mint500, Modifier.weight(1f))
-                        latest.bmi?.let { bmi ->
-                            MetricCard("BMI", "%.1f".format(bmi), bmiColor(bmi), Modifier.weight(1f))
-                        }
-                        latest.bodyFatPct?.let { fat ->
-                            MetricCard("Mỡ cơ thể", "%.1f%%".format(fat), MacroFat, Modifier.weight(1f))
+                    if (latest.bmr != null || latest.tdee != null) {
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                latest.bmr?.let { bmr ->
+                                    MetricTile(
+                                        label = "BMR (kcal/ngày)",
+                                        value = "%.0f".format(bmr),
+                                        modifier = Modifier.weight(1f),
+                                        color = Mint700,
+                                        subtitle = "Nhu cầu cơ bản"
+                                    )
+                                }
+                                latest.tdee?.let { tdee ->
+                                    MetricTile(
+                                        label = "TDEE (kcal/ngày)",
+                                        value = "%.0f".format(tdee),
+                                        modifier = Modifier.weight(1f),
+                                        color = Color(0xFF6366F1),
+                                        subtitle = "Tiêu thụ thực tế"
+                                    )
+                                }
+                            }
                         }
                     }
                 }
 
+                // 4. Weight change row
                 uiState.summary?.let { summary ->
-                    Card(
-                        shape = RoundedCornerShape(VitalRadius.Xl),
-                        colors = CardDefaults.cardColors(containerColor = AppSurface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+                    item {
+                        WeightChangeRow(
+                            weightChange = summary.weightChange,
+                            startDate = summary.startDate,
+                            startWeight = summary.startWeight,
+                            currentWeight = summary.currentWeight,
+                            totalRecords = summary.totalRecords
+                        )
+                    }
+                }
+
+                // 5. Period chart section
+                item {
+                    PeriodChartSection(
+                        selectedPeriod = uiState.selectedPeriod,
+                        periodData = uiState.periodData,
+                        onSelectPeriod = viewModel::selectPeriod
+                    )
+                }
+
+                // 6. History navigation button
+                item {
+                    TextButton(
+                        onClick = { navController.navigate(Screen.MetricsHistory) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Column {
-                                Text("Tiến độ cân nặng", fontWeight = FontWeight.Bold, color = Ink900)
-                                Text("${summary.totalRecords} lần cập nhật", fontSize = 12.sp, color = Ink500)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    "%+.1f kg".format(summary.weightChange),
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (summary.weightChange <= 0f) Mint500 else MacroProtein
-                                )
-                                Text("${summary.startWeight} -> ${summary.currentWeight} kg", fontSize = 12.sp, color = Ink500)
-                            }
+                            Text(
+                                "Xem lịch sử đầy đủ",
+                                color = Mint600,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Mint600,
+                                modifier = Modifier.size(16.dp)
+                            )
                         }
                     }
                 }
 
-                // Period selector
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(50),
-                    color = AppSurface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp)
-                    ) {
-                        listOf(
-                            "week" to "1 tuần",
-                            "month" to "1 tháng",
-                            "3months" to "3 tháng",
-                            "6months" to "6 tháng",
-                            "year" to "1 năm"
-                        ).forEach { (key, label) ->
-                            val isSelected = uiState.selectedPeriod == key
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(if (isSelected) Mint500 else Color.Transparent)
-                                    .clickable { viewModel.selectPeriod(key) }
-                                    .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
+                // 7. Body measurements card
+                uiState.latest?.let { latest ->
+                    item {
+                        BodyMeasurementsCard(latest = latest)
+                    }
+                }
+
+                // 8. Progress photos section
+                item {
+                    ProgressPhotosSection(
+                        photos = uiState.photos,
+                        isUploading = uiState.isUploadingPhoto,
+                        onAddPhotoClick = {
+                            viewModel.setUpdateTab(2)
+                            showUpdateSheet = true
+                        },
+                        onDeletePhoto = { id -> viewModel.deletePhoto(id) }
+                    )
+                }
+
+                // Empty state
+                if (uiState.latest == null && !uiState.isLoading) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("📊", fontSize = 40.sp)
+                                Spacer(Modifier.height(8.dp))
                                 Text(
-                                    text = label,
+                                    "Chưa có dữ liệu chỉ số cơ thể",
+                                    color = Ink500,
+                                    fontSize = 14.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "Nhấn 'Cập nhật' để thêm chỉ số đầu tiên",
+                                    color = Ink400,
                                     fontSize = 13.sp,
-                                    color = if (isSelected) Color.White else Ink500,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                                    textAlign = TextAlign.Center
                                 )
                             }
-                        }
-                    }
-                }
-
-                // Weight chart
-                uiState.periodData?.let { period ->
-                    if (period.data.isNotEmpty()) {
-                        Card(
-                            shape = RoundedCornerShape(VitalRadius.Xl),
-                            colors = CardDefaults.cardColors(containerColor = AppSurface),
-                            elevation = CardDefaults.cardElevation(0.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("Biểu đồ cân nặng", fontWeight = FontWeight.Bold, color = Ink900)
-                                    Text(
-                                        "TB: ${"%.1f".format(period.avgWeight)} kg",
-                                        fontSize = 12.sp,
-                                        color = Ink500
-                                    )
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                WeightLineChart(
-                                    data = period.data,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(160.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                PersonalInfoCard(profile = uiState.healthProfile, onEdit = { editingSection = HealthProfileSection.Personal })
-                DietActivityCard(profile = uiState.healthProfile, onEdit = { editingSection = HealthProfileSection.DietActivity })
-                BodyGoalsCard(profile = uiState.healthProfile, onEdit = { editingSection = HealthProfileSection.BodyGoals })
-                DailyTargetsCard(profile = uiState.healthProfile, onEdit = { editingSection = HealthProfileSection.DailyTargets })
-                GoalTimelineCard(profile = uiState.healthProfile, onEdit = { editingSection = HealthProfileSection.GoalTimeline })
-
-                if (uiState.latest == null && uiState.periodData == null) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("📊", fontSize = 40.sp)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Chưa có dữ liệu số liệu cơ thể", color = Ink500, fontSize = 14.sp)
                         }
                     }
                 }
@@ -235,511 +252,330 @@ fun MetricsScreen(
         }
     }
 
-    if (showAddMetricDialog) {
-        AddMetricDialog(
-            onDismiss = { showAddMetricDialog = false },
-            onSave = { request ->
-                viewModel.addMetric(request)
-                showAddMetricDialog = false
-            }
-        )
-    }
-
-    editingSection?.let { section ->
-        HealthProfileEditDialog(
-            section = section,
-            profile = uiState.healthProfile,
-            onDismiss = { editingSection = null },
-            onSave = { request ->
-                viewModel.updateHealthProfile(request)
-                editingSection = null
-            }
+    // Update bottom sheet
+    if (showUpdateSheet) {
+        UpdateBottomSheet(
+            uiState = uiState,
+            viewModel = viewModel,
+            onDismiss = { showUpdateSheet = false }
         )
     }
 }
 
-private enum class HealthProfileSection {
-    Personal,
-    DietActivity,
-    BodyGoals,
-    DailyTargets,
-    GoalTimeline
-}
-
-private val genderOptions = listOf(
-    "male" to "Nam",
-    "female" to "Nữ"
-)
-
-private val dietTypeOptions = listOf(
-    "balanced" to "Cân bằng",
-    "high_protein" to "Giàu đạm",
-    "keto" to "Ketogenic",
-    "vegan" to "Thuần chay",
-    "vegetarian" to "Chay thường",
-    "paleo" to "Thời kỳ đồ đá"
-)
-
-private val activityLevelOptions = listOf(
-    "sedentary" to "Ít vận động",
-    "lightly_active" to "Vận động nhẹ",
-    "moderately_active" to "Vận động vừa phải",
-    "very_active" to "Vận động nhiều",
-    "extra_active" to "Vận động cực nặng"
-)
-
-private val goalTypeOptions = listOf(
-    "lose_weight" to "Giảm cân",
-    "gain_weight" to "Tăng cân",
-    "maintain" to "Giữ cân",
-    "gain_muscle" to "Tăng cơ",
-    "bulking" to "Tăng cơ tối đa",
-    "improve_endurance" to "Cải thiện sức bền"
-)
-
-private val goalStatusOptions = listOf(
-    "active" to "Đang thực hiện",
-    "completed" to "Đã hoàn thành",
-    "abandoned" to "Đã từ bỏ"
-)
+// ─────────────────────────────────────────────────────────────
+// WeightHeightBmiCard
+// ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun PersonalInfoCard(profile: HealthProfileDto?, onEdit: () -> Unit) {
-    HealthProfileInfoCard(
-        title = "Thông tin cá nhân",
-        rows = listOf(
-            "Giới tính" to formatGender(profile?.gender),
-            "Chiều cao" to formatHeight(profile?.heightCm),
-            "Tuổi" to formatAge(profile?.birthDate)
-        ),
-        onEdit = onEdit
-    )
-}
-
-@Composable
-private fun DietActivityCard(profile: HealthProfileDto?, onEdit: () -> Unit) {
-    HealthProfileInfoCard(
-        title = "Chế độ ăn uống & vận động",
-        rows = listOf(
-            "Chế độ ăn" to formatDietType(profile?.dietType),
-            "Dị ứng thực phẩm" to formatFoodAllergies(profile?.foodAllergies),
-            "Mức vận động" to formatActivityLevel(profile?.activityLevel)
-        ),
-        onEdit = onEdit
-    )
-}
-
-@Composable
-private fun BodyGoalsCard(profile: HealthProfileDto?, onEdit: () -> Unit) {
-    HealthProfileInfoCard(
-        title = "Mục tiêu hình thể",
-        rows = listOf(
-            "Loại mục tiêu" to formatGoalType(profile?.goalType),
-            "Cân nặng ban đầu" to formatWeight(profile?.initialWeightKg),
-            "Cân nặng mục tiêu" to formatWeight(profile?.weightGoalKg ?: profile?.targetWeightKg),
-            "Mốc đối chiếu" to formatWeight(profile?.targetWeightKg),
-            "Tốc độ mỗi tuần" to formatWeeklyRate(profile?.weeklyRateKg)
-        ),
-        onEdit = onEdit
-    )
-}
-
-@Composable
-private fun DailyTargetsCard(profile: HealthProfileDto?, onEdit: () -> Unit) {
-    HealthProfileInfoCard(
-        title = "Mục tiêu dinh dưỡng hàng ngày",
-        rows = listOf(
-            "Calo tổng quan" to formatCalories(profile?.caloriesGoal),
-            "Calo mỗi ngày" to formatCalories(profile?.dailyCaloriesGoal),
-            "Nước" to formatWater(profile?.waterGoalMl),
-            "Protein" to formatGram(profile?.proteinGoalG),
-            "Chất béo" to formatGram(profile?.fatGoalG),
-            "Carbs" to formatGram(profile?.carbsGoalG)
-        ),
-        onEdit = onEdit
-    )
-}
-
-@Composable
-private fun GoalTimelineCard(profile: HealthProfileDto?, onEdit: () -> Unit) {
-    HealthProfileInfoCard(
-        title = "Thời gian & trạng thái mục tiêu",
-        rows = listOf(
-            "Ngày bắt đầu" to formatDate(profile?.goalStartDate),
-            "Hạn chót" to formatDate(profile?.goalDeadline),
-            "Trạng thái" to formatGoalStatus(profile?.goalStatus)
-        ),
-        onEdit = onEdit
-    )
-}
-
-@Composable
-private fun HealthProfileInfoCard(title: String, rows: List<Pair<String, String>>, onEdit: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(VitalRadius.Xl),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(0.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+private fun WeightHeightBmiCard(latest: BodyMetricDto?) {
+    VitalCard(modifier = Modifier.fillMaxWidth()) {
+        if (latest == null) {
+            Text(
+                "Chưa có số liệu. Nhấn 'Cập nhật' để thêm.",
+                color = Ink500,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+            )
+            return@VitalCard
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
-                IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Chỉnh sửa",
-                        tint = Ink700,
-                        modifier = Modifier.size(18.dp)
+            Column {
+                Text(
+                    "%.1f kg".format(latest.weightKg),
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Ink900
+                )
+                Text("Cân nặng", fontSize = 12.sp, color = Ink500)
+            }
+            latest.heightCm?.let { h ->
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "%.0f cm".format(h),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink700
+                    )
+                    Text("Chiều cao", fontSize = 12.sp, color = Ink500)
+                }
+            }
+        }
+        latest.bmi?.let { bmi ->
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = AppLine)
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "BMI: ",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Ink700
+                )
+                Text(
+                    "%.1f".format(bmi),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = bmiColor(bmi)
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(VitalRadius.Pill))
+                        .background(bmiColor(bmi).copy(alpha = 0.12f))
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        bmiLabel(bmi),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = bmiColor(bmi)
                     )
                 }
             }
-            rows.forEach { (label, value) ->
-                PersonalInfoRow(label = label, value = value)
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// BmiBar
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun BmiBar(bmi: Float) {
+    // BMI range shown: 10 to 40
+    val minBmi = 10f
+    val maxBmi = 40f
+    val clampedBmi = bmi.coerceIn(minBmi, maxBmi)
+    val thumbFraction = (clampedBmi - minBmi) / (maxBmi - minBmi)
+
+    VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
+        Text("Chỉ số BMI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink900)
+        Spacer(Modifier.height(12.dp))
+
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val totalWidth = maxWidth
+
+            // Zone fractions relative to range 10-40 (total span = 30)
+            // Thiếu cân: 10-18.5 (8.5), Bình thường: 18.5-25 (6.5), Thừa cân: 25-30 (5), Béo phì: 30-40 (10)
+            val zones = listOf(
+                Triple("Thiếu cân", Color(0xFF60A5FA), 8.5f / 30f),
+                Triple("Bình thường", Color(0xFF34D399), 6.5f / 30f),
+                Triple("Thừa cân", Color(0xFFFBBF24), 5f / 30f),
+                Triple("Béo phì", Color(0xFFF87171), 10f / 30f)
+            )
+
+            Column {
+                // Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(VitalRadius.Pill))
+                ) {
+                    zones.forEach { (_, color, fraction) ->
+                        Box(
+                            modifier = Modifier
+                                .weight(fraction)
+                                .fillMaxHeight()
+                                .background(color)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // Thumb indicator
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .offset(x = (totalWidth * thumbFraction) - 6.dp)
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(Ink900)
+                            .border(2.dp, AppSurface, CircleShape)
+                    )
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                // Labels
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    zones.forEach { (label, color, fraction) ->
+                        Text(
+                            label,
+                            modifier = Modifier.weight(fraction),
+                            fontSize = 9.sp,
+                            color = color,
+                            fontWeight = FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Chỉ số của bạn: %.1f — %s".format(bmi, bmiLabel(bmi)),
+            fontSize = 12.sp,
+            color = bmiColor(bmi),
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// WeightChangeRow
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun WeightChangeRow(
+    weightChange: Float,
+    startDate: String?,
+    startWeight: Float,
+    currentWeight: Float,
+    totalRecords: Int
+) {
+    VitalCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Tiến độ cân nặng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Ink900)
+                Text("$totalRecords lần cập nhật", fontSize = 12.sp, color = Ink500)
+                startDate?.let { date ->
+                    Text(
+                        "Từ ${formatDateDisplay(date)}",
+                        fontSize = 11.sp,
+                        color = Ink400,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                val arrow = if (weightChange <= 0f) "↓" else "↑"
+                val changeColor = if (weightChange <= 0f) Color(0xFF34D399) else Color(0xFFF87171)
+                Text(
+                    "$arrow %+.1f kg".format(weightChange),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = changeColor
+                )
+                Text(
+                    "%.1f → %.1f kg".format(startWeight, currentWeight),
+                    fontSize = 12.sp,
+                    color = Ink500
+                )
             }
         }
     }
 }
 
-@Composable
-private fun PersonalInfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = Ink900,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = value,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            color = Ink700,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
+// ─────────────────────────────────────────────────────────────
+// PeriodChartSection
+// ─────────────────────────────────────────────────────────────
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HealthProfileEditDialog(
-    section: HealthProfileSection,
-    profile: HealthProfileDto?,
-    onDismiss: () -> Unit,
-    onSave: (HealthProfileDto) -> Unit
+private fun PeriodChartSection(
+    selectedPeriod: String,
+    periodData: BodyMetricsPeriodDto?,
+    onSelectPeriod: (String) -> Unit
 ) {
-    var birthDate by remember(section, profile) { mutableStateOf(profile?.birthDate.orEmpty()) }
-    var gender by remember(section, profile) { mutableStateOf(profile?.gender.orEmpty()) }
-    var heightCm by remember(section, profile) { mutableStateOf(profile?.heightCm?.toCleanString().orEmpty()) }
-    var dietType by remember(section, profile) { mutableStateOf(profile?.dietType.orEmpty()) }
-    var foodAllergies by remember(section, profile) { mutableStateOf(profile?.foodAllergies?.joinToString(", ").orEmpty()) }
-    var activityLevel by remember(section, profile) { mutableStateOf(profile?.activityLevel.orEmpty()) }
-    var goalType by remember(section, profile) { mutableStateOf(profile?.goalType.orEmpty()) }
-    var initialWeightKg by remember(section, profile) { mutableStateOf(profile?.initialWeightKg?.toCleanString().orEmpty()) }
-    var weightGoalKg by remember(section, profile) { mutableStateOf(profile?.weightGoalKg?.toCleanString().orEmpty()) }
-    var targetWeightKg by remember(section, profile) { mutableStateOf(profile?.targetWeightKg?.toCleanString().orEmpty()) }
-    var weeklyRateKg by remember(section, profile) { mutableStateOf(profile?.weeklyRateKg?.toCleanString().orEmpty()) }
-    var caloriesGoal by remember(section, profile) { mutableStateOf(profile?.caloriesGoal?.toString().orEmpty()) }
-    var dailyCaloriesGoal by remember(section, profile) { mutableStateOf(profile?.dailyCaloriesGoal?.toString().orEmpty()) }
-    var waterGoalMl by remember(section, profile) { mutableStateOf(profile?.waterGoalMl?.toString().orEmpty()) }
-    var proteinGoalG by remember(section, profile) { mutableStateOf(profile?.proteinGoalG?.toString().orEmpty()) }
-    var fatGoalG by remember(section, profile) { mutableStateOf(profile?.fatGoalG?.toString().orEmpty()) }
-    var carbsGoalG by remember(section, profile) { mutableStateOf(profile?.carbsGoalG?.toString().orEmpty()) }
-    var goalStartDate by remember(section, profile) { mutableStateOf(profile?.goalStartDate.orEmpty()) }
-    var goalDeadline by remember(section, profile) { mutableStateOf(profile?.goalDeadline.orEmpty()) }
-    var goalStatus by remember(section, profile) { mutableStateOf(profile?.goalStatus.orEmpty()) }
+    VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            SectionHeader(title = "Biểu đồ cân nặng")
+            Spacer(Modifier.height(10.dp))
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = AppSurface,
-        title = { Text("Chỉnh sửa ${section.editTitle()}") },
-        text = {
-            Column(
+            // Tab row: Tuần / Tháng / Quý
+            val tabs = listOf(
+                "week" to "Tuần",
+                "month" to "Tháng",
+                "3months" to "Quý"
+            )
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
+                    .background(AppSurface2)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                when (section) {
-                    HealthProfileSection.Personal -> {
-                        EditDropdownField("Giới tính", gender, genderOptions, { gender = it })
-                        EditTextField("Chiều cao (cm)", heightCm, { heightCm = it })
-                        EditDateField("Ngày sinh", birthDate, { birthDate = it })
-                    }
-                    HealthProfileSection.DietActivity -> {
-                        EditDropdownField("Chế độ ăn", dietType, dietTypeOptions, { dietType = it })
-                        EditTextField("Dị ứng thực phẩm", foodAllergies, { foodAllergies = it })
-                        EditDropdownField("Mức vận động", activityLevel, activityLevelOptions, { activityLevel = it })
-                    }
-                    HealthProfileSection.BodyGoals -> {
-                        EditDropdownField("Loại mục tiêu", goalType, goalTypeOptions, { goalType = it })
-                        EditTextField("Cân nặng ban đầu (kg)", initialWeightKg, { initialWeightKg = it })
-                        EditTextField("Cân nặng mục tiêu (kg)", weightGoalKg, { weightGoalKg = it })
-                        EditTextField("Mốc đối chiếu (kg)", targetWeightKg, { targetWeightKg = it })
-                        EditTextField("Tốc độ mỗi tuần (kg)", weeklyRateKg, { weeklyRateKg = it })
-                    }
-                    HealthProfileSection.DailyTargets -> {
-                        EditTextField("Calo tổng quan", caloriesGoal, { caloriesGoal = it })
-                        EditTextField("Calo mỗi ngày", dailyCaloriesGoal, { dailyCaloriesGoal = it })
-                        EditTextField("Nước (ml)", waterGoalMl, { waterGoalMl = it })
-                        EditTextField("Protein (g)", proteinGoalG, { proteinGoalG = it })
-                        EditTextField("Chất béo (g)", fatGoalG, { fatGoalG = it })
-                        EditTextField("Carbs (g)", carbsGoalG, { carbsGoalG = it })
-                    }
-                    HealthProfileSection.GoalTimeline -> {
-                        EditDateField("Ngày bắt đầu", goalStartDate, { goalStartDate = it })
-                        EditDateField("Hạn chót", goalDeadline, { goalDeadline = it })
-                        EditDropdownField("Trạng thái", goalStatus, goalStatusOptions, { goalStatus = it })
+                tabs.forEach { (key, label) ->
+                    val isSelected = selectedPeriod == key
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(VitalRadius.Pill))
+                            .background(if (isSelected) Mint500 else Color.Transparent)
+                            .clickable { onSelectPeriod(key) }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            label,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (isSelected) Color.White else Ink700
+                        )
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(
-                        when (section) {
-                            HealthProfileSection.Personal -> HealthProfileDto(
-                                birthDate = birthDate.blankToNull(),
-                                gender = gender.blankToNull(),
-                                heightCm = heightCm.toFloatOrNull()
-                            )
-                            HealthProfileSection.DietActivity -> HealthProfileDto(
-                                dietType = dietType.blankToNull(),
-                                foodAllergies = foodAllergies.splitCsv(),
-                                activityLevel = activityLevel.blankToNull()
-                            )
-                            HealthProfileSection.BodyGoals -> HealthProfileDto(
-                                goalType = goalType.blankToNull(),
-                                initialWeightKg = initialWeightKg.toFloatOrNull(),
-                                weightGoalKg = weightGoalKg.toFloatOrNull(),
-                                targetWeightKg = targetWeightKg.toFloatOrNull(),
-                                weeklyRateKg = weeklyRateKg.toFloatOrNull()
-                            )
-                            HealthProfileSection.DailyTargets -> HealthProfileDto(
-                                caloriesGoal = caloriesGoal.toFloatOrNull(),
-                                dailyCaloriesGoal = dailyCaloriesGoal.toFloatOrNull(),
-                                waterGoalMl = waterGoalMl.toIntOrNull(),
-                                proteinGoalG = proteinGoalG.toFloatOrNull(),
-                                fatGoalG = fatGoalG.toFloatOrNull(),
-                                carbsGoalG = carbsGoalG.toFloatOrNull()
-                            )
-                            HealthProfileSection.GoalTimeline -> HealthProfileDto(
-                                goalStartDate = goalStartDate.blankToNull(),
-                                goalDeadline = goalDeadline.blankToNull(),
-                                goalStatus = goalStatus.blankToNull()
-                            )
-                        }
-                    )
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0EB67E))
-            ) { Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Hủy") }
-        }
-    )
-}
 
-@Composable
-private fun EditTextField(label: String, value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth()
-    )
-}
+            Spacer(Modifier.height(12.dp))
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditDropdownField(
-    label: String,
-    value: String,
-    options: List<Pair<String, String>>,
-    onValueChange: (String) -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayValue = options.firstOrNull { it.first == value }?.second.orEmpty()
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = !expanded },
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        OutlinedTextField(
-            value = displayValue,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AppSurface,
-                unfocusedContainerColor = AppSurface,
-                disabledContainerColor = AppSurface
-            ),
-            modifier = Modifier
-                .menuAnchor()
-                .fillMaxWidth()
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.background(AppSurface)
-        ) {
-            options.forEach { (code, display) ->
-                DropdownMenuItem(
-                    text = { Text(display) },
-                    colors = MenuDefaults.itemColors(textColor = Ink900),
-                    onClick = {
-                        onValueChange(code)
-                        expanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EditDateField(label: String, value: String, onValueChange: (String) -> Unit) {
-    var showDatePicker by remember { mutableStateOf(false) }
-    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = value.toEpochMillisOrNull())
-
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = { Text("yyyy-MM-dd") },
-        trailingIcon = {
-            TextButton(onClick = { showDatePicker = true }) {
-                Text("Chọn", color = Color(0xFF0EB67E), fontWeight = FontWeight.Bold)
-            }
-        },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = AppSurface,
-            unfocusedContainerColor = AppSurface,
-            disabledContainerColor = AppSurface
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-    )
-
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            onValueChange(millis.toIsoDate())
-                        }
-                        showDatePicker = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0EB67E))
+            if (periodData != null && periodData.data.size >= 2) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(
+                        "TB: ${"%.1f".format(periodData.avgWeight)} kg",
+                        fontSize = 12.sp,
+                        color = Ink500
+                    )
+                    Text(
+                        "↓%.1f / ↑%.1f kg".format(periodData.minWeight, periodData.maxWeight),
+                        fontSize = 12.sp,
+                        color = Ink500
+                    )
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Hủy") }
-            },
-            colors = DatePickerDefaults.colors(containerColor = AppSurface)
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-}
-
-@Composable
-private fun AddMetricDialog(
-    onDismiss: () -> Unit,
-    onSave: (UpsertBodyMetricRequest) -> Unit
-) {
-    var weight by remember { mutableStateOf("") }
-    var bodyFat by remember { mutableStateOf("") }
-    var waist by remember { mutableStateOf("") }
-    var hip by remember { mutableStateOf("") }
-    var chest by remember { mutableStateOf("") }
-    var neck by remember { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = AppSurface,
-        title = { Text("Cập nhật số liệu") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(weight, { weight = it }, label = { Text("Cân nặng kg") }, singleLine = true)
-                OutlinedTextField(bodyFat, { bodyFat = it }, label = { Text("% mỡ") }, singleLine = true)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(waist, { waist = it }, label = { Text("Eo") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(hip, { hip = it }, label = { Text("Hông") }, singleLine = true, modifier = Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(chest, { chest = it }, label = { Text("Ngực") }, singleLine = true, modifier = Modifier.weight(1f))
-                    OutlinedTextField(neck, { neck = it }, label = { Text("Cổ") }, singleLine = true, modifier = Modifier.weight(1f))
+                Spacer(Modifier.height(6.dp))
+                WeightLineChart(
+                    data = periodData.data,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Cần ít nhất 2 điểm dữ liệu để hiển thị biểu đồ",
+                        color = Ink400,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                onSave(
-                    UpsertBodyMetricRequest(
-                        recordedAt = LocalDate.now().toString(),
-                        weightKg = weight.toFloatOrNull(),
-                        bodyFatPct = bodyFat.toFloatOrNull(),
-                        waistCm = waist.toFloatOrNull(),
-                        hipCm = hip.toFloatOrNull(),
-                        chestCm = chest.toFloatOrNull(),
-                        neckCm = neck.toFloatOrNull()
-                    )
-                )
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0EB67E))
-            ) { Text("Lưu", color = Color.White, fontWeight = FontWeight.Bold) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Hủy") }
-        }
-    )
-}
-
-@Composable
-private fun MetricCard(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(VitalRadius.Xl),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.18f)),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(value, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = color)
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(label, fontSize = 12.sp, color = Ink500, fontWeight = FontWeight.Medium)
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────
+// WeightLineChart
+// ─────────────────────────────────────────────────────────────
 
 @Composable
 private fun WeightLineChart(data: List<BodyMetricDto>, modifier: Modifier = Modifier) {
@@ -767,7 +603,7 @@ private fun WeightLineChart(data: List<BodyMetricDto>, modifier: Modifier = Modi
             Offset(x, y)
         }
 
-        // Fill area underline
+        // Fill area
         val fillPath = Path().apply {
             moveTo(points.first().x, h)
             points.forEach { lineTo(it.x, it.y) }
@@ -791,386 +627,567 @@ private fun WeightLineChart(data: List<BodyMetricDto>, modifier: Modifier = Modi
     }
 }
 
-private fun bmiColor(bmi: Float) = when {
-    bmi < 18.5f -> MacroWater
-    bmi < 25f -> Mint500
-    bmi < 30f -> MacroCarbs
-    else -> MacroProtein
-}
+// ─────────────────────────────────────────────────────────────
+// BodyMeasurementsCard
+// ─────────────────────────────────────────────────────────────
 
-private fun formatGender(gender: String?): String {
-    return when (gender) {
-        "male" -> "Nam"
-        "female" -> "Nữ"
-        null -> "--"
-        else -> gender.replaceFirstChar { it.uppercase() }
-    }
-}
-
-private fun formatHeight(heightCm: Float?): String {
-    return heightCm?.let { "%.0f cm".format(it) } ?: "--"
-}
-
-private fun formatWeight(weightKg: Float?): String {
-    return weightKg?.let { "%.1f kg".format(it) } ?: "--"
-}
-
-private fun formatWeeklyRate(weeklyRateKg: Float?): String {
-    return weeklyRateKg?.let { "%.1f kg/tuần".format(it) } ?: "--"
-}
-
-private fun formatCalories(calories: Float?): String {
-    return calories?.let { "${it.toDisplayNumber()} kcal" } ?: "--"
-}
-
-private fun formatWater(waterMl: Int?): String {
-    return waterMl?.let { "$it ml" } ?: "--"
-}
-
-private fun formatGram(grams: Float?): String {
-    return grams?.let { "${it.toDisplayNumber()}g" } ?: "--"
-}
-
-private fun formatAge(birthDate: String?): String {
-    return runCatching {
-        val date = LocalDate.parse(birthDate)
-        "${Period.between(date, LocalDate.now()).years} tuổi"
-    }.getOrDefault("--")
-}
-
-private fun HealthProfileSection.editTitle(): String {
-    return when (this) {
-        HealthProfileSection.Personal -> "thông tin cá nhân"
-        HealthProfileSection.DietActivity -> "chế độ ăn uống & vận động"
-        HealthProfileSection.BodyGoals -> "mục tiêu hình thể"
-        HealthProfileSection.DailyTargets -> "mục tiêu dinh dưỡng hàng ngày"
-        HealthProfileSection.GoalTimeline -> "thời gian & trạng thái mục tiêu"
-    }
-}
-
-private fun String.blankToNull(): String? = trim().takeIf { it.isNotEmpty() }
-
-private fun String.splitCsv(): List<String>? {
-    return split(",")
-        .map { it.trim() }
-        .filter { it.isNotEmpty() }
-        .takeIf { it.isNotEmpty() }
-}
-
-private fun Float.toCleanString(): String {
-    return if (this % 1f == 0f) toInt().toString() else toString()
-}
-
-private fun Float.toDisplayNumber(): String {
-    return if (this % 1f == 0f) "%.0f".format(this) else "%.2f".format(this)
-}
-
-private fun String.toEpochMillisOrNull(): Long? {
-    return runCatching {
-        LocalDate.parse(this)
-            .atStartOfDay(ZoneId.systemDefault())
-            .toInstant()
-            .toEpochMilli()
-    }.getOrNull()
-}
-
-private fun Long.toIsoDate(): String {
-    return Instant.ofEpochMilli(this)
-        .atZone(ZoneId.systemDefault())
-        .toLocalDate()
-        .toString()
-}
-
-private fun formatDateInput(date: String): String {
-    return date.takeIf { it.isNotBlank() }?.let(::formatDate) ?: ""
-}
-
-private fun formatDate(date: String?): String {
-    return runCatching {
-        val parsed = LocalDate.parse(date)
-        "%02d/%02d/%04d".format(parsed.dayOfMonth, parsed.monthValue, parsed.year)
-    }.getOrDefault("--")
-}
-
-private fun formatDietType(dietType: String?): String {
-    return when (dietType) {
-        "balanced" -> "Cân bằng"
-        "high_protein" -> "Giàu đạm"
-        "keto" -> "Ketogenic"
-        "vegan" -> "Thuần chay"
-        "vegetarian" -> "Chay thường"
-        "paleo" -> "Thời kỳ đồ đá"
-        null -> "--"
-        else -> dietType.replace("_", " ").replaceFirstChar { it.uppercase() }
-    }
-}
-
-private fun formatFoodAllergies(foodAllergies: List<String>?): String {
-    if (foodAllergies.isNullOrEmpty()) return "Không có"
-    return foodAllergies.joinToString(", ") { allergy ->
-        when (allergy) {
-            "gluten" -> "Gluten"
-            "dairy" -> "Sữa"
-            "nuts" -> "Các loại hạt"
-            "seafood" -> "Hải sản"
-            "eggs" -> "Trứng"
-            "soy" -> "Đậu nành"
-            else -> allergy.replace("_", " ").replaceFirstChar { it.uppercase() }
-        }
-    }
-}
-
-private fun formatActivityLevel(activityLevel: String?): String {
-    return when (activityLevel) {
-        "sedentary" -> "Ít vận động"
-        "lightly_active" -> "Vận động nhẹ"
-        "moderately_active" -> "Vận động vừa phải"
-        "very_active" -> "Vận động nhiều"
-        "extra_active" -> "Vận động cực nặng"
-        null -> "--"
-        else -> activityLevel.replace("_", " ").replaceFirstChar { it.uppercase() }
-    }
-}
-
-private fun formatGoalType(goalType: String?): String {
-    return when (goalType) {
-        "lose_weight" -> "Giảm cân"
-        "gain_weight" -> "Tăng cân"
-        "maintain" -> "Giữ cân"
-        "gain_muscle" -> "Tăng cơ"
-        "bulking" -> "Tăng cơ tối đa"
-        "improve_endurance" -> "Cải thiện sức bền"
-        null -> "--"
-        else -> goalType.replace("_", " ").replaceFirstChar { it.uppercase() }
-    }
-}
-
-private fun formatGoalStatus(goalStatus: String?): String {
-    return when (goalStatus) {
-        "active" -> "Đang thực hiện"
-        "completed" -> "Đã hoàn thành"
-        "abandoned" -> "Đã từ bỏ"
-        null -> "--"
-        else -> goalStatus.replace("_", " ").replaceFirstChar { it.uppercase() }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun MetricsScreenPreview() {
+private fun BodyMeasurementsCard(latest: BodyMetricDto) {
+    val measurements = buildList {
+        latest.bodyFatPct?.let { add("Tỷ lệ mỡ" to "%.1f%%".format(it)) }
+        latest.waistCm?.let { add("Vòng eo" to "%.0f cm".format(it)) }
+        latest.hipCm?.let { add("Vòng mông" to "%.0f cm".format(it)) }
+        latest.chestCm?.let { add("Vòng ngực" to "%.0f cm".format(it)) }
+        latest.armCm?.let { add("Bắp tay" to "%.0f cm".format(it)) }
+        latest.neckCm?.let { add("Vòng cổ" to "%.0f cm".format(it)) }
+    }
 
-    val mockData = listOf(
-        BodyMetricDto(
-            id = "1",
-            date = "2026-05-01",
-            weightKg = 78.5f,
-            bodyFatPct = 24f,
-            waistCm = null,
-            bmi = 26.2f,
-            notes = null
-        ),
-        BodyMetricDto(
-            id = "2",
-            date = "2026-05-05",
-            weightKg = 77.8f,
-            bodyFatPct = 23.5f,
-            waistCm = null,
-            bmi = 25.9f,
-            notes = null
-        ),
-        BodyMetricDto(
-            id = "3",
-            date = "2026-05-10",
-            weightKg = 77.1f,
-            bodyFatPct = 23f,
-            waistCm = null,
-            bmi = 25.6f,
-            notes = null
-        ),
-        BodyMetricDto(
-            id = "4",
-            date = "2026-05-13",
-            weightKg = 76.4f,
-            bodyFatPct = 22.4f,
-            waistCm = null,
-            bmi = 25.2f,
-            notes = "Giảm mỡ tốt"
-        )
-    )
+    VitalCard(modifier = Modifier.fillMaxWidth()) {
+        SectionHeader(title = "Số đo cơ thể")
+        Spacer(Modifier.height(12.dp))
 
-    val latest = mockData.last()
-    val mockProfile = HealthProfileDto(
-        birthDate = "1997-01-01",
-        gender = "male",
-        heightCm = 170f,
-        initialWeightKg = 65f,
-        activityLevel = "moderately_active",
-        dietType = "balanced",
-        foodAllergies = listOf("gluten"),
-        weightGoalKg = 60f,
-        caloriesGoal = 2000f,
-        goalType = "lose_weight",
-        targetWeightKg = 65f,
-        dailyCaloriesGoal = 1800f,
-        proteinGoalG = 150f,
-        fatGoalG = 65f,
-        carbsGoalG = 200f,
-        weeklyRateKg = 0.5f,
-        goalStartDate = "2026-01-01",
-        goalDeadline = "2026-12-31",
-        goalStatus = "active",
-        waterGoalMl = 2000
-    )
-    VitalAITheme {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                title = { Text("Số liệu cơ thể", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = {}) {
-                        Text("Lịch sử", color = Mint500, fontSize = 13.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+        if (measurements.isEmpty()) {
+            Text(
+                "Chưa có số đo. Nhấn 'Cập nhật' để thêm.",
+                color = Ink500,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
             )
-        },
-        containerColor = AppMutedBackground
-    ) { padding ->
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-
+        } else {
+            // 2-column grid
+            measurements.chunked(2).forEach { row ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-
-                    MetricCard(
-                        "Cân nặng",
-                        "${latest.weightKg} kg",
-                        Mint500,
-                        Modifier.weight(1f)
-                    )
-
-                    latest.bmi?.let { bmi ->
-
-                        MetricCard(
-                            "BMI",
-                            "%.1f".format(bmi),
-                            bmiColor(bmi),
-                            Modifier.weight(1f)
-                        )
-                    }
-
-                    latest.bodyFatPct?.let { fat ->
-
-                        MetricCard(
-                            "Mỡ cơ thể",
-                            "%.1f%%".format(fat),
-                            MacroFat,
-                            Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(50),
-                    color = AppSurface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp)
-                    ) {
-                        listOf(
-                            "week" to "1 tuần",
-                            "month" to "1 tháng",
-                            "3months" to "3 tháng",
-                            "6months" to "6 tháng",
-                            "year" to "1 năm"
-                        ).forEach { (key, label) ->
-                            val isSelected = "month" == key
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(if (isSelected) Mint500 else Color.Transparent)
-                                    .padding(vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 13.sp,
-                                    color = if (isSelected) Color.White else Ink500,
-                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Card(
-                    shape = RoundedCornerShape(VitalRadius.Xl),
-                    colors = CardDefaults.cardColors(
-                        containerColor = AppSurface
-                    ),
-                    elevation = CardDefaults.cardElevation(0.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-
-                    Column(
-                        modifier = Modifier.padding(16.dp)
-                    ) {
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-
-                            Text(
-                                "Biểu đồ cân nặng",
-                                fontWeight = FontWeight.Bold,
-                                color = Ink900
-                            )
-
-                            Text(
-                                "TB: 77.4 kg",
-                                fontSize = 12.sp,
-                                color = Ink500
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        WeightLineChart(
-                            data = mockData,
+                    row.forEach { (label, value) ->
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(160.dp)
-                        )
+                                .weight(1f)
+                                .clip(RoundedCornerShape(VitalRadius.Md))
+                                .background(AppSurface2)
+                                .padding(10.dp)
+                        ) {
+                            Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                            Text(label, fontSize = 11.sp, color = Ink500, modifier = Modifier.padding(top = 2.dp))
+                        }
+                    }
+                    // If odd number of items, fill remaining space
+                    if (row.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
-
-                PersonalInfoCard(profile = mockProfile, onEdit = {})
-                DietActivityCard(profile = mockProfile, onEdit = {})
-                BodyGoalsCard(profile = mockProfile, onEdit = {})
-                DailyTargetsCard(profile = mockProfile, onEdit = {})
-                GoalTimelineCard(profile = mockProfile, onEdit = {})
+                Spacer(Modifier.height(8.dp))
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ProgressPhotosSection
+// ─────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ProgressPhotosSection(
+    photos: List<ProgressPhotoDto>,
+    isUploading: Boolean,
+    onAddPhotoClick: () -> Unit,
+    onDeletePhoto: (String) -> Unit
+) {
+    VitalCard(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SectionHeader(title = "Ảnh tiến độ")
+            if (isUploading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Mint500
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+
+        if (photos.isEmpty()) {
+            Text(
+                "Chưa có ảnh tiến độ",
+                color = Ink400,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        if (photos.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(photos) { photo ->
+                    var showDeleteDialog by remember { mutableStateOf(false) }
+
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(RoundedCornerShape(VitalRadius.Md))
+                            .combinedClickable(
+                                onClick = {},
+                                onLongClick = { showDeleteDialog = true }
+                            )
+                    ) {
+                        AsyncImage(
+                            model = photo.photoUrl,
+                            contentDescription = photo.photoType,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        // Photo type badge
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.45f))
+                                .padding(vertical = 2.dp)
+                        ) {
+                            Text(
+                                formatPhotoType(photo.photoType),
+                                fontSize = 9.sp,
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    if (showDeleteDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showDeleteDialog = false },
+                            containerColor = AppSurface,
+                            title = { Text("Xóa ảnh?", color = Ink900) },
+                            text = { Text("Bạn có chắc muốn xóa ảnh này không?", color = Ink700) },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        onDeletePhoto(photo.id)
+                                        showDeleteDialog = false
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF87171))
+                                ) { Text("Xóa", color = Color.White) }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDeleteDialog = false }) { Text("Hủy") }
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        }
+
+        // Add photo button
+        OutlinedButton(
+            onClick = onAddPhotoClick,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Mint600),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Thêm ảnh", fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Update Bottom Sheet
+// ─────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UpdateBottomSheet(
+    uiState: MetricsUiState,
+    viewModel: MetricsViewModel,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AppSurface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+        ) {
+            // Tab row
+            TabRow(
+                selectedTabIndex = uiState.updateSheetTab,
+                containerColor = AppSurface,
+                contentColor = Mint500
+            ) {
+                listOf("Cơ bản", "Nâng cao", "Ảnh").forEachIndexed { index, label ->
+                    Tab(
+                        selected = uiState.updateSheetTab == index,
+                        onClick = { viewModel.setUpdateTab(index) },
+                        text = {
+                            Text(
+                                label,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (uiState.updateSheetTab == index) Mint600 else Ink500
+                            )
+                        }
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 480.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                when (uiState.updateSheetTab) {
+                    0 -> BasicUpdateTab(viewModel = viewModel, onDone = onDismiss)
+                    1 -> AdvancedUpdateTab(viewModel = viewModel, onDone = onDismiss)
+                    2 -> PhotoUpdateTab(viewModel = viewModel, photos = uiState.photos, onDone = onDismiss)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BasicUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
+    var weightStr by remember { mutableStateOf("") }
+    var heightStr by remember { mutableStateOf("") }
+    val weightVal = weightStr.toFloatOrNull()
+    val heightVal = heightStr.toFloatOrNull()
+    val bmiPreview = if (weightVal != null && heightVal != null && heightVal > 0f) {
+        weightVal / ((heightVal / 100f) * (heightVal / 100f))
+    } else null
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Cập nhật cơ bản", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+
+        OutlinedTextField(
+            value = weightStr,
+            onValueChange = { weightStr = it },
+            label = { Text("Cân nặng (kg) *") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Mint500,
+                focusedLabelColor = Mint500
+            )
+        )
+
+        OutlinedTextField(
+            value = heightStr,
+            onValueChange = { heightStr = it },
+            label = { Text("Chiều cao (cm) *") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Mint500,
+                focusedLabelColor = Mint500
+            )
+        )
+
+        // BMI preview
+        bmiPreview?.let { bmi ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(VitalRadius.Md))
+                    .background(bmiColor(bmi).copy(alpha = 0.10f))
+                    .padding(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("BMI dự kiến: ", fontSize = 14.sp, color = Ink700)
+                    Text(
+                        "%.1f".format(bmi),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = bmiColor(bmi)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        bmiLabel(bmi),
+                        fontSize = 13.sp,
+                        color = bmiColor(bmi),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        Button(
+            onClick = {
+                if (weightVal != null) {
+                    viewModel.addMetric(
+                        UpsertBodyMetricRequest(
+                            recordedAt = LocalDate.now().toString(),
+                            weightKg = weightVal,
+                            heightCm = heightVal
+                        )
+                    )
+                    onDone()
+                }
+            },
+            enabled = weightVal != null,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = ButtonDefaults.buttonColors(containerColor = Mint500)
+        ) {
+            Text("Lưu", fontWeight = FontWeight.SemiBold, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun AdvancedUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
+    var bodyFatStr by remember { mutableStateOf("") }
+    var waistStr by remember { mutableStateOf("") }
+    var hipStr by remember { mutableStateOf("") }
+    var chestStr by remember { mutableStateOf("") }
+    var armStr by remember { mutableStateOf("") }
+    var neckStr by remember { mutableStateOf("") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Số đo nâng cao", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+        Text("Tất cả trường đều tùy chọn", fontSize = 12.sp, color = Ink500)
+
+        val fieldDefs = listOf(
+            Triple("% Mỡ cơ thể", bodyFatStr) { v: String -> bodyFatStr = v },
+            Triple("Vòng eo (cm)", waistStr) { v: String -> waistStr = v },
+            Triple("Vòng mông (cm)", hipStr) { v: String -> hipStr = v },
+            Triple("Vòng ngực (cm)", chestStr) { v: String -> chestStr = v },
+            Triple("Bắp tay (cm)", armStr) { v: String -> armStr = v },
+            Triple("Vòng cổ (cm)", neckStr) { v: String -> neckStr = v }
+        )
+
+        fieldDefs.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                row.forEach { (label, value, onChange) ->
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = onChange,
+                        label = { Text(label, fontSize = 12.sp) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Mint500,
+                            focusedLabelColor = Mint500
+                        )
+                    )
+                }
+            }
+        }
+
+        Button(
+            onClick = {
+                viewModel.addMetric(
+                    UpsertBodyMetricRequest(
+                        recordedAt = LocalDate.now().toString(),
+                        bodyFatPct = bodyFatStr.toFloatOrNull(),
+                        waistCm = waistStr.toFloatOrNull(),
+                        hipCm = hipStr.toFloatOrNull(),
+                        chestCm = chestStr.toFloatOrNull(),
+                        neckCm = neckStr.toFloatOrNull()
+                        // armCm is display-only; not in UpsertBodyMetricRequest
+                    )
+                )
+                onDone()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = ButtonDefaults.buttonColors(containerColor = Mint500)
+        ) {
+            Text("Lưu số đo", fontWeight = FontWeight.SemiBold, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun PhotoUpdateTab(
+    viewModel: MetricsViewModel,
+    photos: List<ProgressPhotoDto>,
+    onDone: () -> Unit
+) {
+    val context = LocalContext.current
+    var selectedPhotoType by remember { mutableStateOf("front") }
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+
+    val photoTypes = listOf(
+        "front" to "Mặt trước",
+        "back" to "Mặt sau",
+        "side" to "Mặt bên"
+    )
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedUri = uri
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Thêm ảnh tiến độ", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+
+        // Photo type selection
+        Text("Loại ảnh", fontSize = 14.sp, color = Ink700, fontWeight = FontWeight.SemiBold)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            photoTypes.forEach { (type, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(VitalRadius.Md))
+                        .clickable { selectedPhotoType = type }
+                        .background(
+                            if (selectedPhotoType == type) Mint500.copy(alpha = 0.10f)
+                            else Color.Transparent
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = selectedPhotoType == type,
+                        onClick = { selectedPhotoType = type },
+                        colors = RadioButtonDefaults.colors(selectedColor = Mint500)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(label, fontSize = 14.sp, color = Ink900)
+                }
+            }
+        }
+
+        // Selected image preview
+        selectedUri?.let { uri ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(VitalRadius.Md))
+            ) {
+                AsyncImage(
+                    model = uri,
+                    contentDescription = "Ảnh đã chọn",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                IconButton(
+                    onClick = { selectedUri = null },
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Xóa ảnh đã chọn",
+                        tint = Color.White,
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            .padding(4.dp)
+                    )
+                }
+            }
+        }
+
+        // Pick from gallery
+        OutlinedButton(
+            onClick = { launcher.launch("image/*") },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Mint600),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Mint500)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (selectedUri == null) "Chọn ảnh từ thư viện" else "Chọn ảnh khác",
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+
+        // Upload button
+        Button(
+            onClick = {
+                val uri = selectedUri
+                if (uri != null) {
+                    val file = uriToFile(context, uri)
+                    if (file != null) {
+                        viewModel.uploadPhoto(file, selectedPhotoType)
+                        onDone()
+                    } else {
+                        Toast.makeText(context, "Không thể đọc ảnh", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            enabled = selectedUri != null,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = ButtonDefaults.buttonColors(containerColor = Mint500)
+        ) {
+            Text("Tải lên", fontWeight = FontWeight.SemiBold, color = Color.White)
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+
+private fun bmiColor(bmi: Float): Color = when {
+    bmi < 18.5f -> Color(0xFF60A5FA)
+    bmi < 25f -> Color(0xFF34D399)
+    bmi < 30f -> Color(0xFFFBBF24)
+    else -> Color(0xFFF87171)
+}
+
+private fun bmiLabel(bmi: Float): String = when {
+    bmi < 18.5f -> "Thiếu cân"
+    bmi < 25f -> "Bình thường"
+    bmi < 30f -> "Thừa cân"
+    else -> "Béo phì"
+}
+
+private fun formatPhotoType(type: String): String = when (type) {
+    "front" -> "Mặt trước"
+    "back" -> "Mặt sau"
+    "side" -> "Mặt bên"
+    else -> type
+}
+
+private fun formatDateDisplay(dateStr: String): String {
+    return runCatching {
+        val date = LocalDate.parse(dateStr)
+        "%02d/%02d/%04d".format(date.dayOfMonth, date.monthValue, date.year)
+    }.getOrDefault(dateStr)
+}
+
+private fun uriToFile(context: android.content.Context, uri: Uri): File? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val tempFile = File.createTempFile("progress_photo_", ".jpg", context.cacheDir)
+        tempFile.outputStream().use { outputStream ->
+            inputStream.copyTo(outputStream)
+        }
+        inputStream.close()
+        tempFile
+    } catch (e: Exception) {
+        null
     }
 }

@@ -1,4 +1,5 @@
 import { Injectable, Inject, NotFoundException, ConflictException, BadRequestException, forwardRef } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 import { TRAINING_SESSIONS_REPOSITORY, EXERCISES_REPOSITORY } from '../train.constants';
 import type { ITrainingSessionsRepository } from '../repositories/training-sessions.repository.interface';
 import type { IExercisesRepository } from '../repositories/exercises.repository.interface';
@@ -24,6 +25,7 @@ export class TrainingSessionsService {
     private readonly caloriesCalcService: CaloriesCalculationService,
     @Inject(forwardRef(() => StreaksService))
     private readonly streaksService: StreaksService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private formatSession(session: TrainingSession) {
@@ -157,23 +159,28 @@ export class TrainingSessionsService {
       totalCaloriesBurned += calories;
     }
 
-    const session = await this.sessionRepo.createSession({
-      userId,
-      sessionDate: dto.sessionDate,
-      title: dto.title ?? null,
-      note: dto.note ?? null,
-      totalDurationMinutes,
-      totalCaloriesBurned: Number(totalCaloriesBurned.toFixed(2)),
-    });
+    const sessionId = await this.dataSource.transaction(async (manager) => {
+      const session = manager.create(TrainingSession, {
+        userId,
+        sessionDate: dto.sessionDate,
+        title: dto.title ?? null,
+        note: dto.note ?? null,
+        totalDurationMinutes,
+        totalCaloriesBurned: Number(totalCaloriesBurned.toFixed(2)),
+      });
+      const saved = await manager.save(session);
 
-    for (const itemData of itemDataList) {
-      await this.sessionRepo.addItem({ ...itemData, sessionId: session.id });
-    }
+      for (const itemData of itemDataList) {
+        await manager.save(TrainingSessionItem, { ...itemData, sessionId: saved.id });
+      }
+
+      return saved.id;
+    });
 
     await this.refreshWorkoutStreak(userId);
 
-    const saved = await this.sessionRepo.findById(session.id);
-    return this.formatSession(saved as TrainingSession);
+    const result = await this.sessionRepo.findById(sessionId);
+    return this.formatSession(result as TrainingSession);
   }
 
   async getSessions(userId: string, limit = 20): Promise<any[]> {

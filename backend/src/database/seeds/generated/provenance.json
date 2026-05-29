@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-05-27T18:17:08.194Z",
+  "food_sources": [
+    "USDA FoodData Central API"
+  ],
+  "exercise_sources": [
+    "wger API for GYM metadata when available",
+    "Compendium MET reference for CARDIO/SPORT values"
+  ],
+  "image_policy": "SVG assets generated locally by this script; no scraped images are used.",
+  "counts": {
+    "foods": 100,
+    "exercises": 60
+  }
+}

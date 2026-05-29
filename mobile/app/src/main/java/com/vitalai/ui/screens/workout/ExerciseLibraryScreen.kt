@@ -3,35 +3,40 @@ package com.vitalai.ui.screens.workout
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.theme.*
+
+private val exerciseTypes = listOf(
+    null to "Tất cả",
+    "GYM" to "GYM",
+    "SPORT" to "SPORT",
+    "CARDIO" to "CARDIO"
+)
 
 private val muscleGroups = listOf(
     null to "Tất cả",
@@ -40,16 +45,16 @@ private val muscleGroups = listOf(
     "LEGS" to "Chân",
     "SHOULDERS" to "Vai",
     "ARMS" to "Tay",
-    "CORE" to "Core",
-    "CARDIO" to "Cardio",
-    "FULL_BODY" to "Toàn thân"
+    "FULL_BODY" to "Toàn thân",
+    "CARDIO" to "Chạy bộ",
+    "CYCLING" to "Đạp xe"
 )
 
-private val intensities = listOf(
+private val difficultyFilters = listOf(
     null to "Tất cả",
-    "light" to "Nhẹ",
-    "moderate" to "Vừa",
-    "heavy" to "Nặng"
+    "BEGINNER" to "Dễ",
+    "INTERMEDIATE" to "Vừa",
+    "ADVANCED" to "Khó"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,8 +69,9 @@ fun ExerciseLibraryScreen(
         uiState = uiState,
         onBackClick = { navController.popBackStack() },
         onSearchQueryChange = viewModel::setSearchQuery,
-        onMuscleFilterToggle = { key, isSelected -> viewModel.setMuscleFilter(if (isSelected) null else key) },
-        onIntensityFilterToggle = { key, isSelected -> viewModel.setIntensityFilter(if (isSelected) null else key) },
+        onTypeSelect = viewModel::selectType,
+        onMuscleFilterSelect = viewModel::setMuscleFilter,
+        onDifficultySelect = viewModel::setIntensityFilter,
         onExerciseClick = { navController.navigate(Screen.ExerciseDetail(it.id)) },
         onFavoriteToggle = { viewModel.toggleFavorite(it) }
     )
@@ -77,304 +83,377 @@ fun ExerciseLibraryScreenContent(
     uiState: ExerciseLibraryUiState,
     onBackClick: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
-    onMuscleFilterToggle: (String?, Boolean) -> Unit,
-    onIntensityFilterToggle: (String?, Boolean) -> Unit,
+    onTypeSelect: (String?) -> Unit,
+    onMuscleFilterSelect: (String?) -> Unit,
+    onDifficultySelect: (String?) -> Unit,
     onExerciseClick: (ExerciseDto) -> Unit,
     onFavoriteToggle: (String) -> Unit
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Thư viện bài tập", fontWeight = FontWeight.Bold, fontSize = 20.sp) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppMutedBackground)
-            )
-        },
-        containerColor = AppMutedBackground
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Search bar
-            OutlinedTextField(
-                value = uiState.searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = { Text("Tìm kiếm bài tập...", color = Ink500) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Ink500) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(VitalRadius.Pill),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Mint500,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = AppSurface,
-                    unfocusedContainerColor = AppSurface
-                ),
-                singleLine = true
-            )
+    var tab by remember { mutableStateOf("all") }
+    var filterOpen by remember { mutableStateOf(false) }
+    val activeFilterCount = listOf(uiState.selectedMuscleGroup, uiState.selectedIntensity).count { it != null }
+    val list = remember(uiState.filteredExercises, uiState.favorites, tab) {
+        val base = if (tab == "favorites") {
+            uiState.filteredExercises.filter { it.id in uiState.favorites }
+        } else {
+            uiState.filteredExercises
+        }
+        base.sortedByDescending { it.favoritesCount }
+    }
 
-            // Muscle group filters
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+    TrainScreen {
+        Column(Modifier.fillMaxSize()) {
+            TrainHeader(title = "Thư viện bài tập", large = true, onBack = onBackClick)
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppMutedBackground)
-                    .padding(vertical = 6.dp)
+                    .background(TrainColors.Cream)
+                    .padding(start = 18.dp, end = 18.dp, top = 12.dp)
             ) {
-                items(muscleGroups) { (key, label) ->
-                    val isSelected = uiState.selectedMuscleGroup == key
-                    PillChip(
-                        label = label,
-                        isSelected = isSelected,
-                        onClick = { onMuscleFilterToggle(key, isSelected) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SearchBox(
+                        value = uiState.searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        modifier = Modifier.weight(1f)
                     )
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (activeFilterCount > 0) TrainColors.Forest else TrainColors.KeylimeWash)
+                            .clickable { filterOpen = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.FilterList,
+                            contentDescription = "Bộ lọc",
+                            tint = if (activeFilterCount > 0) TrainColors.Cream else TrainColors.Forest
+                        )
+                        if (activeFilterCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = (-6).dp, y = 6.dp)
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(TrainColors.Cardio),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(activeFilterCount.toString(), color = TrainColors.Cream, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
-            }
 
-            // Intensity toggle row
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                shape = RoundedCornerShape(50),
-                color = AppSurface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
-            ) {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(4.dp)
+                        .padding(top = 12.dp, bottom = 12.dp)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
-                    intensities.forEach { (key, label) ->
-                        val isSelected = uiState.selectedIntensity == key
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(50))
-                                .background(if (isSelected) Mint500 else Color.Transparent)
-                                .clickable { onIntensityFilterToggle(key, isSelected) }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
+                    exerciseTypes.forEach { (key, label) ->
+                        Box(Modifier.weight(1f)) {
+                            TrainChip(
                                 text = label,
-                                fontSize = 13.sp,
-                                color = if (isSelected) Color.White else Ink500,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                                selected = uiState.selectedType == key,
+                                grow = true,
+                                onClick = { onTypeSelect(key) }
                             )
                         }
                     }
                 }
+                ActiveFiltersRow(
+                    selectedMuscle = uiState.selectedMuscleGroup,
+                    selectedDifficulty = uiState.selectedIntensity,
+                    onClearMuscle = { onMuscleFilterSelect(null) },
+                    onClearDifficulty = { onDifficultySelect(null) },
+                    onClearAll = {
+                        onMuscleFilterSelect(null)
+                        onDifficultySelect(null)
+                    }
+                )
+                HorizontalDivider(color = TrainColors.Border)
             }
 
             when {
-                uiState.isLoading -> LoadingState()
-                uiState.error != null -> EmptyState(message = uiState.error ?: "Không tải được bài tập")
-                uiState.filteredExercises.isEmpty() -> {
-                    EmptyState(message = "Chưa có bài tập phù hợp")
+                uiState.isLoading -> LoadingState(modifier = Modifier.weight(1f))
+                uiState.error != null -> EmptyState(message = uiState.error)
+                list.isEmpty() -> EmptyState(message = "Không tìm thấy bài tập phù hợp")
+                else -> LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    item {
+                        TrainSectionTitle(
+                            text = if (tab == "favorites") "Bài tập yêu thích" else if (uiState.searchQuery.isNotBlank() || uiState.selectedType != null || uiState.selectedMuscleGroup != null || uiState.selectedIntensity != null) "${list.size} kết quả" else "Phổ biến nhất",
+                            modifier = Modifier.padding(bottom = 1.dp)
+                        )
+                    }
+                    items(list, key = { it.id }) { exercise ->
+                        ExerciseRow(
+                            exercise = exercise,
+                            isFavorite = exercise.id in uiState.favorites,
+                            onClick = { onExerciseClick(exercise) },
+                            onFavoriteToggle = { onFavoriteToggle(exercise.id) }
+                        )
+                    }
                 }
-                else -> ExerciseListContent(
-                    exercises = uiState.filteredExercises,
-                    favorites = uiState.favorites,
-                    onExerciseClick = onExerciseClick,
-                    onFavoriteToggle = onFavoriteToggle
-                )
             }
         }
-    }
-}
 
-@Composable
-private fun EmptyState(message: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize().padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(message, fontSize = 13.sp, color = Ink500)
-    }
-}
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(TrainColors.Cream)
+                .border(1.dp, TrainColors.Border)
+                .navigationBarsPadding()
+                .padding(start = 18.dp, end = 18.dp, top = 10.dp, bottom = 10.dp)
+        ) {
+            TrainSegmented(
+                options = listOf("all" to "Tất cả bài tập", "favorites" to "♥ Yêu thích"),
+                selected = tab,
+                onSelect = { tab = it },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
 
-@Composable
-private fun ExerciseListContent(
-    exercises: List<ExerciseDto>,
-    favorites: Set<String>,
-    onExerciseClick: (ExerciseDto) -> Unit,
-    onFavoriteToggle: (String) -> Unit
-) {
-    LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-        items(exercises) { exercise ->
-            ExerciseCard(
-                exercise = exercise,
-                isFavorite = exercise.id in favorites,
-                onClick = { onExerciseClick(exercise) },
-                onFavoriteClick = { onFavoriteToggle(exercise.id) }
+        if (filterOpen) {
+            FilterSheet(
+                selectedMuscle = uiState.selectedMuscleGroup,
+                selectedDifficulty = uiState.selectedIntensity,
+                onDismiss = { filterOpen = false },
+                onApply = { muscle, diff ->
+                    onMuscleFilterSelect(muscle)
+                    onDifficultySelect(diff)
+                    filterOpen = false
+                }
             )
         }
     }
 }
 
 @Composable
-private fun ExerciseCard(
+private fun SearchBox(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .height(46.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(TrainColors.KeylimeWash)
+            .padding(horizontal = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(Icons.Default.Search, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(19.dp))
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Tìm kiếm bài tập...", color = TrainColors.Charcoal.copy(alpha = 0.6f), fontSize = 15.sp) },
+            singleLine = true,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = TrainColors.KeylimeWash,
+                unfocusedContainerColor = TrainColors.KeylimeWash,
+                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                cursorColor = TrainColors.Forest
+            ),
+            textStyle = LocalTextStyle.current.copy(color = TrainColors.Ink, fontSize = 15.sp)
+        )
+        if (value.isNotBlank()) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Xóa tìm kiếm",
+                tint = TrainColors.Charcoal,
+                modifier = Modifier.size(17.dp).clickable { onValueChange("") }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActiveFiltersRow(
+    selectedMuscle: String?,
+    selectedDifficulty: String?,
+    onClearMuscle: () -> Unit,
+    onClearDifficulty: () -> Unit,
+    onClearAll: () -> Unit
+) {
+    if (selectedMuscle == null && selectedDifficulty == null) return
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        selectedMuscle?.let {
+            ActiveChip(labelFor(muscleGroups, it), onClearMuscle)
+        }
+        selectedDifficulty?.let {
+            ActiveChip(labelFor(difficultyFilters, it), onClearDifficulty)
+        }
+        Text(
+            "Xóa lọc",
+            modifier = Modifier.clickable(onClick = onClearAll).padding(horizontal = 4.dp, vertical = 6.dp),
+            color = TrainColors.Charcoal,
+            fontSize = 12.5.sp
+        )
+    }
+}
+
+@Composable
+private fun ActiveChip(text: String, onClear: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(TrainColors.MintGlaze)
+            .padding(start = 13.dp, end = 8.dp, top = 7.dp, bottom = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(text, color = TrainColors.Forest, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Box(
+            modifier = Modifier
+                .size(18.dp)
+                .clip(CircleShape)
+                .background(TrainColors.Forest.copy(alpha = 0.15f))
+                .clickable(onClick = onClear),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Close, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(message: String?) {
+    Box(Modifier.fillMaxSize().padding(30.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = TrainColors.MintGlaze, modifier = Modifier.size(36.dp))
+            Spacer(Modifier.height(14.dp))
+            Text(message ?: "Không tìm thấy bài tập phù hợp", color = TrainColors.Charcoal, fontSize = 14.sp, textAlign = TextAlign.Center)
+        }
+    }
+}
+
+@Composable
+private fun ExerciseRow(
     exercise: ExerciseDto,
     isFavorite: Boolean,
     onClick: () -> Unit,
-    onFavoriteClick: () -> Unit
+    onFavoriteToggle: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = exercise.displayImageUrl,
-                contentDescription = exercise.name,
-                modifier = Modifier
-                    .size(72.dp)
-                    .background(Mint50)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
+    val displayedCount = (exercise.favoritesCount + if (isFavorite && !exercise.isFavorite) 1 else if (!isFavorite && exercise.isFavorite) -1 else 0).coerceAtLeast(0)
+    TrainCard(tone = TrainTone.Cream, padding = PaddingValues(12.dp), onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+            TrainExerciseThumb(exercise = exercise, size = 56.dp)
+            Column(Modifier.weight(1f)) {
                 Text(
                     exercise.name,
+                    color = TrainColors.Ink,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp,
-                    color = Ink900,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    MuscleGroupPill(exercise.muscleGroup)
-                    if (exercise.equipment != null) {
-                        Text("•", fontSize = 13.sp, color = Ink300)
-                        Text(exercise.equipment, fontSize = 13.sp, color = Ink500)
-                    }
+                Spacer(Modifier.height(5.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    TrainTypeBadge(exercise.exerciseType)
+                    Text(exercise.category ?: exercise.muscleGroup, color = TrainColors.Charcoal, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("·", color = TrainColors.Charcoal.copy(alpha = 0.45f), fontSize = 12.sp)
+                    Text(difficultyLabel(exercise.difficultyLevel), color = TrainColors.Charcoal, fontSize = 12.sp)
                 }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "${(exercise.caloriesPerMin * 60).toInt()} kcal/h",
-                    fontSize = 13.sp,
-                    color = MacroProtein,
-                    fontWeight = FontWeight.Medium
-                )
             }
-            IconButton(onClick = onFavoriteClick) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onFavoriteToggle).padding(4.dp)) {
                 Icon(
                     if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = "Yêu thích",
-                    tint = if (isFavorite) MacroProtein else Ink300,
-                    modifier = Modifier.size(24.dp)
+                    tint = if (isFavorite) TrainColors.Cardio else TrainColors.Charcoal,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(displayedCount.toString(), color = TrainColors.Charcoal, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun FilterSheet(
+    selectedMuscle: String?,
+    selectedDifficulty: String?,
+    onDismiss: () -> Unit,
+    onApply: (String?, String?) -> Unit
+) {
+    var muscle by remember(selectedMuscle) { mutableStateOf(selectedMuscle) }
+    var difficulty by remember(selectedDifficulty) { mutableStateOf(selectedDifficulty) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = TrainColors.Cream,
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(top = 10.dp)
+                    .size(width = 40.dp, height = 5.dp)
+                    .clip(CircleShape)
+                    .background(TrainColors.Border)
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 21.dp, end = 21.dp, bottom = 28.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text("Bộ lọc", color = TrainColors.Ink, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Column {
+                TrainSectionTitle("Nhóm cơ / loại", modifier = Modifier.padding(bottom = 11.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    muscleGroups.forEach { (key, label) ->
+                        TrainChip(text = label, selected = muscle == key, onClick = { muscle = if (muscle == key) null else key })
+                    }
+                }
+            }
+            Column {
+                TrainSectionTitle("Độ khó", modifier = Modifier.padding(bottom = 11.dp))
+                TrainSegmented(
+                    options = difficultyFilters,
+                    selected = difficulty,
+                    onSelect = { difficulty = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = {
+                        muscle = null
+                        difficulty = null
+                    },
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TrainColors.KeylimeWash, contentColor = TrainColors.Forest),
+                    shape = RoundedCornerShape(TrainButtonRadius),
+                    elevation = ButtonDefaults.buttonElevation(0.dp)
+                ) { Text("Đặt lại", fontWeight = FontWeight.Medium) }
+                TrainPrimaryButton(
+                    text = "Áp dụng",
+                    modifier = Modifier.weight(2f),
+                    onClick = { onApply(muscle, difficulty) }
                 )
             }
         }
     }
 }
 
-@Composable
-private fun MuscleGroupPill(muscle: String) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
-            .background(Mint50)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Text(muscle, fontSize = 11.sp, color = Mint700, fontWeight = FontWeight.Medium)
-    }
-}
+private fun labelFor(options: List<Pair<String?, String>>, key: String): String =
+    options.firstOrNull { it.first == key }?.second ?: key
 
-@Composable
-private fun PillChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(50))
-            .background(if (isSelected) Mint500 else AppSurface)
-            .border(
-                width = 1.dp,
-                color = if (isSelected) Mint500 else AppLine,
-                shape = RoundedCornerShape(50)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Text(
-            label,
-            fontSize = 14.sp,
-            color = if (isSelected) Color.White else Ink700,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
-        )
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ExerciseLibraryScreenPreview() {
-    val mockExercises = listOf(
-        ExerciseDto(
-            id = "1",
-            name = "Push Up",
-            primaryMuscleGroup = "CHEST",
-            equipment = "Bodyweight",
-            imageAvtUrl = null,
-            imageUrl = null,
-            intensity = "moderate",
-            caloriesPerMin = 0.1f
-        ),
-        ExerciseDto(
-            id = "2",
-            name = "Squat",
-            primaryMuscleGroup = "LEGS",
-            equipment = "Barbell",
-            imageAvtUrl = null,
-            imageUrl = null,
-            intensity = "heavy",
-            caloriesPerMin = 0.2f
-        )
-    )
-
-    val mockState = ExerciseLibraryUiState(
-        exercises = mockExercises,
-        filteredExercises = mockExercises,
-        selectedMuscleGroup = null,
-        selectedIntensity = null,
-        searchQuery = "",
-        isLoading = false,
-        error = null,
-        favorites = setOf("1")
-    )
-
-    VitalAITheme {
-        ExerciseLibraryScreenContent(
-            uiState = mockState,
-            onBackClick = {},
-            onSearchQueryChange = {},
-            onMuscleFilterToggle = { _, _ -> },
-            onIntensityFilterToggle = { _, _ -> },
-            onExerciseClick = {},
-            onFavoriteToggle = {}
-        )
-    }
+private fun difficultyLabel(value: String?): String = when (value?.uppercase()) {
+    "BEGINNER" -> "Dễ"
+    "INTERMEDIATE" -> "Vừa"
+    "ADVANCED" -> "Khó"
+    else -> value ?: "Vừa"
 }

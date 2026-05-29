@@ -6,6 +6,7 @@ import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.data.remote.model.BodyMetricsPeriodDto
 import com.vitalai.data.remote.model.BodyMetricsSummaryDto
 import com.vitalai.data.remote.model.HealthProfileDto
+import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import com.vitalai.data.repository.BodyMetricsRepository
 import com.vitalai.data.repository.UserRepository
@@ -25,7 +26,10 @@ data class MetricsUiState(
     val selectedPeriod: String = "week",
     val isLoading: Boolean = false,
     val error: String? = null,
-    val updateSuccessCount: Int = 0
+    val updateSuccessCount: Int = 0,
+    val photos: List<ProgressPhotoDto> = emptyList(),
+    val updateSheetTab: Int = 0,  // 0=Basic, 1=Advanced, 2=Photo
+    val isUploadingPhoto: Boolean = false
 )
 
 @HiltViewModel
@@ -49,12 +53,14 @@ class MetricsViewModel @Inject constructor(
             val summaryDeferred = async { bodyMetricsRepository.getSummary() }
             val periodDeferred = async { bodyMetricsRepository.getPeriod(period) }
             val healthProfileDeferred = async { userRepository.getHealthProfile() }
+            val photosDeferred = async { bodyMetricsRepository.getPhotos(10) }
             _uiState.update {
                 it.copy(
                     latest = latestDeferred.await().getOrNull(),
                     summary = summaryDeferred.await().getOrNull(),
                     periodData = periodDeferred.await().getOrNull(),
                     healthProfile = healthProfileDeferred.await().getOrNull(),
+                    photos = photosDeferred.await().getOrElse { emptyList() },
                     isLoading = false
                 )
             }
@@ -99,6 +105,47 @@ class MetricsViewModel @Inject constructor(
                 },
                 onFailure = { e ->
                     _uiState.update { it.copy(error = e.message) }
+                }
+            )
+        }
+    }
+
+    fun loadPhotos() {
+        viewModelScope.launch {
+            bodyMetricsRepository.getPhotos(10).onSuccess { photos ->
+                _uiState.update { it.copy(photos = photos) }
+            }
+        }
+    }
+
+    fun deletePhoto(id: String) {
+        viewModelScope.launch {
+            bodyMetricsRepository.deletePhoto(id).onSuccess {
+                _uiState.update { state ->
+                    state.copy(photos = state.photos.filter { it.id != id })
+                }
+            }
+        }
+    }
+
+    fun setUpdateTab(tab: Int) {
+        _uiState.update { it.copy(updateSheetTab = tab) }
+    }
+
+    fun uploadPhoto(file: java.io.File, photoType: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUploadingPhoto = true) }
+            bodyMetricsRepository.uploadPhoto(file, photoType).fold(
+                onSuccess = { photo ->
+                    _uiState.update { state ->
+                        state.copy(
+                            photos = state.photos + photo,
+                            isUploadingPhoto = false
+                        )
+                    }
+                },
+                onFailure = {
+                    _uiState.update { it.copy(isUploadingPhoto = false) }
                 }
             )
         }

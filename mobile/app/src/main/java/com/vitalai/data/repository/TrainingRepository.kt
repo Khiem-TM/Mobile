@@ -20,12 +20,17 @@ class TrainingRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val sharedPrefs = context.getSharedPreferences("training_prefs", Context.MODE_PRIVATE)
-    suspend fun getSessions(date: String? = null): Result<List<WorkoutSessionDto>> {
+    suspend fun getSessions(
+        date: String? = null,
+        limit: Int? = null,
+        fromDate: String? = null,
+        toDate: String? = null
+    ): Result<List<WorkoutSessionDto>> {
         return try {
-            val response = if (date == null) {
-                trainingApi.getSessionHistory()
-            } else {
+            val response = if (date != null) {
                 trainingApi.getSessionsByDate(date)
+            } else {
+                trainingApi.getSessionHistory(limit = limit, fromDate = fromDate, toDate = toDate)
             }
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
@@ -35,9 +40,13 @@ class TrainingRepository @Inject constructor(
         }
     }
 
-    suspend fun getExercises(muscleGroup: String? = null): Result<List<ExerciseDto>> {
+    suspend fun getExercises(
+        type: String? = null,
+        name: String? = null,
+        muscleGroup: String? = null
+    ): Result<List<ExerciseDto>> {
         return try {
-            val response = trainingApi.getExercises(muscleGroup)
+            val response = trainingApi.getExercises(type = type, name = name, muscleGroup = muscleGroup)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.success(emptyList())
@@ -204,6 +213,50 @@ class TrainingRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Lỗi cập nhật nước uống"))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getActivityLogRange(fromDate: String, toDate: String): Result<List<ActivityLogDto>> {
+        return try {
+            val response = trainingApi.getActivityLogRange(fromDate, toDate)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateSleep(sleepHours: Float, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
+        return try {
+            val response = trainingApi.updateSleep(mapOf("logDate" to logDate, "sleepHours" to sleepHours))
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi cập nhật giấc ngủ (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateMood(mood: String, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
+        return try {
+            val response = trainingApi.updateMood(mapOf("logDate" to logDate, "mood" to mood))
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi cập nhật tâm trạng (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateNote(note: String, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
+        return try {
+            val response = trainingApi.updateNote(mapOf("logDate" to logDate, "note" to note))
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi cập nhật ghi chú (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

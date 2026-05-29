@@ -19,13 +19,21 @@ import retrofit2.http.Query
 
 interface TrainingApi {
     @GET("training-sessions")
-    suspend fun getSessionHistory(): Response<ApiResponse<List<WorkoutSessionDto>>>
+    suspend fun getSessionHistory(
+        @Query("limit") limit: Int? = null,
+        @Query("fromDate") fromDate: String? = null,
+        @Query("toDate") toDate: String? = null
+    ): Response<ApiResponse<List<WorkoutSessionDto>>>
 
     @GET("training-sessions/date/{date}")
     suspend fun getSessionsByDate(@Path("date") date: String): Response<ApiResponse<List<WorkoutSessionDto>>>
 
     @GET("exercises")
-    suspend fun getExercises(@Query("muscleGroup") muscleGroup: String? = null): Response<ApiResponse<List<ExerciseDto>>>
+    suspend fun getExercises(
+        @Query("type") type: String? = null,
+        @Query("name") name: String? = null,
+        @Query("muscleGroup") muscleGroup: String? = null
+    ): Response<ApiResponse<List<ExerciseDto>>>
 
     @GET("favorite-exercises")
     suspend fun getFavoriteExercises(): Response<ApiResponse<List<ExerciseDto>>>
@@ -68,4 +76,19 @@ interface TrainingApi {
 
     @PATCH("activity-logs/water")
     suspend fun updateWater(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+
+    @PATCH("activity-logs/sleep")
+    suspend fun updateSleep(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+
+    @PATCH("activity-logs/mood")
+    suspend fun updateMood(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+
+    @PATCH("activity-logs/note")
+    suspend fun updateNote(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+
+    @GET("activity-logs/range")
+    suspend fun getActivityLogRange(
+        @Query("fromDate") fromDate: String,
+        @Query("toDate") toDate: String
+    ): Response<ApiResponse<List<ActivityLogDto>>>
 }

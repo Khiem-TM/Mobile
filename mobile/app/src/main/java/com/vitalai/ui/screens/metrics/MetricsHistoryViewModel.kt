@@ -25,7 +25,9 @@ data class MetricTimelineEvent(
     val note: String? = null,
     val photoUrl: String? = null,
     val date: String,
-    val monthGroup: String
+    val monthGroup: String,
+    // Raw metric fields for detail dialog (null for PHOTO events)
+    val rawMetric: com.vitalai.data.remote.model.BodyMetricDto? = null
 )
 
 data class MetricsHistoryUiState(
@@ -34,6 +36,8 @@ data class MetricsHistoryUiState(
     val currentWeightKg: Float = 0f,
     val delta90Days: Float = 0f,
     val totalEvents: Int = 0,
+    val weightChange: Float = 0f,
+    val totalRecords: Int = 0,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val hasMore: Boolean = false,
@@ -60,12 +64,15 @@ class MetricsHistoryViewModel @Inject constructor(
                     val sorted = period.data.sortedBy { it.date }
                     val latest = sorted.lastOrNull()
                     val first = sorted.firstOrNull()
+                    val weightChange = if (latest != null && first != null) latest.weightKg - first.weightKg else 0f
                     _uiState.update {
                         it.copy(
                             events = sorted.asReversed().map { metric -> metric.toTimelineEvent() },
                             photos = photosResult.getOrElse { emptyList() },
                             currentWeightKg = latest?.weightKg ?: 0f,
-                            delta90Days = if (latest != null && first != null) latest.weightKg - first.weightKg else 0f,
+                            delta90Days = weightChange,
+                            weightChange = weightChange,
+                            totalRecords = sorted.size,
                             isLoading = false,
                             totalEvents = sorted.size,
                             hasMore = false,
@@ -100,6 +107,14 @@ class MetricsHistoryViewModel @Inject constructor(
         val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull()
         val displayDate = parsedDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi"))) ?: date
         val month = parsedDate?.format(DateTimeFormatter.ofPattern("'Tháng' M/yyyy", Locale("vi"))) ?: "Số liệu"
+
+        // Determine data level: ADVANCED if any body composition field is present
+        val level = when {
+            bodyFatPct != null || waistCm != null || hipCm != null || armCm != null ->
+                MetricEventType.MEASUREMENT  // ADVANCED
+            else -> MetricEventType.WEIGHT   // BASIC
+        }
+
         val details = listOfNotNull(
             bmi?.let { "BMI %.1f".format(it) },
             bodyFatPct?.let { "Mỡ %.1f%%".format(it) },
@@ -108,15 +123,21 @@ class MetricsHistoryViewModel @Inject constructor(
             notes
         ).joinToString(" · ").ifBlank { null }
 
+        val title = when (level) {
+            MetricEventType.MEASUREMENT -> "Đo lường nâng cao"
+            else -> "Cập nhật cân nặng"
+        }
+
         return MetricTimelineEvent(
             id = id,
-            type = MetricEventType.WEIGHT,
-            title = "Cập nhật cân nặng",
+            type = level,
+            title = title,
             value = "%.1f kg".format(weightKg),
             note = details,
             photoUrl = null,
             date = displayDate,
-            monthGroup = month
+            monthGroup = month,
+            rawMetric = this
         )
     }
 }
