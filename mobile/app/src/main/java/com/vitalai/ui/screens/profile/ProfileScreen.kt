@@ -37,6 +37,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import java.io.File
+import java.util.Locale
 @Composable
 fun ProfileScreen(
     navController: NavController,
@@ -337,21 +338,21 @@ fun ProfileScreen(
                 } else null
 
                 StatCard(
-                    value = currentWeight?.let { String.format("%.1f", it) } ?: "--",
+                    value = currentWeight?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
                     unit = "kg",
                     label = "Hiện tại",
                     color = Mint500,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    value = targetWeight?.let { String.format("%.0f", it) } ?: "--",
+                    value = targetWeight?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
                     unit = "kg",
                     label = "Mục tiêu",
                     color = Ink900,
                     modifier = Modifier.weight(1f)
                 )
                 StatCard(
-                    value = bmi?.let { String.format("%.1f", it) } ?: "--",
+                    value = bmi?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
                     unit = "",
                     label = "BMI",
                     color = Mint500,
@@ -1016,4 +1017,3 @@ fun ProfileScreenPreview() {
         }
     }
 }
-

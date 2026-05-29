@@ -2,15 +2,13 @@ package com.vitalai.data.repository
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
+import com.vitalai.core.error.AppErrorMapper
 import com.vitalai.data.local.TokenManager
 import com.vitalai.data.remote.AuthApi
 import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.AuthResponseDto
 import com.vitalai.data.remote.model.LoginRequest
 import com.vitalai.data.remote.model.RegisterRequest
-import java.io.IOException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -49,12 +47,7 @@ class AuthRepository @Inject constructor(
     }
 
     private fun authExceptionMessage(exception: Exception): String {
-        return when (exception) {
-            is UnknownHostException -> "Không thể kết nối máy chủ. Vui lòng kiểm tra mạng hoặc địa chỉ API."
-            is SocketTimeoutException -> "Kết nối quá lâu. Vui lòng thử lại."
-            is IOException -> "Lỗi kết nối mạng. Vui lòng thử lại."
-            else -> exception.message ?: "Đã xảy ra lỗi. Vui lòng thử lại."
-        }
+        return AppErrorMapper.fromThrowable(exception).userMessage
     }
 
     private fun authMessage(response: ApiResponse<Map<String, String>>?, fallback: String): String {

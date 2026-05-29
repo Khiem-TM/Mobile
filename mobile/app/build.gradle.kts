@@ -12,7 +12,10 @@ val localProperties = Properties().also { props ->
     val file = rootProject.file("local.properties")
     if (file.exists()) props.load(file.inputStream())
 }
-val baseUrl: String = localProperties.getProperty("BASE_URL", "http://10.0.2.2:3005/")
+val configuredBaseUrl: String? = localProperties.getProperty("BASE_URL")
+    ?: System.getenv("VITALAI_BASE_URL")
+val debugBaseUrl: String = configuredBaseUrl ?: "http://10.0.2.2:3005/"
+val releaseBaseUrl: String = configuredBaseUrl ?: "https://api.vitalai.invalid/"
 
 android {
     namespace = "com.vitalai"
@@ -29,12 +32,20 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "BASE_URL", "\"$debugBaseUrl\"")
+            buildConfigField("Boolean", "LOG_NETWORK_BODY", "true")
+            manifestPlaceholders["usesCleartextTraffic"] = "true"
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            buildConfigField("String", "BASE_URL", "\"$releaseBaseUrl\"")
+            buildConfigField("Boolean", "LOG_NETWORK_BODY", "false")
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -111,7 +122,22 @@ dependencies {
     // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
 
+    // Firebase skeletons. google-services.json and Firebase dashboard setup are required by the app owner.
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-crashlytics")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Local/unit test foundation
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:$composeBom"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // LiteRT (TFLite) — supports FULLY_CONNECTED v12
     implementation("com.google.ai.edge.litert:litert:1.0.1")
