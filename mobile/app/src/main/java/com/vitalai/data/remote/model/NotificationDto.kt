@@ -7,7 +7,8 @@ import com.squareup.moshi.JsonClass
 data class NotificationDto(
     @Json(name = "id") val id: String,
     @Json(name = "title") val title: String,
-    @Json(name = "message") val message: String,
+    // Backend entity column is `body` (notifications.body), not `message`.
+    @Json(name = "body") val message: String,
     @Json(name = "type") val type: String,
     @Json(name = "is_read") val isRead: Boolean,
     @Json(name = "created_at") val createdAt: String

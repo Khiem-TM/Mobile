@@ -1,5 +1,9 @@
 package com.vitalai.ui.screens.diary
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -27,9 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.CreateFoodRequest
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.*
+import com.vitalai.util.PickedImage
+import com.vitalai.util.copyUriToCacheFile
 
 @Composable
 fun CreateFoodScreen(
@@ -37,6 +46,7 @@ fun CreateFoodScreen(
     viewModel: FoodViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var servingSize by remember { mutableStateOf("") }
@@ -45,9 +55,27 @@ fun CreateFoodScreen(
     var protein by remember { mutableStateOf("") }
     var fat by remember { mutableStateOf("") }
     var fiber by remember { mutableStateOf("") }
+    var pickedImage by remember { mutableStateOf<PickedImage?>(null) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            val picked = copyUriToCacheFile(context, uri, prefix = "food")
+            if (picked != null) pickedImage = picked
+            else viewModel.clearError()
+        }
+    }
 
     LaunchedEffect(uiState.createSuccess) {
         if (uiState.createSuccess) navController.popBackStack()
+    }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
     }
 
     Scaffold(
@@ -88,7 +116,7 @@ fun CreateFoodScreen(
                         .clickable {
                             if (name.isNotBlank() && calories.isNotBlank()) {
                                 viewModel.createFood(
-                                    CreateFoodRequest(
+                                    request = CreateFoodRequest(
                                         name = name,
                                         brand = brand.ifBlank { null },
                                         servingSizeG = servingSize.toFloatOrNull() ?: 100f,
@@ -97,8 +125,12 @@ fun CreateFoodScreen(
                                         proteinPer100g = protein.toFloatOrNull() ?: 0f,
                                         fatPer100g = fat.toFloatOrNull() ?: 0f,
                                         fiberPer100g = fiber.toFloatOrNull()
-                                    )
+                                    ),
+                                    imageFile = pickedImage?.file,
+                                    imageMimeType = pickedImage?.mimeType
                                 )
+                            } else {
+                                Toast.makeText(context, "Vui lòng nhập tên món và calo", Toast.LENGTH_SHORT).show()
                             }
                         }
                         .padding(horizontal = 20.dp, vertical = 8.dp)
@@ -121,13 +153,27 @@ fun CreateFoodScreen(
                         .clip(RoundedCornerShape(VitalRadius.Lg))
                         .background(AppSurface)
                         .border(1.5.dp, Mint500, RoundedCornerShape(VitalRadius.Lg))
-                        .clickable { /* Handle Image Upload */ },
+                        .clickable {
+                            imagePickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Image, contentDescription = null, tint = Ink500, modifier = Modifier.size(28.dp))
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Thêm ảnh", fontSize = 12.sp, color = Ink500)
+                    val picked = pickedImage
+                    if (picked != null) {
+                        AsyncImage(
+                            model = picked.file,
+                            contentDescription = "Ảnh món ăn",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(VitalRadius.Lg))
+                        )
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Image, contentDescription = null, tint = Ink500, modifier = Modifier.size(28.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Thêm ảnh", fontSize = 12.sp, color = Ink500)
+                        }
                     }
                 }
 

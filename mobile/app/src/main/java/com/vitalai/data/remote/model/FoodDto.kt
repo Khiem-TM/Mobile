@@ -2,6 +2,7 @@ package com.vitalai.data.remote.model
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.vitalai.core.network.ImageUrlResolver
 
 @JsonClass(generateAdapter = true)
 data class FoodDto(
@@ -20,7 +21,7 @@ data class FoodDto(
     @Json(name = "is_verified") val isVerified: Boolean,
     @Json(name = "is_custom") val isCustom: Boolean
 ) {
-    val imageUrl: String? get() = imageUrls?.firstOrNull()
+    val imageUrl: String? get() = ImageUrlResolver.resolve(imageUrls?.firstOrNull())
 }
 
 @JsonClass(generateAdapter = true)

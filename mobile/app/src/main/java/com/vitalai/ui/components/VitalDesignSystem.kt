@@ -77,7 +77,7 @@ fun VitalCard(
     modifier: Modifier = Modifier,
     color: Color = AppSurface,
     borderColor: Color = AppLine,
-    radius: Dp = VitalRadius.Lg,
+    radius: Dp = VitalRadius.Md,
     contentPadding: PaddingValues = PaddingValues(VitalSpacing.Card),
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
@@ -99,7 +99,7 @@ fun VitalCard(
 fun VitalFlatCard(
     modifier: Modifier = Modifier,
     color: Color = AppSurface2,
-    radius: Dp = VitalRadius.Lg,
+    radius: Dp = VitalRadius.Md,
     contentPadding: PaddingValues = PaddingValues(VitalSpacing.Card),
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -159,7 +159,7 @@ fun VitalButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(VitalRadius.Pill),
+        shape = RoundedCornerShape(VitalRadius.Md),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (mint) Mint500 else if (primary) Ink900 else AppSurface2,
             contentColor = if (mint || primary) Color.White else Ink900,

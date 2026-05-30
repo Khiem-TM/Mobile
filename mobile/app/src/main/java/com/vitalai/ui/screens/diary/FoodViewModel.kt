@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class FoodUiState(
@@ -142,13 +143,19 @@ class FoodViewModel @Inject constructor(
         _uiState.update { it.copy(selectedFood = null) }
     }
 
-    fun createFood(request: CreateFoodRequest) {
+    fun createFood(
+        request: CreateFoodRequest,
+        imageFile: File? = null,
+        imageMimeType: String? = null
+    ) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            foodRepository.createFood(request).onSuccess {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            foodRepository.createFood(request, imageFile, imageMimeType).onSuccess {
+                // Refresh "Món của tôi" so the new food shows up immediately.
+                loadCustomFoods()
                 _uiState.update { it.copy(isLoading = false, createSuccess = true) }
             }.onFailure { err ->
-                _uiState.update { it.copy(isLoading = false, error = err.message) }
+                _uiState.update { it.copy(isLoading = false, error = err.message ?: "Lỗi tạo món ăn") }
             }
         }
     }

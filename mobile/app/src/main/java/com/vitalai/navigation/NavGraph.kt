@@ -46,6 +46,7 @@ import com.vitalai.ui.screens.discover.MyBlogsScreen
 import com.vitalai.ui.screens.home.HomeScreen
 import com.vitalai.ui.screens.metrics.MetricsHistoryScreen
 import com.vitalai.ui.screens.metrics.MetricsScreen
+import com.vitalai.ui.screens.goals.GoalsScreen
 import com.vitalai.ui.screens.notifications.NotificationsScreen
 import com.vitalai.ui.screens.onboarding.OnboardingScreen
 import com.vitalai.ui.screens.profile.ProfileScreen
@@ -55,6 +56,7 @@ import com.vitalai.ui.screens.workout.ExerciseDetailScreen
 import com.vitalai.ui.screens.workout.ExerciseLibraryScreen
 import com.vitalai.ui.screens.workout.WorkoutBuilderScreen
 import com.vitalai.ui.screens.workout.WorkoutScreen
+import com.vitalai.ui.screens.workout.WorkoutSessionScreen
 import com.vitalai.ui.theme.AppMutedBackground
 import kotlinx.coroutines.launch
 
@@ -219,11 +221,13 @@ fun VitalNavGraph(
         }
         composable<Screen.WorkoutSession> { backStackEntry ->
             val route: Screen.WorkoutSession = backStackEntry.toRoute()
-            // Placeholder until WorkoutSessionScreen is implemented
-            WorkoutScreen(navController)
+            WorkoutSessionScreen(sessionId = route.id, date = route.date, navController = navController)
         }
         composable<Screen.Metrics> {
             MetricsScreen(navController)
+        }
+        composable<Screen.Goals> {
+            GoalsScreen(navController)
         }
 
         // ── Discover / Blog ───────────────────────────────────

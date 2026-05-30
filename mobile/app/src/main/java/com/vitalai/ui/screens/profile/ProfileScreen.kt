@@ -36,6 +36,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import com.vitalai.util.copyUriToCacheFile
 import java.io.File
 import java.util.Locale
 @Composable
@@ -52,7 +53,7 @@ fun ProfileScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            val uploadFile = copyUriToCacheFile(context, uri)
+            val uploadFile = copyUriToCacheFile(context, uri, prefix = "avatar")
             if (uploadFile != null) {
                 viewModel.uploadAvatar(uploadFile.file, uploadFile.mimeType) {
                     Toast.makeText(context, "Tải ảnh đại diện thành công!", Toast.LENGTH_SHORT).show()
@@ -379,7 +380,7 @@ fun ProfileScreen(
                         navController.navigate(Screen.Workout)
                     }
                     ProfileMenuItem(icon = Icons.Default.TrackChanges, label = "Mục tiêu & kế hoạch") {
-                        // navigate to goals
+                        navController.navigate(Screen.Goals)
                     }
                     ProfileMenuItem(icon = Icons.Default.EmojiEvents, label = "Huy hiệu của tôi") {
                         // navigate to badges
@@ -655,33 +656,6 @@ private fun EditDisplayNameDialog(
             TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Hủy") }
         }
     )
-}
-
-private data class AvatarUploadFile(
-    val file: File,
-    val mimeType: String
-)
-
-private fun copyUriToCacheFile(context: Context, uri: Uri): AvatarUploadFile? {
-    return try {
-        val mimeType = context.contentResolver.getType(uri) ?: "image/jpeg"
-        val extension = when (mimeType) {
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            "image/heic" -> "heic"
-            "image/heif" -> "heif"
-            else -> "jpg"
-        }
-        val file = File(context.cacheDir, "avatar_${System.currentTimeMillis()}.$extension")
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            file.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        } ?: return null
-        AvatarUploadFile(file, mimeType)
-    } catch (_: Exception) {
-        null
-    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)

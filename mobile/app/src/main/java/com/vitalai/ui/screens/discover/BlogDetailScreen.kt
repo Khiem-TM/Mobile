@@ -95,7 +95,7 @@ private fun BlogContent(
         Box(modifier = Modifier.fillMaxWidth().height(328.dp)) {
             if (blog.thumbnailUrl != null) {
                 AsyncImage(
-                    model = blog.thumbnailUrl,
+                    model = blog.thumbnailImage,
                     contentDescription = blog.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -308,7 +308,7 @@ private fun BlogBlockView(block: BlogBlockDto) {
                     color = AppSurface2
                 ) {
                     AsyncImage(
-                        model = block.imageUrl,
+                        model = block.displayImageUrl,
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()

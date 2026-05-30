@@ -59,9 +59,19 @@ class DashboardRepository @Inject constructor(
     suspend fun getStreaks(): Result<StreakDto> {
         return try {
             val response = dashboardApi.getStreaks()
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
-            else Result.failure(Exception("Lỗi tải streak (${response.code()})"))
+            val list = response.body()?.data
+            if (response.isSuccessful && list != null) {
+                // Backend sends a list of per-type streaks (login/calorie_goal/workout);
+                // flatten to the object the UI consumes.
+                fun current(type: String) = list.firstOrNull { it.streakType == type }?.currentStreak ?: 0
+                Result.success(
+                    StreakDto(
+                        loginStreak = current("login"),
+                        mealLogStreak = current("calorie_goal"),
+                        workoutStreak = current("workout")
+                    )
+                )
+            } else Result.failure(Exception("Lỗi tải streak (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

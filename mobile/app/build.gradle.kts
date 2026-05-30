@@ -84,6 +84,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    // Compose Material (m2) — used for pull-to-refresh, not available in material3 1.2.x
+    implementation("androidx.compose.material:material")
     
     // Updated Navigation to 2.8.0 for type-safe DSL
     implementation("androidx.navigation:navigation-compose:2.8.0")
@@ -121,6 +123,7 @@ dependencies {
 
     // Coil
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-svg:2.6.0")
 
     // Firebase skeletons. google-services.json and Firebase dashboard setup are required by the app owner.
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))

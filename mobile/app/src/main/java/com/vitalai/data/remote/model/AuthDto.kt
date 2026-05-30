@@ -2,6 +2,7 @@ package com.vitalai.data.remote.model
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.vitalai.core.network.ImageUrlResolver
 
 @JsonClass(generateAdapter = true)
 data class AuthResponseDto(
@@ -17,10 +18,13 @@ data class UserDto(
     val id: String,
     val email: String,
     @Json(name = "display_name") val displayName: String,
-    @Json(name = "avatar_url") val avatarUrl: String?,
+    @Json(name = "avatar_url") val avatarUrlRaw: String?,
     val role: String,
     @Json(name = "is_verified") val isVerified: Boolean
-)
+) {
+    /** Normalized so relative backend paths become loadable URLs. */
+    val avatarUrl: String? get() = ImageUrlResolver.resolve(avatarUrlRaw)
+}
 
 @JsonClass(generateAdapter = true)
 data class UpdateProfileRequest(

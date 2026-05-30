@@ -225,7 +225,7 @@ private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (blog.thumbnailUrl != null) {
                 AsyncImage(
-                    model = blog.thumbnailUrl,
+                    model = blog.thumbnailImage,
                     contentDescription = blog.title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
@@ -304,7 +304,7 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
         ) {
             if (blog.thumbnailUrl != null) {
                 AsyncImage(
-                    model = blog.thumbnailUrl,
+                    model = blog.thumbnailImage,
                     contentDescription = blog.title,
                     modifier = Modifier
                         .size(width = 96.dp, height = 108.dp)

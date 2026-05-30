@@ -1,7 +1,6 @@
 package com.vitalai.ui.screens.workout
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,16 +8,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.LocalDrink
 import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,7 +22,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.navigation.Screen
@@ -45,13 +42,25 @@ fun WorkoutScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    // Reload session history whenever the screen resumes (e.g. after saving a
+    // workout in the builder and navigating back).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.loadData()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     WorkoutDashboard(
         uiState = uiState,
         onNavigateWorkoutBuilder = { navController.navigate(Screen.WorkoutBuilder) },
         onNavigateLibrary = { navController.navigate(Screen.ExerciseLibrary) },
         onNavigateMetrics = { navController.navigate(Screen.Metrics) },
-        onNavigateActivity = { navController.navigate(Screen.Activity) },
-        onUpdateSteps = viewModel::updateSteps,
+        onSessionClick = { session ->
+            navController.navigate(Screen.WorkoutSession(session.id, session.sessionDate))
+        },
         onRetry = viewModel::loadData
     )
 }
@@ -62,12 +71,9 @@ private fun WorkoutDashboard(
     onNavigateWorkoutBuilder: () -> Unit,
     onNavigateLibrary: () -> Unit,
     onNavigateMetrics: () -> Unit,
-    onNavigateActivity: () -> Unit,
-    onUpdateSteps: (Int) -> Unit,
+    onSessionClick: (WorkoutSessionDto) -> Unit,
     onRetry: () -> Unit
 ) {
-    var showStepsDialog by remember { mutableStateOf(false) }
-
     TrainScreen {
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
@@ -137,52 +143,12 @@ private fun WorkoutDashboard(
                     item {
                         RecentHistory(
                             sessions = uiState.recentSessions,
-                            onSessionClick = onNavigateWorkoutBuilder
-                        )
-                    }
-                    item {
-                        ActivityLogRow(onNavigateActivity)
-                    }
-                    item {
-                        TodayActivityMini(
-                            waterMl = uiState.todayActivityLog?.waterMl ?: 0,
-                            steps = uiState.todayActivityLog?.steps ?: 0,
-                            onStepsClick = { showStepsDialog = true }
+                            onSessionClick = onSessionClick
                         )
                     }
                 }
             }
         }
-    }
-
-    if (showStepsDialog) {
-        var stepsInput by remember(uiState.todayActivityLog?.steps) {
-            mutableStateOf((uiState.todayActivityLog?.steps ?: 0).toString())
-        }
-        AlertDialog(
-            onDismissRequest = { showStepsDialog = false },
-            title = { Text("Nhập số bước chân", color = TrainColors.Ink) },
-            text = {
-                OutlinedTextField(
-                    value = stepsInput,
-                    onValueChange = { stepsInput = it.filter(Char::isDigit) },
-                    singleLine = true,
-                    label = { Text("Số bước") }
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onUpdateSteps(stepsInput.toIntOrNull() ?: 0)
-                        showStepsDialog = false
-                    }
-                ) { Text("Lưu", color = TrainColors.Forest) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStepsDialog = false }) { Text("Hủy", color = TrainColors.Charcoal) }
-            },
-            containerColor = TrainColors.Cream
-        )
     }
 }
 
@@ -297,7 +263,7 @@ private fun QuickLinkCard(
 }
 
 @Composable
-private fun RecentHistory(sessions: List<WorkoutSessionDto>, onSessionClick: () -> Unit) {
+private fun RecentHistory(sessions: List<WorkoutSessionDto>, onSessionClick: (WorkoutSessionDto) -> Unit) {
     Column {
         TrainSectionTitle("Lịch sử gần đây", modifier = Modifier.padding(bottom = 11.dp))
         if (sessions.isEmpty()) {
@@ -314,7 +280,7 @@ private fun RecentHistory(sessions: List<WorkoutSessionDto>, onSessionClick: () 
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 sessions.forEach { session ->
-                    RecentSessionRow(session = session, onClick = onSessionClick)
+                    RecentSessionRow(session = session, onClick = { onSessionClick(session) })
                 }
             }
         }
@@ -368,41 +334,3 @@ private fun RecentSessionRow(session: WorkoutSessionDto, onClick: () -> Unit) {
     }
 }
 
-@Composable
-private fun ActivityLogRow(onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(TrainCardRadius))
-            .background(TrainColors.SlateMist)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 15.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.LocalDrink, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(11.dp))
-            Text(
-                "Nhật ký hoạt động hôm nay",
-                color = TrainColors.Forest,
-                fontSize = 14.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(18.dp))
-        }
-    }
-}
-
-@Composable
-private fun TodayActivityMini(waterMl: Int, steps: Int, onStepsClick: () -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        TrainCard(tone = TrainTone.Cream, modifier = Modifier.weight(1f), padding = PaddingValues(15.dp)) {
-            Text("Nước", color = TrainColors.Charcoal, fontSize = 12.sp)
-            Text("${waterMl}ml", color = TrainColors.Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        TrainCard(tone = TrainTone.Cream, modifier = Modifier.weight(1f), padding = PaddingValues(15.dp), onClick = onStepsClick) {
-            Text("Bước chân", color = TrainColors.Charcoal, fontSize = 12.sp)
-            Text("$steps", color = TrainColors.Forest, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-    }
-}

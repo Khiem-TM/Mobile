@@ -5,7 +5,7 @@ import com.vitalai.data.remote.model.DailyDashboardResponse
 import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.DashboardMonthlyDto
 import com.vitalai.data.remote.model.DashboardWeeklyDto
-import com.vitalai.data.remote.model.StreakDto
+import com.vitalai.data.remote.model.DailyStreakDto
 import com.vitalai.data.remote.model.UnreadCountDto
 import retrofit2.Response
 import retrofit2.http.GET
@@ -24,8 +24,9 @@ interface DashboardApi {
         @Query("month") month: Int
     ): Response<ApiResponse<DashboardMonthlyDto>>
 
+    // Backend returns an ARRAY of per-type streak rows, not a single object.
     @GET("streaks")
-    suspend fun getStreaks(): Response<ApiResponse<StreakDto>>
+    suspend fun getStreaks(): Response<ApiResponse<List<DailyStreakDto>>>
 
     @GET("notifications/unread-count")
     suspend fun getUnreadCount(): Response<ApiResponse<UnreadCountDto>>

@@ -2,36 +2,49 @@ package com.vitalai.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary mint scale
-val Mint50 = Color(0xFFECFDF5)
-val Mint100 = Color(0xFFD1FAE5)
+// ── Design system palette (Design/DESIGN.md — "Ease Health") ──────────────
+// Forest Green is the single brand/action color; surfaces are cream + green tints.
+val ForestGreen = Color(0xFF0F3E17)
+val CreamCanvas = Color(0xFFFFFEFC)
+val MintGlaze = Color(0xFFB1DBB8)
+val SlateMist = Color(0xFFB6CED5)
+val KeylimeWash = Color(0xFFE1F4DF)
+val MintKiss = Color(0xFFCFE7D3)
+val BorderGrey = Color(0xFFE5E7EB)
+val InkText = Color(0xFF222222)
+val DarkCharcoal = Color(0xFF333333)
+
+// Primary "mint" scale. Mint500 is THE primary action color referenced across the
+// app, so it maps to Forest Green; lighter steps map to the green surface tints.
+val Mint50 = KeylimeWash
+val Mint100 = MintKiss
 val Mint200 = Color(0xFFA7F3D0)
 val Mint300 = Color(0xFF6EE7B7)
-val Mint400 = Color(0xFF34D399)
-val Mint500 = Color(0xFF10B981)
-val Mint600 = Color(0xFF059669)
-val Mint700 = Color(0xFF047857)
-val Mint800 = Color(0xFF065F46)
-val Mint900 = Color(0xFF064E3B)
+val Mint400 = Color(0xFF2E7D43)
+val Mint500 = ForestGreen
+val Mint600 = Color(0xFF1B5E27)
+val Mint700 = Color(0xFF17501F)
+val Mint800 = Color(0xFF124019)
+val Mint900 = ForestGreen
 
 // Primary action teal (actual primary used throughout the app)
 val Teal500 = Mint500
 
 // Neutrals
-val Ink900 = Color(0xFF0B1F17)
-val Ink800 = Color(0xFF1A2A23)
-val Ink700 = Color(0xFF2F3D36)
+val Ink900 = InkText
+val Ink800 = DarkCharcoal
+val Ink700 = Color(0xFF3F4A44)
 val Ink500 = Color(0xFF5A6A62)
 val Ink400 = Color(0xFF8E9A93)
 val Ink300 = Color(0xFFBFC8C3)
-val Ink200 = Color(0xFFE6ECE9)
+val Ink200 = BorderGrey
 val Ink100 = Color(0xFFF2F6F4)
 val Ink50 = Color(0xFFF8FAF9)
-val AppBackground = Color(0xFFFFFFFF)
-val AppMutedBackground = Color(0xFFF5F8F6)
-val AppSurface = Color(0xFFFFFFFF)
-val AppSurface2 = Color(0xFFF2F6F4)
-val AppLine = Color(0xFFE6ECE9)
+val AppBackground = CreamCanvas
+val AppMutedBackground = Color(0xFFF4F8F4)
+val AppSurface = CreamCanvas
+val AppSurface2 = Color(0xFFF1F6F1)
+val AppLine = BorderGrey
 val AppLineSoft = Color(0xFFF0F4F2)
 
 // Slate scale for dark headers / selected states

@@ -250,7 +250,7 @@ private fun MyBlogCard(
                 // Thumbnail
                 if (blog.thumbnailUrl != null) {
                     AsyncImage(
-                        model = blog.thumbnailUrl,
+                        model = blog.thumbnailImage,
                         contentDescription = blog.title,
                         modifier = Modifier
                             .size(72.dp)

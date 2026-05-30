@@ -45,11 +45,13 @@ interface MealLogApi {
         @Body request: UpdateMealLogItemRequest
     ): Response<ApiResponse<MealLogItemDto>>
 
+    // Backend returns 204 No Content. Must NOT be ApiResponse<Unit>: Moshi has no
+    // adapter for kotlin.Unit, so building the converter throws and the call fails.
     @DELETE("meal-logs/{mealLogId}/items/{itemId}")
     suspend fun deleteItem(
         @Path("mealLogId") mealLogId: String,
         @Path("itemId") itemId: String
-    ): Response<ApiResponse<Unit>>
+    ): Response<Unit>
 
     @DELETE("meal-logs/{mealLogId}")
     suspend fun deleteMealLog(@Path("mealLogId") mealLogId: String): Response<Unit>

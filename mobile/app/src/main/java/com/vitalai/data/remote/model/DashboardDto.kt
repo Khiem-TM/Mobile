@@ -88,7 +88,18 @@ data class DailyDashboardResponse(
     @Json(name = "nutrition") val nutrition: DailyNutritionDto,
     @Json(name = "activity") val activity: DailyActivityDto,
     @Json(name = "body") val body: DailyBodyDto,
-    @Json(name = "streaks") val streaks: StreakDto? = null
+    // Backend returns an ARRAY of per-type streak rows (login/meal_log/workout),
+    // not a single object. Parsing it as StreakDto caused
+    // "Expected BEGIN_OBJECT but was BEGIN_ARRAY at $.data.streaks".
+    @Json(name = "streaks") val streaks: List<DailyStreakDto>? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class DailyStreakDto(
+    @Json(name = "streak_type") val streakType: String? = null,
+    @Json(name = "currentStreak") val currentStreak: Int = 0,
+    @Json(name = "maxStreak") val maxStreak: Int = 0,
+    @Json(name = "lastActivityDate") val lastActivityDate: String? = null
 )
 
 @JsonClass(generateAdapter = true)

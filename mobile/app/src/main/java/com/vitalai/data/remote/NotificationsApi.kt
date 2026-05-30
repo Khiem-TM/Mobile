@@ -16,7 +16,7 @@ interface NotificationsApi {
     suspend fun markRead(@Path("id") id: String): Response<ApiResponse<NotificationDto>>
 
     @PATCH("notifications/read-all")
-    suspend fun markAllRead(): Response<ApiResponse<Unit>>
+    suspend fun markAllRead(): Response<Unit>
 
     @DELETE("notifications/{id}")
     suspend fun deleteNotification(@Path("id") id: String): Response<Unit>

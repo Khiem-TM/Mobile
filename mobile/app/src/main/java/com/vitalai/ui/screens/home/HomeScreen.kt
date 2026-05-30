@@ -1,11 +1,9 @@
 package com.vitalai.ui.screens.home
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -16,6 +14,10 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.FlashOn
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,14 +28,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ArcGauge
+import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppSurface
@@ -56,45 +62,76 @@ import com.vitalai.ui.theme.WaterBlue
 import com.vitalai.ui.theme.WaterBlueTint
 import com.vitalai.ui.theme.VitalRadius
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.isRefreshing,
+        onRefresh = { viewModel.refresh() }
+    )
 
-    when {
-        uiState.isLoading && uiState.dashboard == null -> LoadingState(
-            modifier = Modifier.fillMaxSize()
-        )
-        else -> LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
-        ) {
-            item { HomeHeader(navController, uiState) }
-            item { WeekStrip(uiState.selectedDate) { date -> viewModel.selectDate(date) } }
-            item { DailyCaloriesCard(uiState) }
-            item {
-                WaterAndActivityCards(
-                    uiState = uiState,
-                    onAddWater = { viewModel.addWater() },
-                    onAddSteps = { viewModel.addSteps() }
-                )
-            }
-            item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
-            item { DashboardTrendCard(uiState) }
-            item {
-                val streak = uiState.streaks?.loginStreak ?: 0
-                if (streak > 0) StreakBanner(streak)
+    // Refresh on resume so edits made elsewhere (e.g. goals) reflect on the dashboard.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && uiState.dashboard != null) viewModel.refresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pullRefresh(pullRefreshState)
+    ) {
+        when {
+            uiState.isLoading && uiState.dashboard == null -> LoadingState(
+                modifier = Modifier.fillMaxSize()
+            )
+            uiState.error != null && uiState.dashboard == null -> ErrorState(
+                message = uiState.error!!,
+                onRetry = { viewModel.loadData() },
+                modifier = Modifier.fillMaxSize()
+            )
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 40.dp)
+            ) {
+                item { HomeHeader(navController, uiState) }
+                item { WeekStrip(uiState.selectedDate) { date -> viewModel.selectDate(date) } }
+                item { DailyCaloriesCard(uiState) }
+                item {
+                    WaterAndActivityCards(
+                        uiState = uiState,
+                        onAddWater = { viewModel.addWater() },
+                        onSetSteps = { viewModel.setSteps(it) }
+                    )
+                }
+                item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
+                item { DashboardTrendCard(uiState) }
+                item {
+                    val streak = uiState.streaks?.loginStreak ?: 0
+                    if (streak > 0) StreakBanner(streak)
+                }
             }
         }
+        PullRefreshIndicator(
+            refreshing = uiState.isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
 @Composable
 fun HomeHeader(navController: NavController, uiState: HomeUiState) {
     val userName = uiState.user?.displayName ?: "Bạn"
-    val avatarUrl = uiState.user?.avatarUrl ?: "https://i.pravatar.cc/150?img=11"
+    val avatarUrl = uiState.user?.avatarUrl
     val dateLabel = remember(uiState.selectedDate) {
         try {
             val d = java.time.LocalDate.parse(uiState.selectedDate)
@@ -110,14 +147,31 @@ fun HomeHeader(navController: NavController, uiState: HomeUiState) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = avatarUrl,
-                contentDescription = "Avatar",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-            )
+            if (avatarUrl.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Mint100),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = userName.trim().firstOrNull()?.uppercase() ?: "B",
+                        color = Mint500,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                }
+            } else {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = "Avatar",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(dateLabel, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -297,12 +351,11 @@ fun MacroBar(label: String, value: String, progress: Float, color: Color) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WaterAndActivityCards(
     uiState: HomeUiState,
     onAddWater: () -> Unit,
-    onAddSteps: () -> Unit
+    onSetSteps: (Int) -> Unit
 ) {
     val d = uiState.dashboard
     val waterMl = d?.waterMl ?: 0
@@ -311,6 +364,7 @@ fun WaterAndActivityCards(
     val waterProgress = (waterMl.toFloat() / waterGoalMl).coerceIn(0f, 1f)
     val burnedKcal = d?.caloriesBurned?.toInt() ?: 0
     val steps = d?.steps ?: 0
+    var showStepsDialog by remember { mutableStateOf(false) }
 
     Row(
         modifier = Modifier
@@ -318,14 +372,11 @@ fun WaterAndActivityCards(
             .padding(horizontal = 24.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Water
+        // Water — tap to add a 250ml cup
         Card(
             modifier = Modifier
                 .weight(1f)
-                .combinedClickable(
-                    onClick = { /* Có thể điều hướng đến chi tiết */ },
-                    onDoubleClick = onAddWater
-                ),
+                .clickable(onClick = onAddWater),
             shape = RoundedCornerShape(VitalRadius.Lg),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
             border = BorderStroke(1.dp, AppLine)
@@ -349,17 +400,19 @@ fun WaterAndActivityCards(
                     repeat(filled) { Box(modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(100)).background(WaterBlue)) }
                     repeat(10 - filled) { Box(modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = WaterBlue, modifier = Modifier.size(14.dp))
+                    Text(" Chạm để thêm 250ml", fontSize = 11.sp, color = WaterBlue, fontWeight = FontWeight.Medium)
+                }
             }
         }
 
-        // Activity
+        // Activity — tap to enter today's step count
         Card(
             modifier = Modifier
                 .weight(1f)
-                .combinedClickable(
-                    onClick = { /* Có thể điều hướng đến chi tiết */ },
-                    onDoubleClick = onAddSteps
-                ),
+                .clickable(onClick = { showStepsDialog = true }),
             shape = RoundedCornerShape(VitalRadius.Lg),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
             border = BorderStroke(1.dp, AppLine)
@@ -382,8 +435,39 @@ fun WaterAndActivityCards(
                 Box(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) {
                     Box(modifier = Modifier.fillMaxWidth(stepsProgress).fillMaxHeight().clip(RoundedCornerShape(100)).background(Mint500))
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = MacroCarbs, modifier = Modifier.size(14.dp))
+                    Text(" Chạm để cập nhật", fontSize = 11.sp, color = MacroCarbs, fontWeight = FontWeight.Medium)
+                }
             }
         }
+    }
+
+    if (showStepsDialog) {
+        var stepsInput by remember { mutableStateOf(steps.takeIf { it > 0 }?.toString() ?: "") }
+        AlertDialog(
+            onDismissRequest = { showStepsDialog = false },
+            title = { Text("Cập nhật số bước chân", color = Ink900) },
+            text = {
+                OutlinedTextField(
+                    value = stepsInput,
+                    onValueChange = { stepsInput = it.filter(Char::isDigit).take(6) },
+                    singleLine = true,
+                    label = { Text("Tổng số bước hôm nay") }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onSetSteps(stepsInput.toIntOrNull() ?: 0)
+                    showStepsDialog = false
+                }) { Text("Lưu", color = Mint500) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStepsDialog = false }) { Text("Hủy", color = Ink500) }
+            },
+            containerColor = AppSurface
+        )
     }
 }
 
@@ -415,14 +499,14 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
             MealOverviewCard(
                 mealType = "Breakfast",
                 imageUrl = breakfast?.items?.firstOrNull()?.imageUrl,
-                description = breakfast?.items?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
-                time = "8:30 AM",
+                description = breakfast?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
+                time = "Bữa sáng",
                 calories = breakfast?.totalCalories?.toInt() ?: 0,
                 modifier = Modifier.fillMaxWidth()
             )
-            
+
             Spacer(modifier = Modifier.height(16.dp))
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -430,7 +514,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 MealOverviewCard(
                     mealType = "Lunch",
                     imageUrl = lunch?.items?.firstOrNull()?.imageUrl,
-                    description = "12:45 · ${lunch?.totalCalories?.toInt() ?: 0} kcal",
+                    description = lunch?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
                     calories = lunch?.totalCalories?.toInt() ?: 0,
                     modifier = Modifier.weight(1f),
@@ -439,7 +523,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 MealOverviewCard(
                     mealType = "Snack",
                     imageUrl = snack?.items?.firstOrNull()?.imageUrl,
-                    description = "15:20 · ${snack?.totalCalories?.toInt() ?: 0} kcal",
+                    description = snack?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
                     calories = snack?.totalCalories?.toInt() ?: 0,
                     modifier = Modifier.weight(1f),

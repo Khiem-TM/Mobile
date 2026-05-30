@@ -11,6 +11,7 @@ import com.vitalai.data.remote.model.UserDto
 import com.vitalai.data.repository.DashboardRepository
 import com.vitalai.data.repository.MealLogRepository
 import com.vitalai.data.repository.UserRepository
+import com.vitalai.core.error.AppErrorMapper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ data class HomeUiState(
     val user: UserDto? = null,
     val selectedDate: String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 )
 
@@ -48,10 +50,13 @@ class HomeViewModel @Inject constructor(
         loadData()
     }
 
-    fun loadData() {
+    fun loadData(isRefresh: Boolean = false) {
         val date = _uiState.value.selectedDate
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update {
+                if (isRefresh) it.copy(isRefreshing = true, error = null)
+                else it.copy(isLoading = true, error = null)
+            }
             val dashboardDeferred = async { dashboardRepository.getDashboard(date) }
             val streaksDeferred = async { dashboardRepository.getStreaks() }
             val mealLogsDeferred = async { mealLogRepository.getMealLogs(date) }
@@ -62,7 +67,8 @@ class HomeViewModel @Inject constructor(
             val weeklyDeferred = async { dashboardRepository.getWeeklyDashboard(weekStart.toString()) }
             val monthlyDeferred = async { dashboardRepository.getMonthlyDashboard(selectedLocalDate.year, selectedLocalDate.monthValue) }
 
-            val dashboard = dashboardDeferred.await().getOrNull()
+            val dashboardResult = dashboardDeferred.await()
+            val dashboard = dashboardResult.getOrNull()
             val streaks = streaksDeferred.await().getOrNull()
             val mealLogs = mealLogsDeferred.await().getOrElse { emptyList() }
             val unread = unreadDeferred.await().getOrElse { 0 }
@@ -70,35 +76,50 @@ class HomeViewModel @Inject constructor(
             val weekly = weeklyDeferred.await().getOrNull()
             val monthly = monthlyDeferred.await().getOrNull()
 
+            // Only surface a blocking error when the core dashboard load failed and
+            // we have nothing to show; otherwise render whatever loaded.
+            val errorMessage = if (dashboard == null) {
+                dashboardResult.exceptionOrNull()
+                    ?.let { AppErrorMapper.fromThrowable(it).userMessage }
+                    ?: "Không thể tải dữ liệu. Vui lòng thử lại."
+            } else null
+
             _uiState.update {
                 it.copy(
-                    dashboard = dashboard,
-                    weeklyDashboard = weekly,
-                    monthlyDashboard = monthly,
-                    streaks = streaks,
+                    dashboard = dashboard ?: it.dashboard,
+                    weeklyDashboard = weekly ?: it.weeklyDashboard,
+                    monthlyDashboard = monthly ?: it.monthlyDashboard,
+                    streaks = streaks ?: it.streaks,
                     mealLogs = mealLogs,
                     unreadCount = unread,
-                    user = user,
-                    isLoading = false
+                    user = user ?: it.user,
+                    isLoading = false,
+                    isRefreshing = false,
+                    error = errorMessage
                 )
             }
         }
     }
+
+    fun refresh() = loadData(isRefresh = true)
 
     fun selectDate(date: String) {
         _uiState.update { it.copy(selectedDate = date) }
         loadData()
     }
 
-    fun addWater(ml: Int = 250) {
+    /** Adds [deltaMl] to today's water (repository call sets an absolute value). */
+    fun addWater(deltaMl: Int = 250) {
         viewModelScope.launch {
-            dashboardRepository.addWater(ml).onSuccess { updatedDashboard ->
+            val current = _uiState.value.dashboard?.waterMl ?: 0
+            dashboardRepository.addWater(current + deltaMl).onSuccess { updatedDashboard ->
                 _uiState.update { it.copy(dashboard = updatedDashboard) }
             }
         }
     }
 
-    fun addSteps(steps: Int = 500) {
+    /** Sets today's total step count to [steps]. */
+    fun setSteps(steps: Int) {
         viewModelScope.launch {
             dashboardRepository.addSteps(steps).onSuccess { updatedDashboard ->
                 _uiState.update { it.copy(dashboard = updatedDashboard) }

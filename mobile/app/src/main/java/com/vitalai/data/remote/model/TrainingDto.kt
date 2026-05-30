@@ -2,6 +2,7 @@ package com.vitalai.data.remote.model
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.vitalai.core.network.ImageUrlResolver
 
 @JsonClass(generateAdapter = true)
 data class ExerciseDto(
@@ -35,7 +36,9 @@ data class ExerciseDto(
     @Json(name = "movementType") val movementType: String? = null,
     @Json(name = "exerciseType") val exerciseType: String = "SPORT"
 ) {
-    val displayImageUrl: String? get() = thumbnailUrl ?: imageAvtUrl
+    val displayImageUrl: String? get() = ImageUrlResolver.resolve(
+        thumbnailUrl ?: imageAvtUrl ?: imageUrl?.firstOrNull()
+    )
     val muscleGroup: String get() = muscleGroupRaw ?: primaryMuscleGroup
 }
 

@@ -90,11 +90,45 @@ class TrainingRepository @Inject constructor(
         return try {
             val response = trainingApi.createSession(request)
             val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
-            else Result.failure(Exception("Lỗi tạo phiên tập (${response.code()})"))
+            when {
+                response.isSuccessful && body != null -> Result.success(body)
+                // Backend enforces one training session per day (HTTP 409). Instead of
+                // failing, append the new exercises to the day's existing session.
+                response.code() == 409 -> mergeIntoExistingSession(request)
+                else -> Result.failure(Exception("Lỗi tạo phiên tập (${response.code()})"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private suspend fun mergeIntoExistingSession(request: CreateWorkoutSessionDto): Result<WorkoutSessionDto> {
+        val existing = trainingApi.getSessionsByDate(request.sessionDate).body()?.data?.firstOrNull()
+            ?: return Result.failure(Exception("Không tìm thấy buổi tập hôm nay để thêm bài tập."))
+        val startIndex = existing.details.size
+        request.details.forEachIndexed { index, d ->
+            val addResp = trainingApi.addExercise(
+                existing.id,
+                AddExerciseRequest(
+                    exerciseId = d.exerciseId,
+                    exerciseType = d.exerciseType,
+                    sets = d.sets,
+                    repsPerSet = d.repsPerSet,
+                    weightKg = d.weightKg,
+                    durationMinutes = d.durationMinutes,
+                    orderIndex = startIndex + index,
+                    intensityLevel = d.intensityLevel,
+                    distanceKm = d.distanceKm,
+                    avgSpeedKmh = d.avgSpeedKmh,
+                    restTimeSeconds = d.restTimeSeconds
+                )
+            )
+            if (!addResp.isSuccessful) {
+                return Result.failure(Exception("Lỗi thêm bài tập vào buổi tập (${addResp.code()})"))
+            }
+        }
+        val refreshed = trainingApi.getSessionsByDate(request.sessionDate).body()?.data?.firstOrNull()
+        return Result.success(refreshed ?: existing)
     }
 
     suspend fun deleteSession(id: String): Result<Unit> {

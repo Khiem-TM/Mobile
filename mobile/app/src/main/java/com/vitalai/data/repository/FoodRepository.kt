@@ -4,6 +4,10 @@ import com.vitalai.data.remote.FoodApi
 import com.vitalai.data.remote.model.CreateFoodRequest
 import com.vitalai.data.remote.model.FoodDto
 import com.vitalai.data.remote.model.FoodPageDto
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -98,12 +102,42 @@ class FoodRepository @Inject constructor(
         }
     }
 
-    suspend fun createFood(request: CreateFoodRequest): Result<FoodDto> {
+    suspend fun createFood(
+        request: CreateFoodRequest,
+        imageFile: File? = null,
+        imageMimeType: String? = null
+    ): Result<FoodDto> {
         return try {
             val response = foodApi.createFood(request)
             val body = response.body()?.data
+            if (!response.isSuccessful || body == null) {
+                val message = response.errorBody()?.string()?.takeIf { it.isNotBlank() }
+                    ?: "Lỗi tạo món ăn (${response.code()})"
+                return Result.failure(Exception(message))
+            }
+            // Food created. Upload the optional image as a second step; the food
+            // still exists even if the image upload fails, so surface but don't lose it.
+            if (imageFile != null) {
+                val uploaded = uploadFoodImage(body.id, imageFile, imageMimeType ?: "image/jpeg").getOrNull()
+                if (uploaded != null) return Result.success(uploaded)
+            }
+            Result.success(body)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun uploadFoodImage(id: String, file: File, mimeType: String): Result<FoodDto> {
+        return try {
+            val part = MultipartBody.Part.createFormData(
+                name = "file",
+                filename = file.name,
+                body = file.asRequestBody(mimeType.toMediaTypeOrNull())
+            )
+            val response = foodApi.uploadFoodImage(id, part)
+            val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
-            else Result.failure(Exception("Lỗi tạo món ăn (${response.code()})"))
+            else Result.failure(Exception("Lỗi tải ảnh món ăn (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }

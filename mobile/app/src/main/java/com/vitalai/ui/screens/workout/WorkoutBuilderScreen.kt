@@ -18,9 +18,11 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
+import android.widget.Toast
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,9 +43,20 @@ fun WorkoutBuilderScreen(
     viewModel: WorkoutBuilderViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
 
-    if (uiState.savedSessionId != null) {
-        LaunchedEffect(uiState.savedSessionId) { navController.popBackStack() }
+    // Saved → confirm with a toast, then return to the Train dashboard (which
+    // reloads its history on resume). Keeps the transition intentional, not abrupt.
+    LaunchedEffect(uiState.savedSessionId) {
+        if (uiState.savedSessionId != null) {
+            Toast.makeText(context, "Đã lưu buổi tập 💪", Toast.LENGTH_SHORT).show()
+            navController.popBackStack()
+        }
+    }
+
+    // Surface save failures instead of silently staying on the form.
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
     }
 
     WorkoutBuilderScreenContent(

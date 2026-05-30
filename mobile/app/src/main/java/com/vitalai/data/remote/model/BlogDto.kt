@@ -2,6 +2,7 @@ package com.vitalai.data.remote.model
 
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.vitalai.core.network.ImageUrlResolver
 
 @JsonClass(generateAdapter = true)
 data class AuthorUserDto(
@@ -18,7 +19,11 @@ data class BlogBlockDto(
     @Json(name = "type") val type: String,
     @Json(name = "textContent") val textContent: String?,
     @Json(name = "imageUrl") val imageUrl: String?
-)
+) {
+    // Normalized through the central resolver (relative seed paths → full URL,
+    // absolute Cloudinary URLs pass through). Use this in UI, not raw imageUrl.
+    val displayImageUrl: String? get() = ImageUrlResolver.resolve(imageUrl)
+}
 
 @JsonClass(generateAdapter = true)
 data class BlogDto(
@@ -40,6 +45,8 @@ data class BlogDto(
 ) {
     val displayAuthor: String get() = authorUser?.displayName ?: author ?: "Tracker"
     val firstTag: String? get() = tags?.firstOrNull()
+    // Normalized thumbnail; use this in UI instead of the raw thumbnailUrl.
+    val thumbnailImage: String? get() = ImageUrlResolver.resolve(thumbnailUrl)
 }
 
 @JsonClass(generateAdapter = true)
