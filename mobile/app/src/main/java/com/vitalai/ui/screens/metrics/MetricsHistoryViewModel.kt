@@ -24,6 +24,7 @@ data class MetricTimelineEvent(
     val value: String,
     val note: String? = null,
     val photoUrl: String? = null,
+    val photoUrls: List<String> = emptyList(),
     val date: String,
     val monthGroup: String,
     // Raw metric fields for detail dialog (null for PHOTO events)
@@ -61,14 +62,20 @@ class MetricsHistoryViewModel @Inject constructor(
             val photosResult = bodyMetricsRepository.getPhotos(10)
             bodyMetricsRepository.getPeriod("3months").fold(
                 onSuccess = { period ->
-                    val sorted = period.data.sortedBy { it.date }
+                    val photos = photosResult.getOrElse { emptyList() }
+                    val photosByMetric = photos.groupBy { it.bodyMetricId }
+                    val sorted = period.data
+                        .distinctBy { it.date.take(10) }
+                        .sortedBy { it.metricDateOrNull() ?: LocalDate.MIN }
                     val latest = sorted.lastOrNull()
                     val first = sorted.firstOrNull()
                     val weightChange = if (latest != null && first != null) latest.weightKg - first.weightKg else 0f
                     _uiState.update {
                         it.copy(
-                            events = sorted.asReversed().map { metric -> metric.toTimelineEvent() },
-                            photos = photosResult.getOrElse { emptyList() },
+                            events = sorted.asReversed().map { metric ->
+                                metric.toTimelineEvent(photosByMetric[metric.id].orEmpty())
+                            },
+                            photos = photos,
                             currentWeightKg = latest?.weightKg ?: 0f,
                             delta90Days = weightChange,
                             weightChange = weightChange,
@@ -103,8 +110,8 @@ class MetricsHistoryViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTab = tab) }
     }
 
-    private fun BodyMetricDto.toTimelineEvent(): MetricTimelineEvent {
-        val parsedDate = runCatching { LocalDate.parse(date) }.getOrNull()
+    private fun BodyMetricDto.toTimelineEvent(photos: List<ProgressPhotoDto>): MetricTimelineEvent {
+        val parsedDate = metricDateOrNull()
         val displayDate = parsedDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi"))) ?: date
         val month = parsedDate?.format(DateTimeFormatter.ofPattern("'Tháng' M/yyyy", Locale("vi"))) ?: "Số liệu"
 
@@ -134,10 +141,15 @@ class MetricsHistoryViewModel @Inject constructor(
             title = title,
             value = "%.1f kg".format(weightKg),
             note = details,
-            photoUrl = null,
+            photoUrl = photos.firstOrNull()?.photoUrl,
+            photoUrls = photos.map { it.photoUrl },
             date = displayDate,
             monthGroup = month,
             rawMetric = this
         )
+    }
+
+    private fun BodyMetricDto.metricDateOrNull(): LocalDate? {
+        return runCatching { LocalDate.parse(date.take(10)) }.getOrNull()
     }
 }

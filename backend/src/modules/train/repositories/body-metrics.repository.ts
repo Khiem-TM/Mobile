@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { BodyMetric } from '../entities/body-metric.entity';
 import { BodyProgressPhoto } from '../entities/body-progress-photo.entity';
 import { IBodyMetricsRepository } from './body-metrics.repository.interface';
@@ -20,35 +20,33 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
     userId: string,
     dto: UpsertBodyMetricDto & { bmi?: number; bmr?: number; tdee?: number },
   ): Promise<BodyMetric> {
-    const dateStr = dto.measuredAt
-      ? new Date(dto.measuredAt).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0];
+    const measuredDate = this.toDateOnly(dto.measuredAt);
+    const measuredAt = dto.measuredAt ? new Date(dto.measuredAt) : new Date();
 
     const existing = await this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .andWhere("DATE(bm.measured_at AT TIME ZONE 'UTC') = :date", { date: dateStr })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where('bm.measured_date = :date', { date: measuredDate }).orWhere(
+            '(bm.measured_date IS NULL AND DATE(bm.measured_at AT TIME ZONE \'UTC\') = :date)',
+            { date: measuredDate },
+          );
+        }),
+      )
       .getOne();
 
     if (existing) {
-      if (dto.weightKg !== undefined) existing.weightKg = dto.weightKg;
-      if (dto.bodyFatPercent !== undefined) existing.bodyFatPercent = dto.bodyFatPercent;
-      if (dto.waistCm !== undefined) existing.waistCm = dto.waistCm;
-      if (dto.hipCm !== undefined) existing.hipCm = dto.hipCm;
-      if (dto.chestCm !== undefined) existing.chestCm = dto.chestCm;
-      if (dto.neckCm !== undefined) existing.neckCm = dto.neckCm;
-      if (dto.heightCm !== undefined) existing.heightCm = dto.heightCm;
-      if (dto.armCm !== undefined) existing.armCm = dto.armCm;
-      if (dto.notes !== undefined) existing.notes = dto.notes;
-      if (dto.bmi !== undefined) existing.bmi = dto.bmi;
-      if (dto.bmr !== undefined) existing.bmr = dto.bmr;
-      if (dto.tdee !== undefined) existing.tdee = dto.tdee;
+      existing.measuredAt = measuredAt;
+      existing.measuredDate = measuredDate;
+      this.assignMetricFields(existing, dto);
       return this.repo.save(existing);
     }
 
     const metric = this.repo.create({
       userId,
-      measuredAt: dto.measuredAt ? new Date(dto.measuredAt) : new Date(),
+      measuredAt,
+      measuredDate,
       weightKg: dto.weightKg,
       bodyFatPercent: dto.bodyFatPercent,
       waistCm: dto.waistCm,
@@ -62,14 +60,31 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
       bmr: dto.bmr,
       tdee: dto.tdee,
     });
-    return this.repo.save(metric);
+    try {
+      return await this.repo.save(metric);
+    } catch (error: any) {
+      if (error?.code !== '23505') throw error;
+      const conflicted = await this.findByUserAndDate(userId, measuredDate);
+      if (!conflicted) throw error;
+      conflicted.measuredAt = measuredAt;
+      conflicted.measuredDate = measuredDate;
+      this.assignMetricFields(conflicted, dto);
+      return this.repo.save(conflicted);
+    }
   }
 
   async findByUserAndDate(userId: string, date: string): Promise<BodyMetric | null> {
     return this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .andWhere("DATE(bm.measured_at AT TIME ZONE 'UTC') = :date", { date })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where('bm.measured_date = :date', { date }).orWhere(
+            '(bm.measured_date IS NULL AND DATE(bm.measured_at AT TIME ZONE \'UTC\') = :date)',
+            { date },
+          );
+        }),
+      )
       .getOne();
   }
 
@@ -84,16 +99,17 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
     const qb = this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .orderBy('bm.measured_at', 'DESC')
+      .orderBy(this.metricDateExpression('bm'), 'DESC')
+      .addOrderBy('bm.measured_at', 'DESC')
       .take(query.limit ?? 30);
 
     if (query.date) {
-      qb.andWhere("DATE(bm.measured_at AT TIME ZONE 'UTC') = :date", { date: query.date });
+      qb.andWhere(`${this.metricDateExpression('bm')} = :date`, { date: query.date });
     } else {
       if (query.fromDate)
-        qb.andWhere('bm.measured_at >= :fromDate', { fromDate: query.fromDate });
+        qb.andWhere(`${this.metricDateExpression('bm')} >= :fromDate`, { fromDate: query.fromDate });
       if (query.toDate)
-        qb.andWhere('bm.measured_at <= :toDate', { toDate: query.toDate });
+        qb.andWhere(`${this.metricDateExpression('bm')} <= :toDate`, { toDate: query.toDate });
     }
 
     return qb.getMany();
@@ -103,9 +119,10 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
     return this.repo
       .createQueryBuilder('bm')
       .where('bm.user_id = :userId', { userId })
-      .andWhere('bm.measured_at >= :fromDate', { fromDate })
-      .andWhere('bm.measured_at <= :toDate', { toDate })
-      .orderBy('bm.measured_at', 'ASC')
+      .andWhere(`${this.metricDateExpression('bm')} >= :fromDate`, { fromDate })
+      .andWhere(`${this.metricDateExpression('bm')} <= :toDate`, { toDate })
+      .orderBy(this.metricDateExpression('bm'), 'ASC')
+      .addOrderBy('bm.measured_at', 'ASC')
       .getMany();
   }
 
@@ -128,5 +145,32 @@ export class BodyMetricsRepository implements IBodyMetricsRepository {
 
   async deletePhoto(id: string): Promise<void> {
     await this.photoRepo.delete(id);
+  }
+
+  private toDateOnly(value?: string): string {
+    if (!value) return new Date().toISOString().split('T')[0];
+    return value.includes('T') ? new Date(value).toISOString().split('T')[0] : value.slice(0, 10);
+  }
+
+  private metricDateExpression(alias: string): string {
+    return `COALESCE(${alias}.measured_date, DATE(${alias}.measured_at AT TIME ZONE 'UTC'))`;
+  }
+
+  private assignMetricFields(
+    metric: BodyMetric,
+    dto: UpsertBodyMetricDto & { bmi?: number; bmr?: number; tdee?: number },
+  ) {
+    if (dto.weightKg !== undefined) metric.weightKg = dto.weightKg;
+    if (dto.bodyFatPercent !== undefined) metric.bodyFatPercent = dto.bodyFatPercent;
+    if (dto.waistCm !== undefined) metric.waistCm = dto.waistCm;
+    if (dto.hipCm !== undefined) metric.hipCm = dto.hipCm;
+    if (dto.chestCm !== undefined) metric.chestCm = dto.chestCm;
+    if (dto.neckCm !== undefined) metric.neckCm = dto.neckCm;
+    if (dto.heightCm !== undefined) metric.heightCm = dto.heightCm;
+    if (dto.armCm !== undefined) metric.armCm = dto.armCm;
+    if (dto.notes !== undefined) metric.notes = dto.notes;
+    if (dto.bmi !== undefined) metric.bmi = dto.bmi;
+    if (dto.bmr !== undefined) metric.bmr = dto.bmr;
+    if (dto.tdee !== undefined) metric.tdee = dto.tdee;
   }
 }

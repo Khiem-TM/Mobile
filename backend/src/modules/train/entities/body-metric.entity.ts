@@ -26,6 +26,13 @@ export class BodyMetric {
   measuredAt!: Date;
 
   @Column({
+    name: 'measured_date',
+    type: 'date',
+    nullable: true,
+  })
+  measuredDate!: string | null;
+
+  @Column({
     name: 'weight_kg',
     type: 'decimal',
     precision: 5,

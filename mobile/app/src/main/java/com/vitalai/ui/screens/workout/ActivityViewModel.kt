@@ -7,9 +7,7 @@ import com.vitalai.data.repository.TrainingRepository
 import com.vitalai.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -36,7 +34,7 @@ class ActivityViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ActivityUiState())
     val uiState = _uiState.asStateFlow()
 
-    private var noteDebounceJob: Job? = null
+    private var noteSaveJob: Job? = null
 
     init { loadAll() }
 
@@ -150,13 +148,14 @@ class ActivityViewModel @Inject constructor(
         }
     }
 
-    fun scheduleNoteUpdate(note: String) {
-        noteDebounceJob?.cancel()
-        noteDebounceJob = viewModelScope.launch {
-            delay(1000L)
+    fun saveNote(note: String) {
+        noteSaveJob?.cancel()
+        noteSaveJob = viewModelScope.launch {
             val date = _uiState.value.selectedDate
-            trainingRepository.updateNote(note, date).onSuccess { log ->
+            trainingRepository.updateNote(note.trim(), date).onSuccess { log ->
                 _uiState.update { it.copy(log = log) }
+            }.onFailure { e ->
+                _uiState.update { it.copy(error = e.message) }
             }
         }
     }
@@ -173,6 +172,6 @@ class ActivityViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        noteDebounceJob?.cancel()
+        noteSaveJob?.cancel()
     }
 }

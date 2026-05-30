@@ -188,6 +188,7 @@ fun MetricsHistoryScreen(
                             if (showDetail && event.rawMetric != null) {
                                 MetricDetailDialog(
                                     metric = event.rawMetric,
+                                    photoUrls = event.photoUrls,
                                     onDismiss = { showDetail = false }
                                 )
                             }
@@ -222,13 +223,39 @@ private fun SummaryStatItem(label: String, value: String, color: Color) {
 @Composable
 private fun MetricDetailDialog(
     metric: com.vitalai.data.remote.model.BodyMetricDto,
+    photoUrls: List<String>,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Chi tiết chỉ số", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (photoUrls.isNotEmpty()) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(photoUrls) { url ->
+                            AsyncImage(
+                                model = url,
+                                contentDescription = "Ảnh tiến độ",
+                                modifier = Modifier
+                                    .size(width = 112.dp, height = 138.dp)
+                                    .clip(RoundedCornerShape(VitalRadius.Md)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(VitalRadius.Md))
+                            .background(AppSurface2)
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Chưa có ảnh gắn với bản ghi này", color = Ink500, fontSize = 12.sp)
+                    }
+                }
                 DetailRow("Ngày đo", metric.date)
                 DetailRow("Cân nặng", "%.1f kg".format(metric.weightKg))
                 metric.heightCm?.let { DetailRow("Chiều cao", "%.1f cm".format(it)) }

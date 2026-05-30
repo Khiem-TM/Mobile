@@ -28,6 +28,29 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id
 ALTER TABLE activity_logs
   ADD COLUMN IF NOT EXISTS workout_calories_burned decimal(7,2) DEFAULT 0;
 
+ALTER TABLE body_metrics
+  ADD COLUMN IF NOT EXISTS measured_date date;
+
+UPDATE body_metrics
+SET measured_date = DATE(measured_at AT TIME ZONE 'UTC')
+WHERE measured_at IS NOT NULL;
+
+DELETE FROM body_metrics bm
+USING body_metrics newer
+WHERE bm.user_id = newer.user_id
+  AND bm.measured_date = newer.measured_date
+  AND (
+    newer.measured_at > bm.measured_at
+    OR (newer.measured_at = bm.measured_at AND newer.created_at > bm.created_at)
+    OR (newer.measured_at = bm.measured_at AND newer.created_at = bm.created_at AND newer.id::text > bm.id::text)
+  );
+
+ALTER TABLE body_metrics
+  ALTER COLUMN measured_date SET NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_body_metrics_user_measured_date
+  ON body_metrics(user_id, measured_date);
+
 DELETE FROM streaks
 WHERE user_id IS NULL
    OR NOT EXISTS (

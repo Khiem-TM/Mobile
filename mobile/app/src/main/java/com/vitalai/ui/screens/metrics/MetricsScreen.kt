@@ -56,6 +56,8 @@ import com.vitalai.ui.components.VitalCard
 import com.vitalai.ui.theme.*
 import java.io.File
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -579,50 +581,76 @@ private fun PeriodChartSection(
 
 @Composable
 private fun WeightLineChart(data: List<BodyMetricDto>, modifier: Modifier = Modifier) {
-    if (data.size < 2) {
+    val pointsByDate = remember(data) {
+        data.mapNotNull { metric ->
+            metric.metricLocalDateOrNull()?.let { it to metric }
+        }.distinctBy { it.first }.sortedBy { it.first }
+    }
+    if (pointsByDate.size < 2) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
             Text("Cần ít nhất 2 điểm dữ liệu", color = Ink500, fontSize = 12.sp)
         }
         return
     }
-    val weights = data.map { it.weightKg }
-    val minW = weights.min()
-    val maxW = weights.max()
+    val weights = pointsByDate.map { it.second.weightKg }
+    val minW = weights.minOrNull() ?: 0f
+    val maxW = weights.maxOrNull() ?: 0f
     val range = (maxW - minW).coerceAtLeast(1f)
+    val firstDate = pointsByDate.first().first
+    val lastDate = pointsByDate.last().first
+    val totalDays = java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate).toFloat().coerceAtLeast(1f)
 
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-        val padding = 16.dp.toPx()
-        val chartW = w - padding * 2
-        val chartH = h - padding * 2
+    Column(modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            val w = size.width
+            val h = size.height
+            val leftPadding = 36.dp.toPx()
+            val rightPadding = 12.dp.toPx()
+            val topPadding = 12.dp.toPx()
+            val bottomPadding = 8.dp.toPx()
+            val chartW = w - leftPadding - rightPadding
+            val chartH = h - topPadding - bottomPadding
 
-        val points = data.mapIndexed { i, d ->
-            val x = padding + i.toFloat() / (data.size - 1) * chartW
-            val y = padding + (1f - (d.weightKg - minW) / range) * chartH
-            Offset(x, y)
+            val points = pointsByDate.map { (date, metric) ->
+                val dayOffset = java.time.temporal.ChronoUnit.DAYS.between(firstDate, date).toFloat()
+                val x = leftPadding + dayOffset / totalDays * chartW
+                val y = topPadding + (1f - (metric.weightKg - minW) / range) * chartH
+                Offset(x, y)
+            }
+
+            val gridColor = Ink200.copy(alpha = 0.75f)
+            repeat(3) { index ->
+                val fraction = index / 2f
+                val y = topPadding + fraction * chartH
+                drawLine(gridColor, Offset(leftPadding, y), Offset(w - rightPadding, y), strokeWidth = 1.dp.toPx())
+            }
+
+            val fillPath = Path().apply {
+                moveTo(points.first().x, topPadding + chartH)
+                points.forEach { lineTo(it.x, it.y) }
+                lineTo(points.last().x, topPadding + chartH)
+                close()
+            }
+            drawPath(fillPath, color = Mint500.copy(alpha = 0.15f))
+
+            val linePath = Path().apply {
+                moveTo(points.first().x, points.first().y)
+                points.drop(1).forEach { lineTo(it.x, it.y) }
+            }
+            drawPath(linePath, color = Mint500, style = Stroke(width = 2.dp.toPx()))
+
+            points.forEach { pt ->
+                drawCircle(color = Mint500, radius = 4.dp.toPx(), center = pt)
+                drawCircle(color = Color.White, radius = 2.dp.toPx(), center = pt)
+            }
         }
-
-        // Fill area
-        val fillPath = Path().apply {
-            moveTo(points.first().x, h)
-            points.forEach { lineTo(it.x, it.y) }
-            lineTo(points.last().x, h)
-            close()
-        }
-        drawPath(fillPath, color = Mint500.copy(alpha = 0.15f))
-
-        // Line
-        val linePath = Path().apply {
-            moveTo(points.first().x, points.first().y)
-            points.drop(1).forEach { lineTo(it.x, it.y) }
-        }
-        drawPath(linePath, color = Mint500, style = Stroke(width = 2.dp.toPx()))
-
-        // Points
-        points.forEach { pt ->
-            drawCircle(color = Mint500, radius = 4.dp.toPx(), center = pt)
-            drawCircle(color = Color.White, radius = 2.dp.toPx(), center = pt)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(firstDate.format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi"))), color = Ink500, fontSize = 10.sp)
+            Text("%.1f-%.1f kg".format(minW, maxW), color = Ink500, fontSize = 10.sp)
+            Text(lastDate.format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi"))), color = Ink500, fontSize = 10.sp)
         }
     }
 }
@@ -1007,8 +1035,8 @@ private fun AdvancedUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
                         waistCm = waistStr.toFloatOrNull(),
                         hipCm = hipStr.toFloatOrNull(),
                         chestCm = chestStr.toFloatOrNull(),
-                        neckCm = neckStr.toFloatOrNull()
-                        // armCm is display-only; not in UpsertBodyMetricRequest
+                        neckCm = neckStr.toFloatOrNull(),
+                        armCm = armStr.toFloatOrNull()
                     )
                 )
                 onDone()
@@ -1020,6 +1048,10 @@ private fun AdvancedUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
             Text("Lưu số đo", fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
+}
+
+private fun BodyMetricDto.metricLocalDateOrNull(): LocalDate? {
+    return runCatching { LocalDate.parse(date.take(10)) }.getOrNull()
 }
 
 @Composable

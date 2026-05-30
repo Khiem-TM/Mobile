@@ -80,8 +80,14 @@ class MetricsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             bodyMetricsRepository.addMetric(request).fold(
-                onSuccess = {
-                    _uiState.update { it.copy(isLoading = false) }
+                onSuccess = { saved ->
+                    _uiState.update {
+                        it.copy(
+                            latest = saved,
+                            isLoading = false,
+                            updateSuccessCount = it.updateSuccessCount + 1
+                        )
+                    }
                     loadData()
                 },
                 onFailure = { e ->
@@ -135,7 +141,8 @@ class MetricsViewModel @Inject constructor(
     fun uploadPhoto(file: java.io.File, photoType: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isUploadingPhoto = true) }
-            bodyMetricsRepository.uploadPhoto(file, photoType).fold(
+            val metricId = _uiState.value.latest?.id
+            bodyMetricsRepository.uploadPhoto(file, photoType, metricId).fold(
                 onSuccess = { photo ->
                     _uiState.update { state ->
                         state.copy(

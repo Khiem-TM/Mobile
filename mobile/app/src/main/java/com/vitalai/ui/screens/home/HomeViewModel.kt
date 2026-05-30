@@ -6,9 +6,11 @@ import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.DashboardMonthlyDto
 import com.vitalai.data.remote.model.DashboardWeeklyDto
 import com.vitalai.data.remote.model.ActivityLogDto
+import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.StreakDto
 import com.vitalai.data.remote.model.UserDto
+import com.vitalai.data.repository.BodyMetricsRepository
 import com.vitalai.data.repository.DashboardRepository
 import com.vitalai.data.repository.MealLogRepository
 import com.vitalai.data.repository.TrainingRepository
@@ -31,6 +33,7 @@ data class HomeUiState(
     val streaks: StreakDto? = null,
     val mealLogs: List<MealLogDto> = emptyList(),
     val recentActivityLogs: List<ActivityLogDto> = emptyList(),
+    val weightTrend: List<BodyMetricDto> = emptyList(),
     val unreadCount: Int = 0,
     val user: UserDto? = null,
     val selectedDate: String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
@@ -44,6 +47,7 @@ class HomeViewModel @Inject constructor(
     private val dashboardRepository: DashboardRepository,
     private val mealLogRepository: MealLogRepository,
     private val trainingRepository: TrainingRepository,
+    private val bodyMetricsRepository: BodyMetricsRepository,
     private val userRepository: UserRepository
 ) : ViewModel() {
 
@@ -76,6 +80,7 @@ class HomeViewModel @Inject constructor(
                     selectedLocalDate.toString()
                 )
             }
+            val weightTrendDeferred = async { bodyMetricsRepository.getPeriod("3months") }
 
             val dashboardResult = dashboardDeferred.await()
             val dashboard = dashboardResult.getOrNull()
@@ -86,6 +91,7 @@ class HomeViewModel @Inject constructor(
             val weekly = weeklyDeferred.await().getOrNull()
             val monthly = monthlyDeferred.await().getOrNull()
             val activityRange = activityRangeDeferred.await().getOrElse { emptyList() }
+            val weightTrend = weightTrendDeferred.await().getOrNull()?.data.orEmpty()
 
             // Only surface a blocking error when the core dashboard load failed and
             // we have nothing to show; otherwise render whatever loaded.
@@ -103,6 +109,7 @@ class HomeViewModel @Inject constructor(
                     streaks = streaks ?: it.streaks,
                     mealLogs = mealLogs,
                     recentActivityLogs = activityRange,
+                    weightTrend = weightTrend,
                     unreadCount = unread,
                     user = user ?: it.user,
                     isLoading = false,

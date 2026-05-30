@@ -58,6 +58,7 @@ data class UpsertBodyMetricRequest(
     @Json(name = "hipCm") val hipCm: Float? = null,
     @Json(name = "chestCm") val chestCm: Float? = null,
     @Json(name = "neckCm") val neckCm: Float? = null,
+    @Json(name = "armCm") val armCm: Float? = null,
     @Json(name = "notes") val notes: String? = null
 )
 

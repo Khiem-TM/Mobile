@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +67,7 @@ fun ActivityScreen(
         onUpdateSteps = { viewModel.updateSteps(it) },
         onUpdateSleep = { viewModel.updateSleep(it) },
         onUpdateMood = { viewModel.updateMood(it) },
-        onNoteChange = { viewModel.scheduleNoteUpdate(it) }
+        onSaveNote = { viewModel.saveNote(it) }
     )
 }
 
@@ -80,7 +81,7 @@ fun ActivityScreenContent(
     onUpdateSteps: (Int) -> Unit,
     onUpdateSleep: (Float) -> Unit,
     onUpdateMood: (String) -> Unit,
-    onNoteChange: (String) -> Unit
+    onSaveNote: (String) -> Unit
 ) {
     val log = uiState.log
     val today = LocalDate.now().toString()
@@ -94,6 +95,7 @@ fun ActivityScreenContent(
 
     var stepsText by remember(log?.steps) { mutableStateOf((log?.steps ?: 0).toString()) }
     var noteText by remember(log?.note) { mutableStateOf(log?.note ?: "") }
+    var showDatePicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -104,7 +106,8 @@ fun ActivityScreenContent(
                     date.format(DateTimeFormatter.ofPattern("EEEE, dd/MM/yyyy", Locale("vi")))
                         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("vi")) else it.toString() }
                 }.getOrDefault(selectedDateDisplay),
-                onBackClick = onBackClick
+                onBackClick = onBackClick,
+                onCalendarClick = { showDatePicker = true }
             )
         },
         containerColor = AppSurface
@@ -143,24 +146,23 @@ fun ActivityScreenContent(
 
             item {
                 PixelNoteField(
+                    savedNote = log?.note.orEmpty(),
                     noteText = noteText,
-                    onNoteTextChange = {
-                        noteText = it
-                        onNoteChange(it)
-                    }
-                )
-            }
-
-            item {
-                PixelWeekCard(
-                    selectedDate = uiState.selectedDate,
-                    weeklyLogs = uiState.weeklyLogs,
-                    waterGoalMl = uiState.waterGoalMl,
-                    stepGoal = uiState.stepGoal,
-                    onSelectDate = onSelectDate
+                    onNoteTextChange = { noteText = it },
+                    onSaveNote = { onSaveNote(noteText) }
                 )
             }
         }
+    }
+    if (showDatePicker) {
+        ActivityDatePickerDialog(
+            selectedDate = uiState.selectedDate,
+            onDismiss = { showDatePicker = false },
+            onSelectDate = {
+                onSelectDate(it)
+                showDatePicker = false
+            }
+        )
     }
 }
 
@@ -170,7 +172,8 @@ fun ActivityScreenContent(
 private fun ActivityPixelHeader(
     title: String,
     subtitle: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onCalendarClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -200,10 +203,11 @@ private fun ActivityPixelHeader(
                 .size(48.dp)
                 .clip(CircleShape)
                 .background(AppSurface)
-                .border(1.dp, AppLine, CircleShape),
+                .border(1.dp, AppLine, CircleShape)
+                .clickable(onClick = onCalendarClick),
             contentAlignment = Alignment.Center
         ) {
-            Text("▣", color = Ink900, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Icon(Icons.Default.CalendarMonth, contentDescription = "Chọn ngày", tint = Ink900, modifier = Modifier.size(23.dp))
         }
     }
 }
@@ -417,25 +421,115 @@ private fun SleepStepButton(text: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PixelNoteField(noteText: String, onNoteTextChange: (String) -> Unit) {
+private fun PixelNoteField(
+    savedNote: String,
+    noteText: String,
+    onNoteTextChange: (String) -> Unit,
+    onSaveNote: () -> Unit
+) {
+    var editing by remember(savedNote) { mutableStateOf(savedNote.isBlank()) }
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Text("Ghi chú", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("Ghi chú", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            if (!editing && savedNote.isNotBlank()) {
+                Text(
+                    "Sửa",
+                    color = TrainColors.Forest,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .clickable { editing = true }
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
+        }
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(
-            value = noteText,
-            onValueChange = onNoteTextChange,
-            placeholder = { Text("Hôm nay cảm thấy thế nào?", color = Ink500, fontSize = 16.sp) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp),
-            minLines = 2,
-            maxLines = 4,
-            shape = RoundedCornerShape(14.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AppLine,
-                unfocusedBorderColor = AppLine,
-                focusedContainerColor = AppSurface,
-                unfocusedContainerColor = AppSurface
+        if (editing) {
+            OutlinedTextField(
+                value = noteText,
+                onValueChange = onNoteTextChange,
+                placeholder = { Text("Hôm nay cảm thấy thế nào?", color = Ink500, fontSize = 16.sp) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp),
+                minLines = 2,
+                maxLines = 4,
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AppLine,
+                    unfocusedBorderColor = AppLine,
+                    focusedContainerColor = AppSurface,
+                    unfocusedContainerColor = AppSurface
+                )
             )
-        )
+            Spacer(Modifier.height(10.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(TrainColors.Forest)
+                    .clickable {
+                        onSaveNote()
+                        editing = false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Lưu ghi chú", color = AppSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Mint100)
+                    .border(1.dp, AppLine, RoundedCornerShape(14.dp))
+                    .padding(16.dp)
+            ) {
+                Text(savedNote, color = Ink900, fontSize = 15.sp, lineHeight = 21.sp)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ActivityDatePickerDialog(
+    selectedDate: String,
+    onDismiss: () -> Unit,
+    onSelectDate: (String) -> Unit
+) {
+    val initialMillis = remember(selectedDate) {
+        runCatching {
+            LocalDate.parse(selectedDate)
+                .atStartOfDay(java.time.ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        }.getOrNull()
+    }
+    val pickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val millis = pickerState.selectedDateMillis
+                    if (millis != null) {
+                        val date = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate()
+                            .toString()
+                        onSelectDate(date)
+                    } else {
+                        onDismiss()
+                    }
+                }
+            ) { Text("Chọn", color = TrainColors.Forest) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Hủy", color = Ink500) }
+        }
+    ) {
+        DatePicker(state = pickerState)
     }
 }
 

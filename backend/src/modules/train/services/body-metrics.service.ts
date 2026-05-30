@@ -99,9 +99,6 @@ export class BodyMetricsService {
   }
 
   async getHistory(userId: string, query: BodyMetricQueryDto) {
-    if (!query.date && !query.fromDate && !query.toDate) {
-      query.date = new Date().toISOString().split('T')[0];
-    }
     return this.repository.findHistory(userId, query);
   }
 

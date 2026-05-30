@@ -397,7 +397,7 @@ fun TrainBarChart(
 ) {
     val maxValue = max(values.maxOfOrNull { it.second } ?: 0f, 1f)
     Row(
-        modifier = modifier.height(116.dp),
+        modifier = modifier.height(128.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Bottom
     ) {
@@ -409,14 +409,25 @@ fun TrainBarChart(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom
             ) {
-                if (active) {
-                    Text(item.second.toInt().toString(), color = TrainColors.Forest, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(4.dp))
+                Box(
+                    modifier = Modifier.height(18.dp).fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (active) {
+                        Text(
+                            item.second.toInt().toString(),
+                            color = TrainColors.Forest,
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
                 }
+                Spacer(Modifier.height(4.dp))
                 Canvas(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height((82.dp * heightFraction).coerceAtLeast(3.dp))
+                        .height((74.dp * heightFraction).coerceIn(3.dp, 74.dp))
                 ) {
                     drawRoundRect(
                         color = when {

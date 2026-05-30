@@ -55,6 +55,7 @@ import com.vitalai.ui.screens.workout.ActivityScreen
 import com.vitalai.ui.screens.workout.ExerciseDetailScreen
 import com.vitalai.ui.screens.workout.ExerciseLibraryScreen
 import com.vitalai.ui.screens.workout.WorkoutBuilderScreen
+import com.vitalai.ui.screens.workout.WorkoutHistoryScreen
 import com.vitalai.ui.screens.workout.WorkoutScreen
 import com.vitalai.ui.screens.workout.WorkoutSessionScreen
 import com.vitalai.ui.theme.AppMutedBackground
@@ -223,6 +224,9 @@ fun VitalNavGraph(
         // ── Workout / Metrics ─────────────────────────────────
         composable<Screen.Workout> {
             WorkoutScreen(navController)
+        }
+        composable<Screen.WorkoutHistory> {
+            WorkoutHistoryScreen(navController)
         }
         composable<Screen.WorkoutSession> { backStackEntry ->
             val route: Screen.WorkoutSession = backStackEntry.toRoute()

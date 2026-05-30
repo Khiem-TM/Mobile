@@ -1,6 +1,10 @@
 package com.vitalai.ui.screens.home
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,7 +14,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.FlashOn
@@ -24,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -37,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ArcGauge
 import com.vitalai.ui.components.ErrorState
@@ -61,6 +72,10 @@ import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.WaterBlue
 import com.vitalai.ui.theme.WaterBlueTint
 import com.vitalai.ui.theme.VitalRadius
+import kotlinx.coroutines.delay
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -106,10 +121,8 @@ fun HomeScreen(
                 item { WeekStrip(uiState.selectedDate) { date -> viewModel.selectDate(date) } }
                 item { DailyCaloriesCard(uiState) }
                 item {
-                    WaterAndActivityCards(
+                    DailyActivitySummaryCard(
                         uiState = uiState,
-                        onAddWater = { viewModel.addWater() },
-                        onSetSteps = { viewModel.setSteps(it) },
                         onOpenActivityLog = {
                             navController.navigate(Screen.Activity(uiState.selectedDate))
                         }
@@ -121,6 +134,7 @@ fun HomeScreen(
                         onDateClick = { date -> navController.navigate(Screen.Activity(date)) }
                     )
                 }
+                item { TrainFoodCarouselCard(uiState, navController) }
                 item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
                 item { DashboardTrendCard(uiState) }
                 item {
@@ -361,141 +375,93 @@ fun MacroBar(label: String, value: String, progress: Float, color: Color) {
 }
 
 @Composable
-fun WaterAndActivityCards(
+fun DailyActivitySummaryCard(
     uiState: HomeUiState,
-    onAddWater: () -> Unit,
-    onSetSteps: (Int) -> Unit,
     onOpenActivityLog: () -> Unit
 ) {
     val d = uiState.dashboard
     val waterMl = d?.waterMl ?: 0
     val waterGoalMl = (d?.waterGoalMl ?: 2500).coerceAtLeast(1)
-    val waterCups = waterMl / 250
     val waterProgress = (waterMl.toFloat() / waterGoalMl).coerceIn(0f, 1f)
     val burnedKcal = d?.caloriesBurned?.toInt() ?: 0
     val steps = d?.steps ?: 0
-    var showStepsDialog by remember { mutableStateOf(false) }
+    val stepGoal = (d?.stepGoal ?: 10000).coerceAtLeast(1)
+    val stepsProgress = (steps.toFloat() / stepGoal).coerceIn(0f, 1f)
 
-    Row(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .clickable(onClick = onOpenActivityLog),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
     ) {
-        // Water — tap to add a 250ml cup
-        Card(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(onClick = onAddWater),
-            shape = RoundedCornerShape(VitalRadius.Lg),
-            colors = CardDefaults.cardColors(containerColor = AppSurface),
-            border = BorderStroke(1.dp, AppLine)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(WaterBlueTint), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.LocalDrink, contentDescription = null, tint = WaterBlue, modifier = Modifier.size(20.dp))
-                    }
-                    Text("${waterMl / 1000f}L / ${waterGoalMl / 1000f}L", fontSize = 11.sp, color = Ink500, fontWeight = FontWeight.Medium)
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("Hoạt động hôm nay", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Chạm để cập nhật nhật ký", color = Ink500, fontSize = 12.sp)
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Nước uống", fontSize = 13.sp, color = Ink500)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text("$waterCups", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                    Text(" ly", fontSize = 14.sp, color = Ink500, modifier = Modifier.padding(bottom = 3.dp))
+                Box(modifier = Modifier.size(38.dp).clip(CircleShape).background(Mint100), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.DirectionsRun, contentDescription = null, tint = Mint500, modifier = Modifier.size(21.dp))
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    val filled = (waterProgress * 10).toInt().coerceIn(0, 10)
-                    repeat(filled) { Box(modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(100)).background(WaterBlue)) }
-                    repeat(10 - filled) { Box(modifier = Modifier.weight(1f).height(4.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = WaterBlue, modifier = Modifier.size(14.dp))
-                    Text(" Chạm để thêm 250ml", fontSize = 11.sp, color = WaterBlue, fontWeight = FontWeight.Medium)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                ActivityMiniMetric("Calories", "$burnedKcal", "kcal", MacroCarbs, AmberTint, Modifier.weight(1f))
+                ActivityMiniMetric("Bước chân", "%,d".format(steps), "/%,d".format(stepGoal), Mint500, Mint100, Modifier.weight(1f))
+                ActivityMiniMetric("Nước", "${waterMl}ml", "/${waterGoalMl}ml", WaterBlue, WaterBlueTint, Modifier.weight(1f))
+            }
+            DualProgressRow("Bước chân", stepsProgress, Mint500, "Nước", waterProgress, WaterBlue)
+        }
+    }
+}
+
+@Composable
+private fun ActivityMiniMetric(
+    label: String,
+    value: String,
+    sub: String,
+    color: Color,
+    bg: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(VitalRadius.Md))
+            .background(bg.copy(alpha = 0.7f))
+            .padding(10.dp)
+    ) {
+        Text(label, color = Ink500, fontSize = 10.5.sp, maxLines = 1)
+        Text(value, color = Ink900, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(sub, color = color, fontSize = 10.5.sp, maxLines = 1)
+    }
+}
+
+@Composable
+private fun DualProgressRow(
+    firstLabel: String,
+    firstProgress: Float,
+    firstColor: Color,
+    secondLabel: String,
+    secondProgress: Float,
+    secondColor: Color
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        listOf(firstLabel to (firstProgress to firstColor), secondLabel to (secondProgress to secondColor)).forEach { (label, pair) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(label, color = Ink500, fontSize = 11.sp, modifier = Modifier.width(64.dp))
+                Box(modifier = Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(pair.first)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(100))
+                            .background(pair.second)
+                    )
                 }
             }
         }
-
-        // Activity — tap to enter today's step count
-        Card(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(onClick = { showStepsDialog = true }),
-            shape = RoundedCornerShape(VitalRadius.Lg),
-            colors = CardDefaults.cardColors(containerColor = AppSurface),
-            border = BorderStroke(1.dp, AppLine)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(AmberTint), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Outlined.FlashOn, contentDescription = null, tint = MacroCarbs, modifier = Modifier.size(20.dp))
-                    }
-                    Text("+$burnedKcal kcal", fontSize = 11.sp, color = Ink500, fontWeight = FontWeight.Medium)
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Text("Bước chân", fontSize = 13.sp, color = Ink500)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text("%,d".format(steps), fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                    Text(" bước", fontSize = 14.sp, color = Ink500, modifier = Modifier.padding(bottom = 3.dp))
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                val stepsProgress = (steps.toFloat() / 10000f).coerceIn(0f, 1f)
-                Box(modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) {
-                    Box(modifier = Modifier.fillMaxWidth(stepsProgress).fillMaxHeight().clip(RoundedCornerShape(100)).background(Mint500))
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Add, contentDescription = null, tint = MacroCarbs, modifier = Modifier.size(14.dp))
-                    Text(" Chạm để cập nhật", fontSize = 11.sp, color = MacroCarbs, fontWeight = FontWeight.Medium)
-                }
-            }
-        }
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.End
-    ) {
-        Text(
-            "Nhật ký chi tiết",
-            color = Mint500,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .clip(RoundedCornerShape(VitalRadius.Pill))
-                .clickable(onClick = onOpenActivityLog)
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        )
-    }
-
-    if (showStepsDialog) {
-        var stepsInput by remember { mutableStateOf(steps.takeIf { it > 0 }?.toString() ?: "") }
-        AlertDialog(
-            onDismissRequest = { showStepsDialog = false },
-            title = { Text("Cập nhật số bước chân", color = Ink900) },
-            text = {
-                OutlinedTextField(
-                    value = stepsInput,
-                    onValueChange = { stepsInput = it.filter(Char::isDigit).take(6) },
-                    singleLine = true,
-                    label = { Text("Tổng số bước hôm nay") }
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onSetSteps(stepsInput.toIntOrNull() ?: 0)
-                    showStepsDialog = false
-                }) { Text("Lưu", color = Mint500) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStepsDialog = false }) { Text("Hủy", color = Ink500) }
-            },
-            containerColor = AppSurface
-        )
     }
 }
 
@@ -607,6 +573,50 @@ private fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         Box(Modifier.size(13.dp).clip(CircleShape).background(color))
         Text(label, color = Ink700, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun TrainFoodCarouselCard(uiState: HomeUiState, navController: NavController) {
+    var showTrain by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(4200L)
+            showTrain = !showTrain
+        }
+    }
+    Crossfade(targetState = showTrain, animationSpec = tween(450)) { train ->
+        val calories = uiState.dashboard?.caloriesBurned?.toInt() ?: 0
+        val foodKcal = uiState.dashboard?.caloriesConsumed ?: uiState.mealLogs.sumOf { it.totalCalories.toDouble() }.toFloat()
+        val title = if (train) "Train" else "Food"
+        val subtitle = if (train) "$calories kcal đã đốt hôm nay" else "${foodKcal.toInt()} kcal đã nạp hôm nay"
+        val icon = if (train) Icons.Default.FitnessCenter else Icons.Default.Restaurant
+        val tone = if (train) Mint100 else AmberContainer
+        val tint = if (train) Mint500 else AmberOnContainer
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 8.dp)
+                .clickable { navController.navigate(if (train) Screen.Workout else Screen.Diary) },
+            shape = RoundedCornerShape(VitalRadius.Lg),
+            colors = CardDefaults.cardColors(containerColor = tone),
+            border = BorderStroke(1.dp, AppLine)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Box(Modifier.size(46.dp).clip(CircleShape).background(AppSurface.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(title, color = Ink900, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(subtitle, color = Ink700, fontSize = 13.sp)
+                }
+                Text(if (train) "Tập ngay" else "Xem bữa ăn", color = tint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 
@@ -787,6 +797,63 @@ fun DashboardTrendCard(uiState: HomeUiState) {
                     )
                 }
             }
+            if (uiState.weightTrend.size >= 2) {
+                Spacer(Modifier.height(14.dp))
+                Text("Cân nặng", color = Ink700, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(8.dp))
+                HomeWeightChart(
+                    data = uiState.weightTrend,
+                    modifier = Modifier.fillMaxWidth().height(118.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeWeightChart(data: List<BodyMetricDto>, modifier: Modifier = Modifier) {
+    val points = remember(data) {
+        data.mapNotNull { metric ->
+            runCatching { LocalDate.parse(metric.date.take(10)) }.getOrNull()?.let { it to metric.weightKg }
+        }.distinctBy { it.first }.sortedBy { it.first }
+    }
+    if (points.size < 2) return
+    val minWeight = points.minOf { it.second }
+    val maxWeight = points.maxOf { it.second }
+    val range = (maxWeight - minWeight).coerceAtLeast(1f)
+    val firstDate = points.first().first
+    val lastDate = points.last().first
+    val totalDays = java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate).toFloat().coerceAtLeast(1f)
+
+    Column(modifier = modifier) {
+        Canvas(Modifier.fillMaxWidth().weight(1f)) {
+            val left = 10.dp.toPx()
+            val right = 10.dp.toPx()
+            val top = 8.dp.toPx()
+            val bottom = 8.dp.toPx()
+            val chartW = size.width - left - right
+            val chartH = size.height - top - bottom
+            val offsets = points.map { (date, weight) ->
+                val dx = java.time.temporal.ChronoUnit.DAYS.between(firstDate, date).toFloat() / totalDays
+                androidx.compose.ui.geometry.Offset(
+                    x = left + dx * chartW,
+                    y = top + (1f - (weight - minWeight) / range) * chartH
+                )
+            }
+            val path = Path().apply {
+                moveTo(offsets.first().x, offsets.first().y)
+                offsets.drop(1).forEach { lineTo(it.x, it.y) }
+            }
+            drawPath(path, color = Mint500, style = Stroke(width = 2.dp.toPx()))
+            offsets.forEach {
+                drawCircle(Mint500, radius = 3.5.dp.toPx(), center = it)
+                drawCircle(Color.White, radius = 1.8.dp.toPx(), center = it)
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(firstDate.format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi"))), color = Ink500, fontSize = 10.sp)
+            Text("%.1f → %.1f kg".format(points.first().second, points.last().second), color = Ink500, fontSize = 10.sp)
+            Text(lastDate.format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi"))), color = Ink500, fontSize = 10.sp)
         }
     }
 }

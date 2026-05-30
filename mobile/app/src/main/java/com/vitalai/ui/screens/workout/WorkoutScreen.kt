@@ -9,8 +9,8 @@ import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -58,6 +58,7 @@ fun WorkoutScreen(
         onNavigateWorkoutBuilder = { navController.navigate(Screen.WorkoutBuilder) },
         onNavigateLibrary = { navController.navigate(Screen.ExerciseLibrary) },
         onNavigateMetrics = { navController.navigate(Screen.Metrics) },
+        onNavigateWorkoutHistory = { navController.navigate(Screen.WorkoutHistory) },
         onSessionClick = { session ->
             navController.navigate(Screen.WorkoutSession(session.id, session.sessionDate))
         },
@@ -71,6 +72,7 @@ private fun WorkoutDashboard(
     onNavigateWorkoutBuilder: () -> Unit,
     onNavigateLibrary: () -> Unit,
     onNavigateMetrics: () -> Unit,
+    onNavigateWorkoutHistory: () -> Unit,
     onSessionClick: (WorkoutSessionDto) -> Unit,
     onRetry: () -> Unit
 ) {
@@ -132,10 +134,10 @@ private fun WorkoutDashboard(
                                 modifier = Modifier.weight(1f)
                             )
                             QuickLinkCard(
-                                icon = Icons.Default.MonitorWeight,
-                                label = "Chỉ số cơ thể",
+                                icon = Icons.Default.History,
+                                label = "Lịch sử tập luyện",
                                 tone = TrainTone.Slate,
-                                onClick = onNavigateMetrics,
+                                onClick = onNavigateWorkoutHistory,
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -333,4 +335,3 @@ private fun RecentSessionRow(session: WorkoutSessionDto, onClick: () -> Unit) {
         }
     }
 }
-
