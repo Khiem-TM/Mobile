@@ -1,8 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, In } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Exercise } from '../entities/exercise.entity';
 import { IExercisesRepository, ExerciseQuery } from './exercises.repository.interface';
+
+const MUSCLE_GROUP_ALIASES: Record<string, string[]> = {
+  CHEST: ['chest', 'pecs'],
+  BACK: ['back', 'lats', 'traps', 'lower back'],
+  LEGS: ['legs', 'quads', 'hamstrings', 'glutes', 'calves'],
+  SHOULDERS: ['shoulders', 'deltoids'],
+  ARMS: ['arms', 'biceps', 'triceps', 'forearms'],
+  ABS: ['abs', 'core'],
+  FULL_BODY: ['full body', 'full_body', 'total body', 'body'],
+  CARDIO: ['cardio', 'cardiorespiratory', 'running', 'cycling'],
+};
+
+function normalizeFilterValue(value: string): string {
+  return value.trim().replace(/_/g, ' ').toLowerCase();
+}
+
+function muscleAliases(value: string): string[] {
+  const key = value.trim().toUpperCase().replace(/\s+/g, '_');
+  return MUSCLE_GROUP_ALIASES[key] ?? [normalizeFilterValue(value)];
+}
 
 @Injectable()
 export class ExercisesRepository implements IExercisesRepository {
@@ -12,17 +32,49 @@ export class ExercisesRepository implements IExercisesRepository {
   ) {}
 
   async findAll(query: ExerciseQuery): Promise<Exercise[]> {
-    const where: any = { isActive: true };
-    if (query.name) where.name = Like(`%${query.name}%`);
-    if (query.exerciseType) where.exerciseType = query.exerciseType;
-    if (query.category) where.category = query.category;
-    if (query.muscleGroup) where.muscleGroup = query.muscleGroup;
-    if (query.difficultyLevel) where.difficultyLevel = query.difficultyLevel;
-
     const limit = query.limit ?? 50;
     const skip = query.page ? (query.page - 1) * limit : 0;
+    const exerciseType = query.exerciseType ?? query.type;
 
-    return this.repo.find({ where, take: limit, skip, order: { favoritesCount: 'DESC', name: 'ASC' } });
+    const qb = this.repo
+      .createQueryBuilder('exercise')
+      .where('exercise.is_active = :isActive', { isActive: true });
+
+    if (query.name) {
+      qb.andWhere('LOWER(exercise.name) LIKE :name', {
+        name: `%${query.name.trim().toLowerCase()}%`,
+      });
+    }
+    if (exerciseType) {
+      qb.andWhere('exercise.exercise_type = :exerciseType', { exerciseType });
+    }
+    if (query.category) {
+      qb.andWhere('LOWER(exercise.category) = :category', {
+        category: normalizeFilterValue(query.category),
+      });
+    }
+    if (query.muscleGroup) {
+      qb.andWhere(
+        `(
+          LOWER(exercise.muscle_group) IN (:...muscleGroups)
+          OR LOWER(exercise.target_muscle_group) IN (:...muscleGroups)
+          OR LOWER(exercise.category) IN (:...muscleGroups)
+        )`,
+        { muscleGroups: muscleAliases(query.muscleGroup) },
+      );
+    }
+    if (query.difficultyLevel) {
+      qb.andWhere('exercise.difficulty_level = :difficultyLevel', {
+        difficultyLevel: query.difficultyLevel,
+      });
+    }
+
+    return qb
+      .orderBy('exercise.favorites_count', 'DESC')
+      .addOrderBy('exercise.name', 'ASC')
+      .take(limit)
+      .skip(skip)
+      .getMany();
   }
 
   async findById(id: string): Promise<Exercise | null> {

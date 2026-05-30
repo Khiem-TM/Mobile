@@ -4,7 +4,17 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,28 +22,45 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.SubcomposeAsyncImage
+import com.vitalai.data.remote.model.FoodDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.theme.*
+import com.vitalai.ui.theme.VitalDisplayFontFamily
+import com.vitalai.ui.theme.VitalFontFamily
+import kotlin.math.roundToInt
 
 @Composable
 fun FoodDetailScreen(
@@ -44,14 +71,16 @@ fun FoodDetailScreen(
     viewModel: FoodViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var quantity by remember { mutableFloatStateOf(1f) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(foodId) { viewModel.loadFoodById(foodId) }
+    LaunchedEffect(foodId) {
+        viewModel.loadFoodById(foodId)
+        viewModel.loadFavorites()
+    }
 
     LaunchedEffect(uiState.addSuccess) {
         if (uiState.addSuccess) {
-            snackbarHostState.showSnackbar("Đã thêm vào bữa ăn!")
+            snackbarHostState.showSnackbar("Đã thêm vào bữa ăn")
             viewModel.clearAddSuccess()
             navController.popBackStack()
         }
@@ -67,707 +96,418 @@ fun FoodDetailScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = AppSurface
+        containerColor = FoodModule.Cream
     ) { padding ->
-        when {
-            uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
-            uiState.error != null && uiState.selectedFood == null -> ErrorState(
-                message = uiState.error ?: "Không tìm thấy món ăn",
-                onRetry = { viewModel.loadFoodById(foodId) },
-                modifier = Modifier.padding(padding)
-            )
-            else -> {
-                val food = uiState.selectedFood ?: return@Scaffold
-                val servingG = food.servingSizeG.takeIf { it > 0f } ?: 100f
-                val factor = quantity * servingG / 100f
-                val calories = (food.caloriesPer100g * factor).toInt()
-                val carbs = food.carbsPer100g * factor
-                val protein = food.proteinPer100g * factor
-                val fat = food.fatPer100g * factor
-
-                val totalMacros = carbs + protein + fat
-                val carbPct = if (totalMacros > 0) ((carbs / totalMacros) * 100).toInt() else 0
-                val proPct = if (totalMacros > 0) ((protein / totalMacros) * 100).toInt() else 0
-                val fatPct = if (totalMacros > 0) ((fat / totalMacros) * 100).toInt() else 0
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(bottom = 100.dp)
-                    ) {
-                        // Image Header
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(320.dp)
-                        ) {
-                            SubcomposeAsyncImage(
-                                model = food.imageUrl,
-                                contentDescription = food.name,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop,
-                                loading = { Box(modifier = Modifier.background(AppSurface2)) },
-                                error = { Box(modifier = Modifier.background(AppSurface2)) }
-                            )
-                            // Gradient overlay
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent, Color.White),
-                                            startY = 0f,
-                                            endY = 850f
-                                        )
-                                    )
-                            )
-                            // Top Bar Icons
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 50.dp, start = 16.dp, end = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Box(
-                                    modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White).clickable { navController.popBackStack() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Ink900)
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Box(
-                                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White).clickable { /* toggle favorite */ },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.FavoriteBorder, contentDescription = "Favorite", tint = Ink900, modifier = Modifier.size(20.dp))
-                                    }
-                                    Box(
-                                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.White).clickable { /* more */ },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.MoreHoriz, contentDescription = "More", tint = Ink900, modifier = Modifier.size(20.dp))
-                                    }
-                                }
-                            }
-                        }
-
-                        // Content
-                        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                            Text(
-                                text = food.name,
-                                fontSize = 28.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Ink900
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Row(
-                                    modifier = Modifier.clip(RoundedCornerShape(VitalRadius.Pill)).background(AppSurface2).padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("🌐", fontSize = 12.sp)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(food.brand ?: food.category ?: "Thực phẩm", fontSize = 13.sp, color = Ink900, fontWeight = FontWeight.Medium)
-                                }
-                                if (food.isVerified) {
-                                    Row(
-                                        modifier = Modifier.clip(RoundedCornerShape(VitalRadius.Pill)).background(Mint50).padding(horizontal = 12.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text("✓", fontSize = 12.sp, color = Mint700, fontWeight = FontWeight.Bold)
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Đã xác thực", fontSize = 13.sp, color = Mint700, fontWeight = FontWeight.Medium)
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            // Portion Selector
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(VitalRadius.Xl),
-                                colors = CardDefaults.cardColors(containerColor = AppSurface2)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column {
-                                        Text("Khẩu phần", fontSize = 12.sp, color = Ink500)
-                                        Text(
-                                            text = if (quantity == quantity.toLong().toFloat()) "${quantity.toInt()} phần (${servingG.toInt()}g)" else "$quantity phần (${(servingG*quantity).toInt()}g)",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Ink900
-                                        )
-                                    }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Box(
-                                            modifier = Modifier.size(36.dp).clip(CircleShape).background(AppLine).clickable { if (quantity > 0.5f) quantity -= 0.5f },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(Icons.Default.Remove, contentDescription = "Decrease", tint = Ink900)
-                                        }
-                                        Text(
-                                            text = if (quantity == quantity.toLong().toFloat()) "${quantity.toInt()}" else "$quantity",
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(horizontal = 16.dp),
-                                            color = Ink900
-                                        )
-                                        Box(
-                                            modifier = Modifier.size(36.dp).clip(CircleShape).background(Ink900).clickable { quantity += 0.5f },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(Icons.Default.Add, contentDescription = "Increase", tint = Color.White)
-                                        }
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Calories Card
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(VitalRadius.Xl),
-                                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                                border = BorderStroke(1.dp, AppLine)
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text("Tổng năng lượng", fontSize = 13.sp, color = Ink500)
-                                    Text(
-                                        text = calories.toString(),
-                                        fontSize = 56.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Mint500
-                                    )
-                                    Text("kcal", fontSize = 14.sp, color = Ink500)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // Macros
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                MacroBox(label = "Carbs", value = "${carbs.toInt()}g", pct = "$carbPct%", color = MacroCarbs, modifier = Modifier.weight(1f))
-                                MacroBox(label = "Protein", value = "${protein.toInt()}g", pct = "$proPct%", color = MacroProtein, modifier = Modifier.weight(1f))
-                                MacroBox(label = "Fat", value = "${fat.toInt()}g", pct = "$fatPct%", color = MacroFat, modifier = Modifier.weight(1f))
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            // Basic nutrition
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(VitalRadius.Xl),
-                                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                                border = BorderStroke(1.dp, AppLine)
-                            ) {
-                                Column(modifier = Modifier.padding(20.dp)) {
-                                    Text("Dinh dưỡng cơ bản", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    food.fiberPer100g?.let {
-                                        NutrientRow("Fiber", "${(it * factor).toInt()} g", progress = 1f, color = Mint500)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Bottom Bar
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .background(AppSurface)
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(VitalRadius.Lg))
-                                .background(AppSurface2)
-                                .clickable { /* view receipt/details */ },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.ReceiptLong, contentDescription = "Log", tint = Ink900)
-                        }
-                        
-                        val mealTypeLabel = if (mealType.isNotBlank()) "vào bữa ${
-                            when(mealType.lowercase()) {
-                                "breakfast" -> "Sáng"
-                                "lunch" -> "Trưa"
-                                "dinner" -> "Tối"
-                                else -> "Phụ"
-                            }
-                        }" else ""
-                        
-                        Button(
-                            onClick = {
-                                if (mealType.isNotBlank() && date.isNotBlank()) {
-                                    viewModel.addToMealLog(
-                                        mealType = mealType,
-                                        date = date,
-                                        foodId = food.id,
-                                        quantity = quantity,
-                                        servingUnit = food.servingUnit
-                                    )
-                                }
-                            },
-                            enabled = !uiState.isAdding,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp),
-                            shape = RoundedCornerShape(VitalRadius.Pill),
-                            colors = ButtonDefaults.buttonColors(containerColor = Ink900)
-                        ) {
-                            if (uiState.isAdding) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Text("Thêm $mealTypeLabel +", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun MacroBox(label: String, value: String, pct: String, color: Color, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface2)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(color))
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(label, fontSize = 12.sp, color = Ink500)
-            Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
-            Text(pct, fontSize = 11.sp, color = Ink500)
-        }
-    }
-}
-
-@Composable
-fun NutrientRow(label: String, value: String, progress: Float, color: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, fontSize = 14.sp, color = Ink900)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(VitalRadius.Pill)).background(AppSurface2)) {
-                Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().clip(RoundedCornerShape(100)).background(color))
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Ink900, modifier = Modifier.width(70.dp))
-        }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun FoodDetailScreenPreview() {
-    var quantity by remember { mutableFloatStateOf(1f) }
-
-    val servingG = 100f
-    val calories = (165f * quantity).toInt()
-    val carbs = 0f * quantity
-    val protein = 31f * quantity
-    val fat = 3.6f * quantity
-
-    val totalMacros = carbs + protein + fat
-    val carbPct = if (totalMacros > 0) ((carbs / totalMacros) * 100).toInt() else 0
-    val proPct = if (totalMacros > 0) ((protein / totalMacros) * 100).toInt() else 0
-    val fatPct = if (totalMacros > 0) ((fat / totalMacros) * 100).toInt() else 0
-
-    Scaffold(
-        containerColor = Color.White
-    ) { padding ->
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .background(FoodModule.Cream)
         ) {
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(bottom = 100.dp)
-            ) {
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(320.dp)
-                        .background(Color(0xFFF3F4F6)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("🍗", fontSize = 88.sp)
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Black.copy(alpha = 0.35f),
-                                        Color.Transparent,
-                                        Color.White
-                                    ),
-                                    startY = 0f,
-                                    endY = 850f
-                                )
-                            )
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 50.dp, start = 16.dp, end = 16.dp)
-                            .align(Alignment.TopCenter),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.White),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                                tint = Color.Black
+            when {
+                uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+                uiState.error != null && uiState.selectedFood == null -> ErrorState(
+                    message = uiState.error ?: "Không tìm thấy món ăn",
+                    onRetry = { viewModel.loadFoodById(foodId) },
+                    modifier = Modifier.fillMaxSize()
+                )
+                else -> {
+                    val food = uiState.selectedFood ?: return@Scaffold
+                    val isFavorite = uiState.favorites.any { it.id == food.id }
+                    FoodDetailContent(
+                        food = food,
+                        isFavorite = isFavorite,
+                        isFavoriteUpdating = uiState.isFavoriteUpdating,
+                        isAdding = uiState.isAdding,
+                        canAddToMeal = mealType.isNotBlank() && date.isNotBlank(),
+                        mealType = mealType,
+                        onBack = { navController.popBackStack() },
+                        onToggleFavorite = { viewModel.toggleFavorite(food.id) },
+                        onAdd = { quantity, unit ->
+                            viewModel.addToMealLog(
+                                mealType = mealType,
+                                date = date,
+                                foodId = food.id,
+                                quantity = quantity,
+                                servingUnit = unit
                             )
                         }
-
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.FavoriteBorder,
-                                    contentDescription = null,
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.MoreHoriz,
-                                    contentDescription = null,
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.padding(horizontal = 24.dp)
-                ) {
-
-                    Text(
-                        text = "Ức gà áp chảo",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.Black
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(100))
-                                .background(Color(0xFFF3F4F6))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("🌐", fontSize = 12.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "Healthy Meal",
-                                fontSize = 13.sp,
-                                color = Color.Black,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(100))
-                                .background(Color(0xFFF3F4F6))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("⭐", fontSize = 12.sp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "4.8",
-                                fontSize = 13.sp,
-                                color = Color.Black,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFF9FAFB)
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text("Khẩu phần", fontSize = 12.sp, color = Color.Gray)
-
-                                Text(
-                                    text = if (quantity == quantity.toLong().toFloat())
-                                        "${quantity.toInt()} phần (${servingG.toInt()}g)"
-                                    else
-                                        "$quantity phần (${(servingG * quantity).toInt()}g)",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Black
-                                )
-                            }
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFE5E7EB))
-                                        .clickable {
-                                            if (quantity > 0.5f) quantity -= 0.5f
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Remove,
-                                        contentDescription = null,
-                                        tint = Color.Black
-                                    )
-                                }
-
-                                Text(
-                                    text = if (quantity == quantity.toLong().toFloat())
-                                        "${quantity.toInt()}"
-                                    else
-                                        "$quantity",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    color = Color.Black
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF0F172A))
-                                        .clickable { quantity += 0.5f },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text("Tổng năng lượng", fontSize = 13.sp, color = Color.Gray)
-
-                            Text(
-                                text = calories.toString(),
-                                fontSize = 56.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF38C182)
-                            )
-
-                            Text("kcal", fontSize = 14.sp, color = Color.Gray)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        MacroBox(
-                            label = "Carbs",
-                            value = "${carbs.toInt()}g",
-                            pct = "$carbPct%",
-                            color = Color(0xFFF59E0B),
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        MacroBox(
-                            label = "Protein",
-                            value = "${protein.toInt()}g",
-                            pct = "$proPct%",
-                            color = Color(0xFFEF4444),
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        MacroBox(
-                            label = "Fat",
-                            value = "${fat.toInt()}g",
-                            pct = "$fatPct%",
-                            color = Color(0xFF8B5CF6),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Text(
-                                "Vi chất dinh dưỡng",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            NutrientRow(
-                                label = "Sodium",
-                                value = "75 mg",
-                                progress = 0.6f,
-                                color = Color(0xFF38C182)
-                            )
-
-                            NutrientRow(
-                                label = "Sugar",
-                                value = "0 g",
-                                progress = 0.3f,
-                                color = Color(0xFF38C182)
-                            )
-
-                            NutrientRow(
-                                label = "Fiber",
-                                value = "0 g",
-                                progress = 0.5f,
-                                color = Color(0xFF38C182)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .background(Color.White)
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFF3F4F6)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Default.ReceiptLong,
-                        contentDescription = null,
-                        tint = Color.Black
-                    )
-                }
-
-                Button(
-                    onClick = {},
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0F172A)
-                    )
-                ) {
-                    Text(
-                        "Thêm vào bữa Sáng +",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FoodDetailContent(
+    food: FoodDto,
+    isFavorite: Boolean,
+    isFavoriteUpdating: Boolean,
+    isAdding: Boolean,
+    canAddToMeal: Boolean,
+    mealType: String,
+    onBack: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onAdd: (Float, String) -> Unit
+) {
+    val servingG = food.servingSizeG.takeIf { it > 0f } ?: 100f
+    val units = remember(food.id) {
+        listOf(food.servingUnit.ifBlank { "phần" }, "g").distinct()
+    }
+    var unit by remember(food.id) { mutableStateOf(units.first()) }
+    var amount by remember(food.id) { mutableFloatStateOf(if (unit == "g") servingG else 1f) }
+    val grams = if (unit == "g") amount else amount * servingG
+    val factor = grams / 100f
+    val calories = food.caloriesPer100g * factor
+    val carbs = food.carbsPer100g * factor
+    val protein = food.proteinPer100g * factor
+    val fat = food.fatPer100g * factor
+    val energyTotal = carbs * 4f + protein * 4f + fat * 9f
+    val carbsPct = if (energyTotal > 0f) (carbs * 4f / energyTotal * 100f).roundToInt() else 0
+    val proteinPct = if (energyTotal > 0f) (protein * 4f / energyTotal * 100f).roundToInt() else 0
+    val fatPct = if (energyTotal > 0f) (fat * 9f / energyTotal * 100f).roundToInt() else 0
+
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 120.dp)
+        ) {
+            FoodImageHeader(
+                food = food,
+                isFavorite = isFavorite,
+                isFavoriteUpdating = isFavoriteUpdating,
+                onBack = onBack,
+                onToggleFavorite = onToggleFavorite
+            )
+            Column(
+                modifier = Modifier.padding(start = 21.dp, end = 21.dp, top = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                Column {
+                    Text(
+                        text = food.name,
+                        color = FoodModule.Forest,
+                        fontSize = 30.sp,
+                        lineHeight = 34.sp,
+                        fontFamily = VitalDisplayFontFamily
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        FoodPill(
+                            text = food.category ?: "Thực phẩm",
+                            color = FoodModule.Charcoal,
+                            borderColor = FoodModule.Border
+                        )
+                        if (food.isVerified) {
+                            FoodPill(text = "Đã xác thực", background = FoodModule.Mint, icon = Icons.Default.Check)
+                        }
+                        FoodPill(
+                            text = food.brand ?: "Generic",
+                            color = FoodModule.Charcoal,
+                            borderColor = FoodModule.Border
+                        )
+                    }
+                }
+
+                PortionCard(
+                    unit = unit,
+                    units = units,
+                    amount = amount,
+                    grams = grams,
+                    onDecrease = { amount = (amount - if (unit == "g") 10f else 0.5f).coerceAtLeast(if (unit == "g") 10f else 0.5f) },
+                    onIncrease = { amount += if (unit == "g") 10f else 0.5f },
+                    onUnitChange = {
+                        unit = it
+                        amount = if (it == "g") grams.coerceAtLeast(10f) else (grams / servingG).coerceAtLeast(0.5f)
+                    }
+                )
+
+                EnergyCard(calories = calories)
+
+                Row(horizontalArrangement = Arrangement.spacedBy(11.dp), modifier = Modifier.fillMaxWidth()) {
+                    FoodMacroCard("Carbs", carbs, carbsPct, Modifier.weight(1f))
+                    FoodMacroCard("Protein", protein, proteinPct, Modifier.weight(1f))
+                    FoodMacroCard("Fat", fat, fatPct, Modifier.weight(1f))
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(FoodModule.Cream)
+                .border(1.dp, FoodModule.Border)
+                .padding(start = 21.dp, end = 21.dp, top = 14.dp, bottom = 30.dp)
+        ) {
+            val cta = if (canAddToMeal) {
+                "Thêm vào ${mealLabel(mealType)} · ${calories.roundToInt()} kcal"
+            } else {
+                "Chọn từ bữa ăn để thêm"
+            }
+            if (isAdding) {
+                Box(Modifier.fillMaxWidth().height(56.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = FoodModule.Forest)
+                }
+            } else {
+                FoodPrimaryButton(
+                    text = cta,
+                    enabled = canAddToMeal && grams > 0f,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        val requestQuantity = if (unit == "g") grams else amount
+                        onAdd(requestQuantity, unit)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FoodImageHeader(
+    food: FoodDto,
+    isFavorite: Boolean,
+    isFavoriteUpdating: Boolean,
+    onBack: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(320.dp)
+            .background(FoodModule.Keylime)
+    ) {
+        SubcomposeAsyncImage(
+            model = food.imageUrl,
+            contentDescription = food.name,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            loading = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(FoodModule.Keylime),
+                    contentAlignment = Alignment.Center
+                ) {
+                    FoodThumbFallback(name = food.name, size = 104.dp, circle = true)
+                }
+            },
+            error = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(FoodModule.Keylime),
+                    contentAlignment = Alignment.Center
+                ) {
+                    FoodThumbFallback(name = food.name, size = 104.dp, circle = true)
+                }
+            }
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.34f),
+                            Color.Transparent,
+                            FoodModule.Cream.copy(alpha = 0.96f)
+                        ),
+                        startY = 0f,
+                        endY = 900f
+                    )
+                )
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 21.dp, end = 21.dp, top = 56.dp)
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HeaderCircleButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = FoodModule.Forest, modifier = Modifier.size(20.dp))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                HeaderCircleButton(enabled = !isFavoriteUpdating, onClick = onToggleFavorite) {
+                    Icon(
+                        if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Yêu thích",
+                        tint = FoodModule.Forest,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+                HeaderCircleButton(onClick = {}) {
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Thêm", tint = FoodModule.Forest, modifier = Modifier.size(20.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PortionCard(
+    unit: String,
+    units: List<String>,
+    amount: Float,
+    grams: Float,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    onUnitChange: (String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(FoodModule.CardRadius),
+        colors = CardDefaults.cardColors(containerColor = FoodModule.Keylime)
+    ) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Khẩu phần", color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
+                    Text(
+                        text = if (unit == "g") "${grams.roundToInt()} g" else "${amount.cleanNumber()} phần · ${grams.roundToInt()} g",
+                        color = FoodModule.Forest,
+                        fontSize = 17.sp,
+                        fontFamily = VitalFontFamily
+                    )
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                    StepButton(onClick = onDecrease, filled = false) {
+                        Icon(Icons.Default.Remove, contentDescription = "Giảm", tint = FoodModule.Forest, modifier = Modifier.size(18.dp))
+                    }
+                    Text(amount.cleanNumber(), color = FoodModule.Forest, fontSize = 19.sp, fontFamily = VitalFontFamily)
+                    StepButton(onClick = onIncrease, filled = true) {
+                        Icon(Icons.Default.Add, contentDescription = "Tăng", tint = FoodModule.Cream, modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp)
+                    .height(1.dp)
+                    .background(FoodModule.Forest.copy(alpha = 0.12f))
+            )
+            Row(
+                modifier = Modifier.padding(top = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
+            ) {
+                units.forEach { option ->
+                    val selected = option == unit
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(if (selected) FoodModule.Forest else FoodModule.Cream)
+                            .border(1.dp, FoodModule.Border, RoundedCornerShape(999.dp))
+                            .clickable { onUnitChange(option) }
+                            .padding(horizontal = 16.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(option, color = if (selected) FoodModule.Cream else FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EnergyCard(calories: Float) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(FoodModule.CardRadius),
+        colors = CardDefaults.cardColors(containerColor = FoodModule.Cream),
+        border = BorderStroke(1.dp, FoodModule.Border)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp, horizontal = 21.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Tổng năng lượng", color = FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
+            Text(
+                calories.roundToInt().toString(),
+                color = FoodModule.Forest,
+                fontSize = 60.sp,
+                lineHeight = 63.sp,
+                fontFamily = VitalDisplayFontFamily
+            )
+            Text("kcal · theo khẩu phần", color = FoodModule.Charcoal, fontSize = 14.sp, fontFamily = VitalFontFamily)
+        }
+    }
+}
+
+@Composable
+private fun FoodMacroCard(label: String, grams: Float, pct: Int, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(FoodModule.CardRadius),
+        colors = CardDefaults.cardColors(containerColor = FoodModule.Keylime)
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
+            Text(label, color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
+            Text(
+                "${grams.roundToInt()}g",
+                color = FoodModule.Forest,
+                fontSize = 19.sp,
+                fontFamily = VitalFontFamily,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text("$pct%", color = FoodModule.Charcoal.copy(alpha = 0.75f), fontSize = 12.sp, fontFamily = VitalFontFamily)
+        }
+    }
+}
+
+@Composable
+private fun HeaderCircleButton(
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(FoodModule.Cream)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun StepButton(onClick: () -> Unit, filled: Boolean, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(if (filled) FoodModule.Forest else Color.Transparent)
+            .border(1.dp, FoodModule.Forest, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+private fun mealLabel(mealType: String): String {
+    return when (mealType.lowercase()) {
+        "breakfast" -> "Bữa sáng"
+        "lunch" -> "Bữa trưa"
+        "dinner" -> "Bữa tối"
+        "snack" -> "Bữa phụ"
+        else -> "bữa ăn"
     }
 }

@@ -31,7 +31,8 @@ data class FoodUiState(
     val addSuccess: Boolean = false,
     val error: String? = null,
     val query: String = "",
-    val createSuccess: Boolean = false
+    val createSuccess: Boolean = false,
+    val isFavoriteUpdating: Boolean = false
 )
 
 @HiltViewModel
@@ -162,6 +163,39 @@ class FoodViewModel @Inject constructor(
 
     fun clearAddSuccess() {
         _uiState.update { it.copy(addSuccess = false) }
+    }
+
+    fun toggleFavorite(foodId: String) {
+        val isCurrentlyFavorite = _uiState.value.favorites.any { it.id == foodId }
+        val selected = _uiState.value.selectedFood
+        viewModelScope.launch {
+            _uiState.update { state ->
+                val updatedFavorites = if (isCurrentlyFavorite) {
+                    state.favorites.filterNot { it.id == foodId }
+                } else {
+                    selected?.let { state.favorites + it } ?: state.favorites
+                }
+                state.copy(favorites = updatedFavorites, isFavoriteUpdating = true, error = null)
+            }
+
+            foodRepository.toggleFavorite(foodId, !isCurrentlyFavorite).onSuccess {
+                loadFavorites()
+                _uiState.update { it.copy(isFavoriteUpdating = false) }
+            }.onFailure { err ->
+                _uiState.update { state ->
+                    val revertedFavorites = if (isCurrentlyFavorite) {
+                        selected?.let { state.favorites + it } ?: state.favorites
+                    } else {
+                        state.favorites.filterNot { it.id == foodId }
+                    }
+                    state.copy(
+                        favorites = revertedFavorites,
+                        isFavoriteUpdating = false,
+                        error = err.message ?: "Lỗi cập nhật yêu thích"
+                    )
+                }
+            }
+        }
     }
 
     fun clearError() {

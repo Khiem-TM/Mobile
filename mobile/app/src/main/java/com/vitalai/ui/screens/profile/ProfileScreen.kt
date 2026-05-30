@@ -386,7 +386,7 @@ fun ProfileScreen(
                         // navigate to badges
                     }
                     ProfileMenuItem(icon = Icons.Default.FavoriteBorder, label = "Món của tôi (My Foods)") {
-                        navController.navigate(Screen.CreateFood)
+                        navController.navigate(Screen.SearchFood(initialTab = 2))
                     }
                     ProfileMenuItem(icon = Icons.Default.Article, label = "Bài viết của tôi", showDivider = false) {
                         navController.navigate(Screen.MyBlogs)

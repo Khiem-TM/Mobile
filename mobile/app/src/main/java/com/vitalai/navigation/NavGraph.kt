@@ -202,7 +202,12 @@ fun VitalNavGraph(
         // ── Food / Diary sub-screens ──────────────────────────
         composable<Screen.SearchFood> { backStackEntry ->
             val route: Screen.SearchFood = backStackEntry.toRoute()
-            SearchFoodScreen(navController, mealType = route.mealType, date = route.date)
+            SearchFoodScreen(
+                navController,
+                mealType = route.mealType,
+                date = route.date,
+                initialTab = route.initialTab
+            )
         }
         composable<Screen.FoodDetail> { backStackEntry ->
             val route: Screen.FoodDetail = backStackEntry.toRoute()
@@ -250,8 +255,9 @@ fun VitalNavGraph(
         }
 
         // ── Training sub-screens ──────────────────────────────
-        composable<Screen.Activity> {
-            ActivityScreen(navController)
+        composable<Screen.Activity> { backStackEntry ->
+            val route: Screen.Activity = backStackEntry.toRoute()
+            ActivityScreen(navController, initialDate = route.date)
         }
         composable<Screen.ExerciseLibrary> {
             ExerciseLibraryScreen(navController)

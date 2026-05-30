@@ -35,6 +35,20 @@ class ExerciseDetailViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(exercise = exercise)
     }
 
+    fun loadExercise(id: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            repo.getExerciseById(id).onSuccess { exercise ->
+                _uiState.value = _uiState.value.copy(exercise = exercise, isLoading = false)
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Không tìm thấy bài tập"
+                )
+            }
+        }
+    }
+
     fun addToTodaySession(request: AddExerciseRequest) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null, saveSuccess = false)

@@ -4,6 +4,7 @@ import { ExerciseType } from '../enums/exercise-type.enum';
 export interface ExerciseQuery {
   name?: string;
   exerciseType?: ExerciseType;
+  type?: ExerciseType;
   category?: string;
   muscleGroup?: string;
   difficultyLevel?: string;

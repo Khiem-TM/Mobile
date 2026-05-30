@@ -14,7 +14,7 @@ sealed class Screen {
     @Serializable object Scan
     @Serializable object Coach
     @Serializable object Profile
-    @Serializable data class SearchFood(val mealType: String = "", val date: String = "")
+    @Serializable data class SearchFood(val mealType: String = "", val date: String = "", val initialTab: Int = 0)
     @Serializable data class FoodDetail(val id: String, val mealType: String = "", val date: String = "")
     @Serializable object CreateFood
     @Serializable object MealHistory
@@ -25,7 +25,7 @@ sealed class Screen {
     @Serializable object Notifications
     @Serializable data class BlogDetail(val id: String)
     @Serializable object Discover
-    @Serializable object Activity
+    @Serializable data class Activity(val date: String = "")
     @Serializable object ExerciseLibrary
     @Serializable data class ExerciseDetail(val id: String = "")
     @Serializable object WorkoutBuilder

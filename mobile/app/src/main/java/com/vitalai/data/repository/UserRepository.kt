@@ -11,6 +11,8 @@ import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
+class HealthProfileMissingException : Exception("Health profile not found")
+
 @Singleton
 class UserRepository @Inject constructor(
     private val userApi: UserApi
@@ -35,6 +37,8 @@ class UserRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
                 Result.success(body)
+            } else if (response.code() == 404) {
+                Result.failure(HealthProfileMissingException())
             } else {
                 Result.failure(Exception("Cannot fetch health profile"))
             }

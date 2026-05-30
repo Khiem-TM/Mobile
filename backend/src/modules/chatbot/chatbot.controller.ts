@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +20,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtPayload } from '../../common/interfaces/jwt-payload.interface';
 import { ChatbotService } from './chatbot.service';
 import { SendMessageDto } from './dto/chat.dto';
+import type { Response } from 'express';
 
 @ApiTags('chatbot')
 @ApiBearerAuth('access-token')
@@ -66,5 +68,42 @@ export class ChatbotController {
     @Body() dto: SendMessageDto,
   ) {
     return this.chatbotService.sendMessage(user.sub, id, dto.content);
+  }
+
+  @ApiOperation({ summary: 'Send a message and stream AI response tokens' })
+  @Post('sessions/:id/messages/stream')
+  async streamMessage(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Body() dto: SendMessageDto,
+    @Res() res: Response,
+  ) {
+    res.status(HttpStatus.OK);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    let closed = false;
+    res.on('close', () => {
+      closed = true;
+    });
+
+    const writeEvent = (event: string, data: unknown) => {
+      if (closed || res.writableEnded) return false;
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+      return true;
+    };
+
+    try {
+      for await (const event of this.chatbotService.streamMessage(user.sub, id, dto.content)) {
+        if (!writeEvent(event.event, event.data)) break;
+      }
+    } catch (e: any) {
+      writeEvent('error', { message: e?.message ?? 'Không thể kết nối trợ lý AI.' });
+    } finally {
+      if (!res.writableEnded) res.end();
+    }
   }
 }

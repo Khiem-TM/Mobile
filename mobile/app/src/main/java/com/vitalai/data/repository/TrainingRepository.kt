@@ -43,13 +43,30 @@ class TrainingRepository @Inject constructor(
     suspend fun getExercises(
         type: String? = null,
         name: String? = null,
-        muscleGroup: String? = null
+        muscleGroup: String? = null,
+        difficultyLevel: String? = null
     ): Result<List<ExerciseDto>> {
         return try {
-            val response = trainingApi.getExercises(type = type, name = name, muscleGroup = muscleGroup)
+            val response = trainingApi.getExercises(
+                exerciseType = type,
+                name = name,
+                muscleGroup = muscleGroup,
+                difficultyLevel = difficultyLevel
+            )
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.success(emptyList())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getExerciseById(id: String): Result<ExerciseDto> {
+        return try {
+            val response = trainingApi.getExerciseById(id)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Không tìm thấy bài tập (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -200,19 +217,18 @@ class TrainingRepository @Inject constructor(
         }
     }
 
-    suspend fun updateSteps(steps: Int): Result<ActivityLogDto> {
+    suspend fun updateSteps(steps: Int, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val today = LocalDate.now().toString()
-            val response = trainingApi.updateSteps(mapOf("logDate" to today, "steps" to steps))
+            val response = trainingApi.updateSteps(mapOf("logDate" to logDate, "steps" to steps))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
-                val sessionsResponse = trainingApi.getSessionsByDate(today)
+                val sessionsResponse = trainingApi.getSessionsByDate(logDate)
                 val sessions = sessionsResponse.body()?.data ?: emptyList()
                 val workoutCalories = sessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
                 val workoutMinutes = sessions.sumOf { it.totalDurationMinutes }
 
-                val manualCalories = sharedPrefs.getFloat("manual_calories_$today", 0f)
-                val manualMinutes = sharedPrefs.getInt("manual_minutes_$today", 0)
+                val manualCalories = sharedPrefs.getFloat("manual_calories_$logDate", 0f)
+                val manualMinutes = sharedPrefs.getInt("manual_minutes_$logDate", 0)
 
                 Result.success(body.copy(
                     caloriesBurned = workoutCalories + manualCalories,
@@ -226,19 +242,18 @@ class TrainingRepository @Inject constructor(
         }
     }
 
-    suspend fun updateWater(waterMl: Int): Result<ActivityLogDto> {
+    suspend fun updateWater(waterMl: Int, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val today = LocalDate.now().toString()
-            val response = trainingApi.updateWater(mapOf("logDate" to today, "waterMl" to waterMl))
+            val response = trainingApi.updateWater(mapOf("logDate" to logDate, "waterMl" to waterMl))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
-                val sessionsResponse = trainingApi.getSessionsByDate(today)
+                val sessionsResponse = trainingApi.getSessionsByDate(logDate)
                 val sessions = sessionsResponse.body()?.data ?: emptyList()
                 val workoutCalories = sessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
                 val workoutMinutes = sessions.sumOf { it.totalDurationMinutes }
 
-                val manualCalories = sharedPrefs.getFloat("manual_calories_$today", 0f)
-                val manualMinutes = sharedPrefs.getInt("manual_minutes_$today", 0)
+                val manualCalories = sharedPrefs.getFloat("manual_calories_$logDate", 0f)
+                val manualMinutes = sharedPrefs.getInt("manual_minutes_$logDate", 0)
 
                 Result.success(body.copy(
                     caloriesBurned = workoutCalories + manualCalories,

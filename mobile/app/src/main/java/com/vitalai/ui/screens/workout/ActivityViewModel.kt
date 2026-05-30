@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.repository.TrainingRepository
+import com.vitalai.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,7 +30,8 @@ data class ActivityUiState(
 
 @HiltViewModel
 class ActivityViewModel @Inject constructor(
-    private val trainingRepository: TrainingRepository
+    private val trainingRepository: TrainingRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ActivityUiState())
     val uiState = _uiState.asStateFlow()
@@ -41,21 +44,31 @@ class ActivityViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             val today = _uiState.value.selectedDate
-            // Load today's log and 7-day range in parallel
-            launch {
-                trainingRepository.getActivityLog(today).onSuccess { log ->
-                    _uiState.update { it.copy(log = log, isLoading = false) }
-                }.onFailure { e ->
-                    _uiState.update { it.copy(error = e.message, isLoading = false) }
+            val logDeferred = async { trainingRepository.getActivityLog(today) }
+            val profileDeferred = async { userRepository.getHealthProfile() }
+            val logResult = logDeferred.await()
+            val profile = profileDeferred.await().getOrNull()
+
+            logResult.onSuccess { log ->
+                _uiState.update {
+                    it.copy(
+                        log = log,
+                        waterGoalMl = profile?.waterGoalMl ?: it.waterGoalMl,
+                        stepGoal = profile?.stepGoal ?: it.stepGoal,
+                        isLoading = false
+                    )
                 }
+            }.onFailure { e ->
+                _uiState.update { it.copy(error = e.message, isLoading = false) }
             }
             launch { loadWeeklyLogs() }
         }
     }
 
     private suspend fun loadWeeklyLogs() {
-        val toDate = LocalDate.now().toString()
-        val fromDate = LocalDate.now().minusDays(6).toString()
+        val anchor = runCatching { LocalDate.parse(_uiState.value.selectedDate) }.getOrDefault(LocalDate.now())
+        val toDate = anchor.toString()
+        val fromDate = anchor.minusDays(6).toString()
         trainingRepository.getActivityLogRange(fromDate, toDate).onSuccess { logs ->
             _uiState.update { it.copy(weeklyLogs = logs) }
         }
@@ -64,43 +77,54 @@ class ActivityViewModel @Inject constructor(
     fun selectDate(date: String) {
         _uiState.update { it.copy(selectedDate = date, log = null, isLoading = true) }
         viewModelScope.launch {
-            trainingRepository.getActivityLog(date).onSuccess { log ->
+            val result = trainingRepository.getActivityLog(date)
+            result.onSuccess { log ->
                 _uiState.update { it.copy(log = log, isLoading = false) }
             }.onFailure { e ->
                 _uiState.update { it.copy(error = e.message, isLoading = false) }
             }
+            if (result.isSuccess) loadWeeklyLogs()
         }
     }
 
     fun addWater(deltaMl: Int) {
         val current = _uiState.value.log?.waterMl ?: 0
         val newVal = (current + deltaMl).coerceAtLeast(0)
+        val date = _uiState.value.selectedDate
         viewModelScope.launch {
-            trainingRepository.updateWater(newVal).onSuccess { log ->
+            val result = trainingRepository.updateWater(newVal, date)
+            result.onSuccess { log ->
                 _uiState.update { it.copy(log = log) }
             }.onFailure { e ->
                 _uiState.update { it.copy(error = e.message) }
             }
+            if (result.isSuccess) loadWeeklyLogs()
         }
     }
 
     fun updateSteps(steps: Int) {
+        val date = _uiState.value.selectedDate
         viewModelScope.launch {
-            trainingRepository.updateSteps(steps).onSuccess { log ->
+            val result = trainingRepository.updateSteps(steps, date)
+            result.onSuccess { log ->
                 _uiState.update { it.copy(log = log) }
             }.onFailure { e ->
                 _uiState.update { it.copy(error = e.message) }
             }
+            if (result.isSuccess) loadWeeklyLogs()
         }
     }
 
     fun updateWater(ml: Int) {
+        val date = _uiState.value.selectedDate
         viewModelScope.launch {
-            trainingRepository.updateWater(ml).onSuccess { log ->
+            val result = trainingRepository.updateWater(ml, date)
+            result.onSuccess { log ->
                 _uiState.update { it.copy(log = log) }
             }.onFailure { e ->
                 _uiState.update { it.copy(error = e.message) }
             }
+            if (result.isSuccess) loadWeeklyLogs()
         }
     }
 

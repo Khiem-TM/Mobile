@@ -1,0 +1,45 @@
+// gRPC contract NestJS ⇄ FastAPI (kích hoạt ở Phase 4 — xem plan mục 13).
+// MVP đang dùng HTTP /chat; proto này thiết kế sẵn để chuyển sang gRPC sau.
+syntax = "proto3";
+package rag.v1;
+
+service RagService {
+  rpc AskRag (AskRequest) returns (AskResponse);
+  rpc StreamChat (AskRequest) returns (stream ChatChunk);
+  rpc HealthCheck (Empty) returns (Health);
+  rpc GenerateDailySummary (SummaryRequest) returns (SummaryResponse);
+  rpc GenerateWeeklyReport (ReportRequest) returns (ReportResponse);
+}
+
+message Turn { string role = 1; string content = 2; }
+
+message AskRequest {
+  string request_id = 1;
+  string user_ref = 2;            // hash userId, KHÔNG gửi id thật
+  string message = 3;
+  string user_context_json = 4;   // UserContext v1 đã mask PII
+  repeated Turn history = 5;
+}
+
+message Source { string title = 1; string document_id = 2; int32 chunk_index = 3; }
+message TokenUsage { int32 tokens_in = 1; int32 tokens_out = 2; double cost_usd = 3; string model = 4; }
+
+message AskResponse {
+  string answer_markdown = 1;
+  string intent = 2;
+  repeated Source sources = 3;
+  bool safety_flagged = 4;
+  string disclaimer = 5;
+  TokenUsage usage = 6;
+}
+
+message ChatChunk { string delta = 1; bool done = 2; }
+
+message SummaryRequest { string user_ref = 1; string date = 2; string user_context_json = 3; }
+message SummaryResponse { string summary = 1; }
+
+message ReportRequest { string user_ref = 1; string week_start = 2; string user_context_json = 3; }
+message ReportResponse { string report_json = 1; }
+
+message Empty {}
+message Health { string status = 1; string version = 2; }

@@ -45,7 +45,8 @@ class DashboardRepository @Inject constructor(
                     fatGoal = profile?.fatGoalG ?: 65f,
                     waterMl = body.activity.waterMl,
                     waterGoalMl = profile?.waterGoalMl ?: 2000,
-                    steps = body.activity.steps
+                    steps = body.activity.steps,
+                    stepGoal = profile?.stepGoal ?: 10000
                 )
                 Result.success(flatDashboard)
             } else {
@@ -110,22 +111,22 @@ class DashboardRepository @Inject constructor(
         }
     }
 
-    suspend fun addWater(ml: Int): Result<DashboardDto> {
+    suspend fun addWater(ml: Int, date: String? = null): Result<DashboardDto> {
         return try {
-            val today = LocalDate.now().toString()
-            val response = trainingApi.updateWater(mapOf("logDate" to today, "waterMl" to ml))
-            if (response.isSuccessful) getDashboard(today)
+            val targetDate = date ?: LocalDate.now().toString()
+            val response = trainingApi.updateWater(mapOf("logDate" to targetDate, "waterMl" to ml))
+            if (response.isSuccessful) getDashboard(targetDate)
             else Result.failure(Exception("Lỗi cập nhật nước (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun addSteps(steps: Int): Result<DashboardDto> {
+    suspend fun addSteps(steps: Int, date: String? = null): Result<DashboardDto> {
         return try {
-            val today = LocalDate.now().toString()
-            val response = trainingApi.updateSteps(mapOf("logDate" to today, "steps" to steps))
-            if (response.isSuccessful) getDashboard(today)
+            val targetDate = date ?: LocalDate.now().toString()
+            val response = trainingApi.updateSteps(mapOf("logDate" to targetDate, "steps" to steps))
+            if (response.isSuccessful) getDashboard(targetDate)
             else Result.failure(Exception("Lỗi cập nhật bước chân (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.core.error.AppErrorMapper
 import com.vitalai.data.remote.model.HealthProfileDto
+import com.vitalai.data.repository.HealthProfileMissingException
 import com.vitalai.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ data class GoalsUiState(
     val carbsGoalG: String = "",
     val fatGoalG: String = "",
     val waterGoalMl: String = "",
+    val stepGoal: String = "",
     val targetWeightKg: String = "",
     val weeklyRateKg: String = "",
     val goalType: String = ""
@@ -44,25 +46,35 @@ class GoalsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             userRepository.getHealthProfile().onSuccess { p ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        profile = p,
-                        dailyCaloriesGoal = p.dailyCaloriesGoal?.toFloatString() ?: p.caloriesGoal?.toFloatString() ?: "",
-                        proteinGoalG = p.proteinGoalG?.toFloatString() ?: "",
-                        carbsGoalG = p.carbsGoalG?.toFloatString() ?: "",
-                        fatGoalG = p.fatGoalG?.toFloatString() ?: "",
-                        waterGoalMl = p.waterGoalMl?.toString() ?: "",
-                        targetWeightKg = p.targetWeightKg?.toFloatString() ?: p.weightGoalKg?.toFloatString() ?: "",
-                        weeklyRateKg = p.weeklyRateKg?.toFloatString() ?: "",
-                        goalType = p.goalType ?: ""
-                    )
-                }
+                applyProfile(p, isDraft = false)
             }.onFailure { e ->
-                _uiState.update {
-                    it.copy(isLoading = false, error = AppErrorMapper.fromThrowable(e).userMessage)
+                if (e is HealthProfileMissingException) {
+                    applyProfile(defaultDraftProfile(), isDraft = true)
+                } else {
+                    _uiState.update {
+                        it.copy(isLoading = false, error = AppErrorMapper.fromThrowable(e).userMessage)
+                    }
                 }
             }
+        }
+    }
+
+    private fun applyProfile(p: HealthProfileDto, isDraft: Boolean) {
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                profile = p,
+                error = if (isDraft) null else it.error,
+                dailyCaloriesGoal = p.dailyCaloriesGoal?.toFloatString() ?: p.caloriesGoal?.toFloatString() ?: "",
+                proteinGoalG = p.proteinGoalG?.toFloatString() ?: "",
+                carbsGoalG = p.carbsGoalG?.toFloatString() ?: "",
+                fatGoalG = p.fatGoalG?.toFloatString() ?: "",
+                waterGoalMl = p.waterGoalMl?.toString() ?: "2500",
+                stepGoal = p.stepGoal?.toString() ?: "10000",
+                targetWeightKg = p.targetWeightKg?.toFloatString() ?: p.weightGoalKg?.toFloatString() ?: "",
+                weeklyRateKg = p.weeklyRateKg?.toFloatString() ?: "",
+                goalType = p.goalType ?: "maintain"
+            )
         }
     }
 
@@ -71,6 +83,7 @@ class GoalsViewModel @Inject constructor(
     fun onCarbs(v: String) = _uiState.update { it.copy(carbsGoalG = v) }
     fun onFat(v: String) = _uiState.update { it.copy(fatGoalG = v) }
     fun onWater(v: String) = _uiState.update { it.copy(waterGoalMl = v) }
+    fun onStepGoal(v: String) = _uiState.update { it.copy(stepGoal = v) }
     fun onTargetWeight(v: String) = _uiState.update { it.copy(targetWeightKg = v) }
     fun onWeeklyRate(v: String) = _uiState.update { it.copy(weeklyRateKg = v) }
     fun onGoalType(v: String) = _uiState.update { it.copy(goalType = v) }
@@ -80,7 +93,7 @@ class GoalsViewModel @Inject constructor(
         // Basic validation: values, if present, must be non-negative numbers.
         val numericFields = listOf(
             s.dailyCaloriesGoal, s.proteinGoalG, s.carbsGoalG, s.fatGoalG,
-            s.waterGoalMl, s.targetWeightKg, s.weeklyRateKg
+            s.waterGoalMl, s.stepGoal, s.targetWeightKg, s.weeklyRateKg
         )
         if (numericFields.any { it.isNotBlank() && (it.toFloatOrNull() == null || it.toFloat() < 0f) }) {
             _uiState.update { it.copy(error = "Giá trị mục tiêu không hợp lệ.") }
@@ -97,6 +110,7 @@ class GoalsViewModel @Inject constructor(
                 carbsGoalG = s.carbsGoalG.toFloatOrNull(),
                 fatGoalG = s.fatGoalG.toFloatOrNull(),
                 waterGoalMl = s.waterGoalMl.toIntOrNull() ?: base.waterGoalMl,
+                stepGoal = s.stepGoal.toIntOrNull() ?: base.stepGoal ?: 10000,
                 targetWeightKg = s.targetWeightKg.toFloatOrNull(),
                 weeklyRateKg = s.weeklyRateKg.toFloatOrNull(),
                 goalType = s.goalType.ifBlank { null }
@@ -113,6 +127,17 @@ class GoalsViewModel @Inject constructor(
 
     fun clearError() = _uiState.update { it.copy(error = null) }
 }
+
+private fun defaultDraftProfile(): HealthProfileDto = HealthProfileDto(
+    birthDate = "1990-01-01",
+    gender = "other",
+    heightCm = 170f,
+    initialWeightKg = 65f,
+    activityLevel = "moderately_active",
+    goalType = "maintain",
+    waterGoalMl = 2500,
+    stepGoal = 10000
+)
 
 /** Render a float without a trailing ".0" for whole numbers. */
 private fun Float.toFloatString(): String =

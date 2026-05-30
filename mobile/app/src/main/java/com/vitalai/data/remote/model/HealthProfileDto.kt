@@ -24,5 +24,6 @@ data class HealthProfileDto(
     val goalStartDate: String? = null,
     val goalDeadline: String? = null,
     val goalStatus: String? = null,
-    val waterGoalMl: Int? = null
+    val waterGoalMl: Int? = null,
+    val stepGoal: Int? = null
 )

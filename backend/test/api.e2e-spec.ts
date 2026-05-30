@@ -108,8 +108,10 @@ describe('Users', () => {
         gender: 'male',
         birthDate: '1999-01-01',
         waterGoalMl: 2000,
+        stepGoal: 10000,
       });
     expect(res.status).toBe(200);
+    expect(res.body.data).toHaveProperty('stepGoal', 10000);
   });
 
   it('GET /users/me/health-profile → 200', async () => {

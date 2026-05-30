@@ -15,6 +15,14 @@ export class ExerciseQueryDto {
   @IsEnum(ExerciseType)
   exerciseType?: ExerciseType;
 
+  @ApiPropertyOptional({
+    enum: ExerciseType,
+    description: 'Backward-compatible alias for exerciseType',
+  })
+  @IsOptional()
+  @IsEnum(ExerciseType)
+  type?: ExerciseType;
+
   @ApiPropertyOptional({ example: 'chest' })
   @IsOptional()
   @IsString()

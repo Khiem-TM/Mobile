@@ -16,7 +16,8 @@ data class DashboardDto(
     @Json(name = "fat_goal") val fatGoal: Float,
     @Json(name = "water_ml") val waterMl: Int,
     @Json(name = "water_goal_ml") val waterGoalMl: Int,
-    @Json(name = "steps") val steps: Int
+    @Json(name = "steps") val steps: Int,
+    @Json(name = "step_goal") val stepGoal: Int
 )
 
 @JsonClass(generateAdapter = true)
@@ -124,4 +125,3 @@ data class DailyBodyDto(
     @Json(name = "current_weight") val currentWeight: Float? = null,
     @Json(name = "bmi") val bmi: Float? = null
 )
-

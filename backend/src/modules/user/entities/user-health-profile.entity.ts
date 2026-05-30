@@ -62,6 +62,9 @@ export class UserHealthProfile {
   @Column({ name: 'water_goal_ml', type: 'int', nullable: true, default: 2000 })
   waterGoalMl!: number;
 
+  @Column({ name: 'step_goal', type: 'int', nullable: true, default: 10000 })
+  stepGoal!: number;
+
   @Column({
     name: 'calories_goal',
     type: 'decimal',

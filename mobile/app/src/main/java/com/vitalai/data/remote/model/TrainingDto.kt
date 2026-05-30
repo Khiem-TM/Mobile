@@ -26,6 +26,7 @@ data class ExerciseDto(
     @Json(name = "estimatedCaloriesPerMinute") val estimatedCaloriesPerMinute: Float? = null,
     @Json(name = "favoritesCount") val favoritesCount: Int = 0,
     @Json(name = "isFavorite") val isFavorite: Boolean = false,
+    @Json(name = "secondaryMuscleGroups") val secondaryMuscleGroups: List<String>? = null,
     @Json(name = "defaultSets") val defaultSets: Int? = null,
     @Json(name = "defaultReps") val defaultReps: Int? = null,
     @Json(name = "defaultWeightKg") val defaultWeightKg: Float? = null,

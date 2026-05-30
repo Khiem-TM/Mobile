@@ -1,47 +1,72 @@
 package com.vitalai.ui.screens.diary
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.MealLogItemDto
+import com.vitalai.data.remote.model.MealLogSummaryDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.theme.*
+import com.vitalai.ui.theme.VitalDisplayFontFamily
+import com.vitalai.ui.theme.VitalFontFamily
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.roundToInt
+
+private const val DailyCalorieGoal = 2200f
+private const val ProteinGoal = 140f
+private const val CarbGoal = 248f
+private const val FatGoal = 73f
 
 @Composable
 fun DiaryScreen(
@@ -50,68 +75,48 @@ fun DiaryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var editingItem by remember { mutableStateOf<Triple<String, MealLogItemDto, String>?>(null) }
+    var showCoach by remember { mutableStateOf(false) }
 
-    when {
-        uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
-        uiState.error != null -> ErrorState(
-            message = uiState.error!!,
-            onRetry = viewModel::loadMealLogs,
-            modifier = Modifier.fillMaxSize()
-        )
-        else -> LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 16.dp)
-        ) {
-            // Top Header
-            item { DiaryHeader(navController) }
-            // Date Switcher
-            item {
-                DateSwitcher(
-                    selectedDateStr = uiState.selectedDate,
-                    onPrevDate = {
-                        val prev = LocalDate.parse(uiState.selectedDate).minusDays(1)
-                        viewModel.selectDate(prev.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                    },
-                    onNextDate = {
-                        val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
-                        viewModel.selectDate(next.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                    }
-                )
-            }
-            // Summary Card
-            item {
-                val summary = uiState.summary
-                val consumed = summary?.totalCalories ?: 0f
-                val goal = 1938f // Or from summary if available
-                val remaining = (goal - consumed).coerceAtLeast(0f)
-                DiarySummaryCard(consumed = consumed, goal = goal, remaining = remaining)
-            }
-
-            // Meal Sections
-            val mealTypes = listOf(
-                Triple("BREAKFAST", "Sáng (Breakfast)", "7:00 - 9:30"),
-                Triple("LUNCH", "Trưa (Lunch)", "11:30 - 14:00"),
-                Triple("DINNER", "Tối (Dinner)", "18:00 - 20:00"),
-                Triple("SNACK", "Bữa phụ (Snack)", "Tuỳ chọn")
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(FoodModule.Cream)
+    ) {
+        when {
+            uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+            uiState.error != null -> ErrorState(
+                message = uiState.error!!,
+                onRetry = viewModel::loadMealLogs,
+                modifier = Modifier.fillMaxSize()
             )
+            else -> DiaryContent(
+                selectedDate = uiState.selectedDate,
+                mealLogs = uiState.mealLogs,
+                summary = uiState.summary,
+                onPrevDate = {
+                    val prev = LocalDate.parse(uiState.selectedDate).minusDays(1)
+                    viewModel.selectDate(prev.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                },
+                onNextDate = {
+                    val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
+                    viewModel.selectDate(next.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                },
+                onAddMeal = { mealType ->
+                    navController.navigate(Screen.SearchFood(mealType = mealType, date = uiState.selectedDate))
+                },
+                onOpenItem = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
+                onDeleteItem = viewModel::deleteItem,
+                onOpenCoach = { showCoach = true }
+            )
+        }
 
-            items(mealTypes) { (type, label, timeRange) ->
-                val log = uiState.mealLogs.find { it.mealType.equals(type, ignoreCase = true) }
-                DiaryMealSection(
-                    label = label,
-                    timeRange = timeRange,
-                    mealLog = log,
-                    onAddClick = { navController.navigate(Screen.SearchFood(mealType = type.lowercase(), date = uiState.selectedDate)) },
-                    onItemClick = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
-                    onDeleteItem = viewModel::deleteItem,
-                    onDeleteMeal = viewModel::deleteMealLog
-                )
-            }
+        if (showCoach) {
+            CoachTipModal(onClose = { showCoach = false })
         }
     }
 
     editingItem?.let { (mealLogId, item, _) ->
-        var quantityText by remember(item.id) { mutableStateOf(item.quantity.toString()) }
+        var quantityText by remember(item.id) { mutableStateOf(item.quantity.cleanNumber()) }
         var unitText by remember(item.id) { mutableStateOf(item.servingUnit) }
         AlertDialog(
             onDismissRequest = { editingItem = null },
@@ -151,247 +156,464 @@ fun DiaryScreen(
 }
 
 @Composable
-fun DiaryHeader(navController: NavController) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(AppSurface2)
-                .clickable { navController.popBackStack() },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Back", tint = Ink900)
-        }
-        Text("Nhật ký bữa ăn", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Ink900)
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(AppSurface2)
-                .clickable { navController.navigate(Screen.MealHistory) },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Search, contentDescription = "Search", tint = Ink900)
-        }
-    }
-}
-
-@Composable
-fun DateSwitcher(selectedDateStr: String, onPrevDate: () -> Unit, onNextDate: () -> Unit) {
-    val date = LocalDate.parse(selectedDateStr)
-    val today = LocalDate.now()
-    val isToday = date.isEqual(today)
-    
-    val dateText = if (isToday) {
-        date.format(DateTimeFormatter.ofPattern("EEE, d MMMM yyyy", Locale("vi")))
-    } else {
-        date.format(DateTimeFormatter.ofPattern("EEE, d MMMM yyyy", Locale("vi")))
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onPrevDate) {
-            Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = Ink400)
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (isToday) {
-                Text("Hôm nay", fontSize = 12.sp, color = Ink500)
-            }
-            Text(dateText, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
-        }
-        IconButton(onClick = onNextDate) {
-            Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = Ink400)
-        }
-    }
-}
-
-@Composable
-fun DiarySummaryCard(consumed: Float, goal: Float, remaining: Float) {
-    val progress = (consumed / goal).coerceIn(0f, 1f)
-    
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(VitalRadius.Xl),
-        colors = CardDefaults.cardColors(containerColor = Mint50)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = "%,d".format(consumed.toInt()),
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Mint700
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "kcal đã nạp",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Mint700,
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "còn lại %,d / %,d kcal".format(remaining.toInt(), goal.toInt()),
-                    fontSize = 13.sp,
-                    color = Mint700.copy(alpha = 0.8f)
-                )
-            }
-            
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(56.dp)) {
-                Canvas(modifier = Modifier.size(56.dp)) {
-                    drawArc(
-                        color = Mint100,
-                        startAngle = -90f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        style = Stroke(width = 16f, cap = StrokeCap.Round)
-                    )
-                    drawArc(
-                        color = Mint500,
-                        startAngle = -90f,
-                        sweepAngle = 360f * progress,
-                        useCenter = false,
-                        style = Stroke(width = 16f, cap = StrokeCap.Round)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DiaryMealSection(
-    label: String,
-    timeRange: String,
-    mealLog: MealLogDto?,
-    onAddClick: () -> Unit,
-    onItemClick: (String, MealLogItemDto) -> Unit,
+private fun DiaryContent(
+    selectedDate: String,
+    mealLogs: List<MealLogDto>,
+    summary: MealLogSummaryDto?,
+    onPrevDate: () -> Unit,
+    onNextDate: () -> Unit,
+    onAddMeal: (String) -> Unit,
+    onOpenItem: (String, MealLogItemDto) -> Unit,
     onDeleteItem: (String, String) -> Unit,
-    onDeleteMeal: (String) -> Unit
+    onOpenCoach: () -> Unit
 ) {
-    val totalCalories = mealLog?.totalCalories?.toInt() ?: 0
-    val progress = if (totalCalories > 0) 1f else 0f
+    val mealTypes = listOf(
+        MealSpec("breakfast", "Bữa sáng"),
+        MealSpec("lunch", "Bữa trưa"),
+        MealSpec("dinner", "Bữa tối"),
+        MealSpec("snack", "Bữa phụ")
+    )
 
-    Card(
+    LazyColumn(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
+            .fillMaxSize()
+            .background(FoodModule.Cream),
+        contentPadding = PaddingValues(start = 21.dp, end = 21.dp, top = 28.dp, bottom = 150.dp),
+        verticalArrangement = Arrangement.spacedBy(21.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // Section Header
+        item {
+            DiaryDateHeader(
+                selectedDate = selectedDate,
+                onPrevDate = onPrevDate,
+                onNextDate = onNextDate
+            )
+        }
+        item {
+            DiarySummaryCard(summary = summary)
+        }
+        item {
+            CoachNudgeCard(summary = summary, onClick = onOpenCoach)
+        }
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                mealTypes.forEach { meal ->
+                    val log = mealLogs.find { it.mealType.equals(meal.key, ignoreCase = true) }
+                    FoodMealSection(
+                        meal = meal,
+                        mealLog = log,
+                        onAdd = { onAddMeal(meal.key) },
+                        onOpenItem = onOpenItem,
+                        onDeleteItem = onDeleteItem
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiaryDateHeader(
+    selectedDate: String,
+    onPrevDate: () -> Unit,
+    onNextDate: () -> Unit
+) {
+    val date = LocalDate.parse(selectedDate)
+    val today = LocalDate.now()
+    val label = if (date == today) {
+        "Hôm nay, ${date.format(DateTimeFormatter.ofPattern("d MMM", Locale("vi")))}"
+    } else {
+        date.format(DateTimeFormatter.ofPattern("d MMM, yyyy", Locale("vi")))
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                text = "Nhật ký dinh dưỡng",
+                color = FoodModule.Charcoal,
+                fontSize = 12.sp,
+                fontFamily = VitalFontFamily
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                text = label,
+                color = FoodModule.Forest,
+                fontSize = 27.sp,
+                lineHeight = 30.sp,
+                fontFamily = VitalDisplayFontFamily,
+                fontWeight = FontWeight.Normal
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RoundOutlineIconButton(onClick = onPrevDate) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "Ngày trước", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
+            }
+            RoundOutlineIconButton(onClick = onNextDate) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "Ngày sau", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiarySummaryCard(summary: MealLogSummaryDto?) {
+    val consumed = summary?.totalCalories ?: 0f
+    Card(
+        shape = RoundedCornerShape(FoodModule.CardRadius),
+        colors = CardDefaults.cardColors(containerColor = FoodModule.Keylime),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(21.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                Column {
-                    Text(label, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                    Text(timeRange, fontSize = 12.sp, color = Ink500)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    if (mealLog != null) {
-                        IconButton(onClick = { onDeleteMeal(mealLog.id) }, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Default.Delete, contentDescription = "Xóa bữa", tint = MacroProtein, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text("$totalCalories", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                        Text(" kcal", fontSize = 12.sp, color = Ink500, modifier = Modifier.padding(bottom = 1.dp))
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Box(modifier = Modifier.width(80.dp).height(4.dp).clip(RoundedCornerShape(100)).background(AppLine)) {
-                        Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().clip(RoundedCornerShape(100)).background(Mint500))
-                    }
+                CalorieRing(consumed = consumed, goal = DailyCalorieGoal)
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    SummaryRow("Mục tiêu", DailyCalorieGoal.roundToInt())
+                    Hairline()
+                    SummaryRow("Đã nạp", consumed.roundToInt())
                 }
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Food Items
-            mealLog?.items?.forEach { item ->
+            Spacer(Modifier.height(18.dp))
+            Hairline()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                MacroChip("Protein", summary?.totalProtein ?: 0f, ProteinGoal, Modifier.weight(1f))
+                MacroChip("Carbs", summary?.totalCarbs ?: 0f, CarbGoal, Modifier.weight(1f))
+                MacroChip("Fat", summary?.totalFat ?: 0f, FatGoal, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryRow(label: String, value: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        Text(label, color = FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
+        Text(
+            text = "$value kcal",
+            color = FoodModule.Forest,
+            fontSize = 16.sp,
+            fontFamily = VitalFontFamily
+        )
+    }
+}
+
+@Composable
+private fun Hairline() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(FoodModule.Forest.copy(alpha = 0.12f))
+    )
+}
+
+@Composable
+private fun MacroChip(label: String, value: Float, goal: Float, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, color = FoodModule.Charcoal, fontSize = 11.sp, fontFamily = VitalFontFamily)
+        Spacer(Modifier.height(3.dp))
+        Text(
+            text = "${value.roundToInt()}/${goal.roundToInt()}g",
+            color = FoodModule.Forest,
+            fontSize = 16.sp,
+            fontFamily = VitalFontFamily
+        )
+        Spacer(Modifier.height(6.dp))
+        FoodProgressBar(progress = value / goal, height = 5.dp)
+    }
+}
+
+@Composable
+private fun CoachNudgeCard(summary: MealLogSummaryDto?, onClick: () -> Unit) {
+    val proteinLeft = (ProteinGoal - (summary?.totalProtein ?: 0f)).coerceAtLeast(0f).roundToInt()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(FoodModule.CardRadius))
+            .background(FoodModule.Slate)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(FoodModule.Cream),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("AI", color = FoodModule.Forest, fontSize = 13.sp, fontFamily = VitalFontFamily)
+        }
+        Column(Modifier.weight(1f)) {
+            Text("Vital Coach có gợi ý", color = FoodModule.Forest, fontSize = 14.sp, fontFamily = VitalFontFamily)
+            Text(
+                text = "Bạn còn thiếu khoảng ${proteinLeft}g protein hôm nay ->",
+                color = FoodModule.Charcoal,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontFamily = VitalFontFamily
+            )
+        }
+    }
+}
+
+@Composable
+private fun FoodMealSection(
+    meal: MealSpec,
+    mealLog: MealLogDto?,
+    onAdd: () -> Unit,
+    onOpenItem: (String, MealLogItemDto) -> Unit,
+    onDeleteItem: (String, String) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(FoodModule.CardRadius),
+        colors = CardDefaults.cardColors(containerColor = FoodModule.Cream),
+        border = BorderStroke(1.dp, FoodModule.Border)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(meal.label, color = FoodModule.Ink, fontSize = 16.sp, fontFamily = VitalFontFamily)
+                    if ((mealLog?.items?.size ?: 0) > 0) {
+                        Text(
+                            text = " · ${mealLog!!.totalCalories.roundToInt()} kcal",
+                            color = FoodModule.Charcoal.copy(alpha = 0.72f),
+                            fontSize = 12.sp,
+                            fontFamily = VitalFontFamily
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .border(1.dp, FoodModule.Forest, CircleShape)
+                        .clickable(onClick = onAdd),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Thêm món", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
+                }
+            }
+
+            if (mealLog == null || mealLog.items.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .border(0.dp, FoodModule.Border)
+                        .clickable(onClick = onAdd)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text("Thêm món đầu tiên...", color = FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
+                }
+            } else {
+                mealLog.items.forEach { item ->
+                    MealFoodRow(
+                        mealLogId = mealLog.id,
+                        item = item,
+                        onOpenItem = onOpenItem,
+                        onDeleteItem = onDeleteItem
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MealFoodRow(
+    mealLogId: String,
+    item: MealLogItemDto,
+    onOpenItem: (String, MealLogItemDto) -> Unit,
+    onDeleteItem: (String, String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(0.dp, FoodModule.Border)
+            .clickable { onOpenItem(mealLogId, item) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        FoodThumb(name = item.foodName.ifBlank { "Món ăn" }, imageUrl = item.imageUrl, size = 36.dp)
+        Column(Modifier.weight(1f)) {
+            Text(
+                item.foodName.ifBlank { "Món ăn" },
+                color = FoodModule.Ink,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontFamily = VitalFontFamily
+            )
+            Text(
+                "${item.quantity.cleanNumber()} ${item.servingUnit}",
+                color = FoodModule.Charcoal.copy(alpha = 0.75f),
+                fontSize = 12.sp,
+                fontFamily = VitalFontFamily
+            )
+        }
+        Text(
+            text = "${item.calories.roundToInt()} kcal",
+            color = FoodModule.Forest,
+            fontSize = 14.sp,
+            fontFamily = VitalFontFamily
+        )
+        IconButton(onClick = { onDeleteItem(mealLogId, item.id) }, modifier = Modifier.size(30.dp)) {
+            Icon(Icons.Default.Delete, contentDescription = "Xóa món", tint = FoodModule.Charcoal.copy(alpha = 0.55f), modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun CoachTipModal(onClose: () -> Unit) {
+    val tips = listOf(
+        CoachTip("Sữa chua Hy Lạp", "150g · khoảng 90 kcal · giàu protein", "Phù hợp cho bữa phụ khi cần tăng protein nhẹ."),
+        CoachTip("Ức gà áp chảo", "120g · khoảng 198 kcal · protein nạc", "Giúp cân bằng bữa tối mà không vượt nhiều calorie."),
+        CoachTip("Rau xanh", "60g · ít calorie", "Thêm chất xơ và vi chất cho đĩa ăn hôm nay.")
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(FoodModule.Forest.copy(alpha = 0.34f))
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = FoodModule.Cream)
+        ) {
+            Column {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable { onItemClick(mealLog.id, item) },
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    if (item.imageUrl != null) {
-                        AsyncImage(
-                            model = item.imageUrl,
-                            contentDescription = item.foodName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(VitalRadius.Md))
-                        )
-                    } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
-                                .clip(RoundedCornerShape(VitalRadius.Md))
-                                .background(AppSurface2),
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(FoodModule.Slate),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("🍽️", fontSize = 20.sp)
+                            Text("AI", color = FoodModule.Forest, fontSize = 13.sp, fontFamily = VitalFontFamily)
+                        }
+                        Column {
+                            Text("Vital Coach", color = FoodModule.Forest, fontSize = 26.sp, lineHeight = 26.sp, fontFamily = VitalDisplayFontFamily)
+                            Text("Gợi ý cho hôm nay", color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
                         }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(item.foodName, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Ink900)
-                        Text("${item.quantity} ${item.servingUnit}", fontSize = 13.sp, color = Ink500)
-                    }
-                    Text("${item.calories.toInt()} kcal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Ink700)
-                    IconButton(onClick = { onItemClick(mealLog.id, item) }, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Sửa món", tint = Ink500, modifier = Modifier.size(18.dp))
-                    }
-                    IconButton(onClick = { onDeleteItem(mealLog.id, item.id) }, modifier = Modifier.size(34.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Xóa món", tint = MacroProtein, modifier = Modifier.size(18.dp))
+                    RoundOutlineIconButton(size = 32.dp, onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = "Đóng", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
                     }
                 }
-            }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Add Button
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(100))
-                    .background(Mint50)
-                    .clickable { onAddClick() }
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Thêm món", tint = Mint500, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Thêm món", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Mint500)
+                Column(
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(FoodModule.CardRadius))
+                            .background(FoodModule.Slate)
+                            .padding(18.dp)
+                    ) {
+                        Text(
+                            text = "Bạn có thể ưu tiên protein nạc và thêm rau xanh để hoàn thiện bữa ăn trong ngày.",
+                            color = FoodModule.Charcoal,
+                            fontSize = 14.sp,
+                            lineHeight = 21.sp,
+                            fontFamily = VitalFontFamily
+                        )
+                    }
+                    Text("Đề xuất", color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
+                    tips.forEach { tip ->
+                        CoachTipRow(tip)
+                    }
+                    Text(
+                        text = "Gợi ý chỉ mang tính tham khảo, không thay thế tư vấn y tế.",
+                        color = FoodModule.Charcoal.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp,
+                        fontFamily = VitalFontFamily,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                }
             }
         }
     }
 }
+
+@Composable
+private fun CoachTipRow(tip: CoachTip) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(FoodModule.CardRadius))
+            .border(1.dp, FoodModule.Border, RoundedCornerShape(FoodModule.CardRadius))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            FoodThumbFallback(name = tip.title, size = 44.dp, circle = true)
+            Column(Modifier.weight(1f)) {
+                Text(tip.title, color = FoodModule.Ink, fontSize = 15.sp, fontFamily = VitalFontFamily)
+                Text(tip.meta, color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
+            }
+            FoodPill(text = "Gợi ý", background = FoodModule.Keylime)
+        }
+        Text(tip.reason, color = FoodModule.Charcoal, fontSize = 13.sp, lineHeight = 19.sp, fontFamily = VitalFontFamily)
+        FoodPill(text = "An toàn hồ sơ", background = FoodModule.Mint, icon = Icons.Default.Check)
+    }
+}
+
+@Composable
+private fun RoundOutlineIconButton(size: androidx.compose.ui.unit.Dp = 34.dp, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(FoodModule.Cream)
+            .border(1.dp, FoodModule.Border, CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+private data class MealSpec(val key: String, val label: String)
+private data class CoachTip(val title: String, val meta: String, val reason: String)

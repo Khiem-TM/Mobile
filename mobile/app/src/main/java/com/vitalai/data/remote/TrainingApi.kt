@@ -30,10 +30,14 @@ interface TrainingApi {
 
     @GET("exercises")
     suspend fun getExercises(
-        @Query("type") type: String? = null,
+        @Query("exerciseType") exerciseType: String? = null,
         @Query("name") name: String? = null,
-        @Query("muscleGroup") muscleGroup: String? = null
+        @Query("muscleGroup") muscleGroup: String? = null,
+        @Query("difficultyLevel") difficultyLevel: String? = null
     ): Response<ApiResponse<List<ExerciseDto>>>
+
+    @GET("exercises/{id}")
+    suspend fun getExerciseById(@Path("id") id: String): Response<ApiResponse<ExerciseDto>>
 
     @GET("favorite-exercises")
     suspend fun getFavoriteExercises(): Response<ApiResponse<List<ExerciseDto>>>

@@ -109,7 +109,16 @@ fun HomeScreen(
                     WaterAndActivityCards(
                         uiState = uiState,
                         onAddWater = { viewModel.addWater() },
-                        onSetSteps = { viewModel.setSteps(it) }
+                        onSetSteps = { viewModel.setSteps(it) },
+                        onOpenActivityLog = {
+                            navController.navigate(Screen.Activity(uiState.selectedDate))
+                        }
+                    )
+                }
+                item {
+                    ActivityWeekSummaryCard(
+                        uiState = uiState,
+                        onDateClick = { date -> navController.navigate(Screen.Activity(date)) }
                     )
                 }
                 item { MealsSection(uiState.mealLogs, navController, uiState.selectedDate) }
@@ -355,7 +364,8 @@ fun MacroBar(label: String, value: String, progress: Float, color: Color) {
 fun WaterAndActivityCards(
     uiState: HomeUiState,
     onAddWater: () -> Unit,
-    onSetSteps: (Int) -> Unit
+    onSetSteps: (Int) -> Unit,
+    onOpenActivityLog: () -> Unit
 ) {
     val d = uiState.dashboard
     val waterMl = d?.waterMl ?: 0
@@ -444,6 +454,24 @@ fun WaterAndActivityCards(
         }
     }
 
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.End
+    ) {
+        Text(
+            "Nhật ký chi tiết",
+            color = Mint500,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(VitalRadius.Pill))
+                .clickable(onClick = onOpenActivityLog)
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        )
+    }
+
     if (showStepsDialog) {
         var stepsInput by remember { mutableStateOf(steps.takeIf { it > 0 }?.toString() ?: "") }
         AlertDialog(
@@ -468,6 +496,117 @@ fun WaterAndActivityCards(
             },
             containerColor = AppSurface
         )
+    }
+}
+
+@Composable
+fun ActivityWeekSummaryCard(
+    uiState: HomeUiState,
+    onDateClick: (String) -> Unit
+) {
+    val selected = remember(uiState.selectedDate) {
+        runCatching { java.time.LocalDate.parse(uiState.selectedDate) }.getOrDefault(java.time.LocalDate.now())
+    }
+    val days = remember(selected) { (6 downTo 0).map { selected.minusDays(it.toLong()) } }
+    val waterGoal = (uiState.dashboard?.waterGoalMl ?: 2500).coerceAtLeast(1)
+    val stepGoal = (uiState.dashboard?.stepGoal ?: 10000).coerceAtLeast(1)
+    val logsByDate = remember(uiState.recentActivityLogs) {
+        uiState.recentActivityLogs.associateBy { it.logDate }
+    }
+    val labels = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+            Text("7 ngày gần đây", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                days.forEach { day ->
+                    Text(
+                        labels[day.dayOfWeek.value - 1],
+                        color = if (day == selected) Ink900 else Ink500,
+                        fontSize = 12.sp,
+                        fontWeight = if (day == selected) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.width(34.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            ActivityGoalRow(
+                days = days,
+                logsByDate = logsByDate,
+                color = WaterBlueTint,
+                activeColor = WaterBlue,
+                onDateClick = onDateClick
+            ) { log -> (log?.waterMl ?: 0) >= waterGoal }
+            Spacer(Modifier.height(7.dp))
+            ActivityGoalRow(
+                days = days,
+                logsByDate = logsByDate,
+                color = Mint100,
+                activeColor = Mint500,
+                onDateClick = onDateClick
+            ) { log -> (log?.steps ?: 0) >= stepGoal }
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = AppLine)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                LegendDot(WaterBlueTint, "Nước")
+                LegendDot(Mint100, "Bước chân")
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityGoalRow(
+    days: List<java.time.LocalDate>,
+    logsByDate: Map<String, com.vitalai.data.remote.model.ActivityLogDto>,
+    color: Color,
+    activeColor: Color,
+    onDateClick: (String) -> Unit,
+    achieved: (com.vitalai.data.remote.model.ActivityLogDto?) -> Boolean
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        days.forEach { day ->
+            val date = day.toString()
+            val ok = achieved(logsByDate[date])
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(if (ok) color else Mint100.copy(alpha = 0.45f))
+                    .clickable { onDateClick(date) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(if (ok) "✓" else "−", color = if (ok) Ink900 else Ink400, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (ok) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 6.dp)
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(activeColor)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Box(Modifier.size(13.dp).clip(CircleShape).background(color))
+        Text(label, color = Ink700, fontSize = 12.sp)
     }
 }
 

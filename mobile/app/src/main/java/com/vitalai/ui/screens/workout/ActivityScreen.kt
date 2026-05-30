@@ -45,21 +45,23 @@ private val DAY_LABELS = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
 @Composable
 fun ActivityScreen(
     navController: NavController,
+    initialDate: String = "",
     viewModel: ActivityViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    LaunchedEffect(initialDate) {
+        if (initialDate.isNotBlank() && initialDate != uiState.selectedDate) {
+            runCatching { LocalDate.parse(initialDate) }.onSuccess {
+                viewModel.selectDate(initialDate)
+            }
+        }
+    }
+
     ActivityScreenContent(
         uiState = uiState,
         onBackClick = { navController.popBackStack() },
-        onPrevDay = {
-            val prev = LocalDate.parse(uiState.selectedDate).minusDays(1).toString()
-            viewModel.selectDate(prev)
-        },
-        onNextDay = {
-            val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
-            if (!next.isAfter(LocalDate.now())) viewModel.selectDate(next.toString())
-        },
+        onSelectDate = viewModel::selectDate,
         onAddWater = { viewModel.addWater(it) },
         onUpdateSteps = { viewModel.updateSteps(it) },
         onUpdateSleep = { viewModel.updateSleep(it) },
@@ -73,8 +75,7 @@ fun ActivityScreen(
 fun ActivityScreenContent(
     uiState: ActivityUiState,
     onBackClick: () -> Unit,
-    onPrevDay: () -> Unit,
-    onNextDay: () -> Unit,
+    onSelectDate: (String) -> Unit,
     onAddWater: (Int) -> Unit,
     onUpdateSteps: (Int) -> Unit,
     onUpdateSleep: (Float) -> Unit,
@@ -84,7 +85,6 @@ fun ActivityScreenContent(
     val log = uiState.log
     val today = LocalDate.now().toString()
     val isToday = uiState.selectedDate == today
-    val isNextDisabled = isToday
 
     val selectedDateDisplay = runCatching {
         val date = LocalDate.parse(uiState.selectedDate)
@@ -94,272 +94,432 @@ fun ActivityScreenContent(
 
     var stepsText by remember(log?.steps) { mutableStateOf((log?.steps ?: 0).toString()) }
     var noteText by remember(log?.note) { mutableStateOf(log?.note ?: "") }
-    var showStepsDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Nhật ký hoạt động", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+            ActivityPixelHeader(
+                title = "Nhật ký hôm nay",
+                subtitle = runCatching {
+                    val date = LocalDate.parse(uiState.selectedDate)
+                    date.format(DateTimeFormatter.ofPattern("EEEE, dd/MM/yyyy", Locale("vi")))
+                        .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("vi")) else it.toString() }
+                }.getOrDefault(selectedDateDisplay),
+                onBackClick = onBackClick
             )
         },
-        containerColor = AppMutedBackground
+        containerColor = AppSurface
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(bottom = 40.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(top = 20.dp, bottom = 38.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            // Date selector
             item {
-                DateSelector(
-                    label = selectedDateDisplay,
-                    onPrev = onPrevDay,
-                    onNext = onNextDay,
-                    nextDisabled = isNextDisabled
+                PixelWaterCard(
+                    waterMl = log?.waterMl ?: 0,
+                    waterGoalMl = uiState.waterGoalMl,
+                    onAddWater = onAddWater
                 )
             }
 
-            // Water card
             item {
-                ActivityCard(title = "💧 Nước uống") {
-                    val waterMl = log?.waterMl ?: 0
-                    val goal = uiState.waterGoalMl
-                    val progress = (waterMl.toFloat() / goal).coerceIn(0f, 1f)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "$waterMl ml",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Ink900
-                        )
-                        Text(" / $goal ml", fontSize = 14.sp, color = Ink500, modifier = Modifier.padding(top = 4.dp))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)),
-                        color = MacroWater,
-                        trackColor = MacroWater.copy(alpha = 0.15f)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        WaterButton("-500", Modifier.weight(1f)) { onAddWater(-500) }
-                        WaterButton("-250", Modifier.weight(1f)) { onAddWater(-250) }
-                        WaterButton("+250", Modifier.weight(1f), primary = true) { onAddWater(250) }
-                        WaterButton("+500", Modifier.weight(1f), primary = true) { onAddWater(500) }
-                    }
-                    if (progress >= 1f) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "🎉 Đã đạt mục tiêu uống nước hôm nay!",
-                            fontSize = 13.sp,
-                            color = MacroWater,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                PixelStepsCard(
+                    steps = log?.steps ?: 0,
+                    stepGoal = uiState.stepGoal,
+                    stepsText = stepsText,
+                    onStepsTextChange = { stepsText = it.filter(Char::isDigit).take(6) },
+                    onSaveSteps = { stepsText.toIntOrNull()?.let(onUpdateSteps) }
+                )
             }
 
-            // Steps card
             item {
-                ActivityCard(title = "👣 Bước chân") {
-                    val steps = log?.steps ?: 0
-                    val goal = uiState.stepGoal
-                    val progress = (steps.toFloat() / goal).coerceIn(0f, 1f)
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("$steps", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                            Text("/ $goal bước", fontSize = 13.sp, color = Ink500)
-                        }
-                        TextButton(onClick = { showStepsDialog = true }) {
-                            Text("Nhập tay", color = Mint500, fontSize = 13.sp)
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)),
-                        color = Mint500,
-                        trackColor = Mint500.copy(alpha = 0.15f)
-                    )
-                }
+                PixelWellbeingCard(
+                    sleepHours = log?.sleepHours ?: 0f,
+                    mood = log?.mood,
+                    onUpdateSleep = onUpdateSleep,
+                    onUpdateMood = onUpdateMood
+                )
             }
 
-            // Sleep card
             item {
-                ActivityCard(title = "😴 Giấc ngủ") {
-                    val sleepVal = log?.sleepHours ?: 0f
-                    var sliderVal by remember(sleepVal) { mutableFloatStateOf(sleepVal) }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            if (sliderVal == 0f) "Chưa ghi" else "${formatSleep(sliderVal)} giờ",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (sliderVal == 0f) Ink400 else Ink900
-                        )
-                        Text(
-                            when {
-                                sliderVal == 0f -> ""
-                                sliderVal < 6f -> "😴 Thiếu ngủ"
-                                sliderVal < 9f -> "✅ Đủ giấc"
-                                else -> "😪 Quá nhiều"
-                            },
-                            fontSize = 13.sp,
-                            color = when {
-                                sliderVal < 6f && sliderVal > 0f -> Color(0xFFF87171)
-                                sliderVal in 6f..9f -> Color(0xFF34D399)
-                                else -> Ink500
-                            }
-                        )
+                PixelNoteField(
+                    noteText = noteText,
+                    onNoteTextChange = {
+                        noteText = it
+                        onNoteChange(it)
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Slider(
-                        value = sliderVal,
-                        onValueChange = { sliderVal = it },
-                        onValueChangeFinished = { onUpdateSleep(sliderVal) },
-                        valueRange = 0f..12f,
-                        steps = 23,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Mint500,
-                            activeTrackColor = Mint500,
-                            inactiveTrackColor = Mint500.copy(alpha = 0.15f)
-                        )
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("0h", fontSize = 11.sp, color = Ink400)
-                        Text("6h", fontSize = 11.sp, color = Ink400)
-                        Text("12h", fontSize = 11.sp, color = Ink400)
-                    }
-                }
+                )
             }
 
-            // Mood card
             item {
-                ActivityCard(title = "🎭 Tâm trạng") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        MOOD_OPTIONS.forEach { (key, emoji) ->
-                            val selected = log?.mood == key
-                            MoodChip(emoji = emoji, selected = selected, onClick = { onUpdateMood(key) })
-                        }
-                    }
-                }
-            }
-
-            // Note card
-            item {
-                ActivityCard(title = "📝 Ghi chú") {
-                    OutlinedTextField(
-                        value = noteText,
-                        onValueChange = {
-                            noteText = it
-                            onNoteChange(it)
-                        },
-                        placeholder = { Text("Ghi lại cảm nhận hôm nay...", color = Ink400, fontSize = 13.sp) },
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 2,
-                        maxLines = 4,
-                        shape = RoundedCornerShape(VitalRadius.Md),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Mint500,
-                            unfocusedBorderColor = AppLine
-                        )
-                    )
-                }
-            }
-
-            // 7-day achievement calendar
-            item {
-                ActivityCard(title = "📅 Tuần này") {
-                    val today7 = LocalDate.now()
-                    val days = (6 downTo 0).map { today7.minusDays(it.toLong()) }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        days.forEach { day ->
-                            val logForDay = uiState.weeklyLogs.find { it.logDate == day.toString() }
-                            val waterOk = (logForDay?.waterMl ?: 0) >= uiState.waterGoalMl
-                            val stepsOk = (logForDay?.steps ?: 0) >= uiState.stepGoal
-                            val sleepOk = (logForDay?.sleepHours ?: 0f) >= 6f
-                            val allOk = waterOk && stepsOk
-                            val isSelected = day.toString() == uiState.selectedDate
-
-                            CalendarDayCell(
-                                dayLabel = DAY_LABELS[day.dayOfWeek.value - 1],
-                                dayNum = day.dayOfMonth.toString(),
-                                waterOk = waterOk,
-                                stepsOk = stepsOk,
-                                sleepOk = sleepOk,
-                                allOk = allOk,
-                                isToday = day == today7,
-                                isSelected = isSelected
-                            )
-                        }
-                    }
-                }
+                PixelWeekCard(
+                    selectedDate = uiState.selectedDate,
+                    weeklyLogs = uiState.weeklyLogs,
+                    waterGoalMl = uiState.waterGoalMl,
+                    stepGoal = uiState.stepGoal,
+                    onSelectDate = onSelectDate
+                )
             }
         }
-    }
-
-    // Steps input dialog
-    if (showStepsDialog) {
-        var stepsInput by remember { mutableStateOf((log?.steps ?: 0).toString()) }
-        AlertDialog(
-            onDismissRequest = { showStepsDialog = false },
-            title = { Text("Nhập số bước chân") },
-            text = {
-                OutlinedTextField(
-                    value = stepsInput,
-                    onValueChange = { stepsInput = it.filter { c -> c.isDigit() } },
-                    label = { Text("Số bước") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    stepsInput.toIntOrNull()?.let { onUpdateSteps(it) }
-                    showStepsDialog = false
-                }) { Text("Lưu", color = Mint500) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showStepsDialog = false }) { Text("Hủy") }
-            }
-        )
     }
 }
 
 // ─── Private composables ──────────────────────────────────────────────────────
+
+@Composable
+private fun ActivityPixelHeader(
+    title: String,
+    subtitle: String,
+    onBackClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AppSurface)
+            .statusBarsPadding()
+            .padding(start = 16.dp, end = 19.dp, top = 12.dp, bottom = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Mint100)
+                .clickable(onClick = onBackClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Mint700, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = Ink900, fontSize = 23.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
+            Text(subtitle, color = Ink700, fontSize = 14.sp, lineHeight = 17.sp)
+        }
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(AppSurface)
+                .border(1.dp, AppLine, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("▣", color = Ink900, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun PixelWaterCard(
+    waterMl: Int,
+    waterGoalMl: Int,
+    onAddWater: (Int) -> Unit
+) {
+    val goal = waterGoalMl.coerceAtLeast(1)
+    val progress = (waterMl.toFloat() / goal).coerceIn(0f, 1f)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xFFBBD5DC))
+            .padding(start = 21.dp, end = 21.dp, top = 23.dp, bottom = 22.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("♧", color = TrainColors.Forest, fontSize = 24.sp, modifier = Modifier.width(28.dp))
+            Text("Nước uống", color = TrainColors.Forest, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text(waterMl.toString(), color = TrainColors.Forest, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text("/${goal}ml", color = Ink700, fontSize = 14.sp)
+        }
+        Spacer(Modifier.height(16.dp))
+        Box(Modifier.fillMaxWidth().height(14.dp).clip(CircleShape).background(AppSurface)) {
+            Box(Modifier.fillMaxWidth(progress).fillMaxHeight().clip(CircleShape).background(TrainColors.Forest))
+        }
+        Spacer(Modifier.height(17.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            PixelWaterButton("−250ml", primary = false, modifier = Modifier.weight(1f)) { onAddWater(-250) }
+            PixelWaterButton("+250ml", primary = true, modifier = Modifier.weight(1f)) { onAddWater(250) }
+        }
+        Spacer(Modifier.height(11.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            PixelWaterButton("−500ml", primary = false, modifier = Modifier.weight(1f)) { onAddWater(-500) }
+            PixelWaterButton("+500ml", primary = true, modifier = Modifier.weight(1f)) { onAddWater(500) }
+        }
+    }
+}
+
+@Composable
+private fun PixelWaterButton(
+    text: String,
+    primary: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .height(49.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (primary) TrainColors.Forest else AppSurface)
+            .border(1.dp, TrainColors.Forest, RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = if (primary) AppSurface else TrainColors.Forest, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PixelStepsCard(
+    steps: Int,
+    stepGoal: Int,
+    stepsText: String,
+    onStepsTextChange: (String) -> Unit,
+    onSaveSteps: () -> Unit
+) {
+    val goal = stepGoal.coerceAtLeast(1)
+    val progress = (steps.toFloat() / goal).coerceIn(0f, 1f)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(AppSurface)
+            .border(1.dp, AppLine, RoundedCornerShape(14.dp))
+            .padding(start = 21.dp, end = 21.dp, top = 23.dp, bottom = 20.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("♚", color = TrainColors.Forest, fontSize = 23.sp, modifier = Modifier.width(28.dp))
+            Text("Bước chân", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("%,d".format(steps), color = TrainColors.Forest, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text("/%,d".format(goal), color = Ink700, fontSize = 14.sp)
+        }
+        Spacer(Modifier.height(18.dp))
+        Box(Modifier.fillMaxWidth().height(14.dp).clip(CircleShape).background(AppSurface2)) {
+            Box(Modifier.fillMaxWidth(progress).fillMaxHeight().clip(CircleShape).background(TrainColors.Forest))
+        }
+        Spacer(Modifier.height(17.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = stepsText,
+                onValueChange = onStepsTextChange,
+                placeholder = { Text("Nhập số bước", color = Ink500, fontSize = 16.sp) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.weight(1f).height(50.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = AppLine,
+                    unfocusedBorderColor = AppLine,
+                    focusedContainerColor = AppSurface,
+                    unfocusedContainerColor = AppSurface
+                )
+            )
+            Box(
+                modifier = Modifier
+                    .width(74.dp)
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(TrainColors.Forest)
+                    .clickable(onClick = onSaveSteps),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Lưu", color = AppSurface, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PixelWellbeingCard(
+    sleepHours: Float,
+    mood: String?,
+    onUpdateSleep: (Float) -> Unit,
+    onUpdateMood: (String) -> Unit
+) {
+    var sleep by remember(sleepHours) { mutableFloatStateOf(sleepHours.takeIf { it > 0f } ?: 7.5f) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(AppSurface)
+            .border(1.dp, AppLine, RoundedCornerShape(14.dp))
+            .padding(start = 21.dp, end = 21.dp, top = 23.dp, bottom = 20.dp)
+    ) {
+        Text("☾  Giấc ngủ", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(57.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Mint100),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SleepStepButton("−") {
+                sleep = (sleep - 0.5f).coerceAtLeast(0f)
+                onUpdateSleep(sleep)
+            }
+            Text(
+                formatSleep(sleep),
+                color = TrainColors.Forest,
+                fontSize = 25.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f)
+            )
+            Text("giờ", color = Ink700, fontSize = 14.sp, modifier = Modifier.padding(end = 18.dp))
+            SleepStepButton("+") {
+                sleep = (sleep + 0.5f).coerceAtMost(24f)
+                onUpdateSleep(sleep)
+            }
+        }
+        Spacer(Modifier.height(28.dp))
+        HorizontalDivider(color = AppLine)
+        Spacer(Modifier.height(23.dp))
+        Text("🎭  Tâm trạng", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            MOOD_OPTIONS.forEach { (key, emoji) ->
+                val selected = mood == key
+                Box(
+                    modifier = Modifier
+                        .size(65.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(if (selected) Color(0xFFA9D7B3) else Mint100)
+                        .border(
+                            if (selected) 2.dp else 0.dp,
+                            TrainColors.Forest,
+                            RoundedCornerShape(14.dp)
+                        )
+                        .clickable { onUpdateMood(key) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(emoji, fontSize = 25.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SleepStepButton(text: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 8.dp)
+            .size(48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(AppSurface)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = TrainColors.Forest, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun PixelNoteField(noteText: String, onNoteTextChange: (String) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Text("Ghi chú", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = noteText,
+            onValueChange = onNoteTextChange,
+            placeholder = { Text("Hôm nay cảm thấy thế nào?", color = Ink500, fontSize = 16.sp) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp),
+            minLines = 2,
+            maxLines = 4,
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = AppLine,
+                unfocusedBorderColor = AppLine,
+                focusedContainerColor = AppSurface,
+                unfocusedContainerColor = AppSurface
+            )
+        )
+    }
+}
+
+@Composable
+private fun PixelWeekCard(
+    selectedDate: String,
+    weeklyLogs: List<ActivityLogDto>,
+    waterGoalMl: Int,
+    stepGoal: Int,
+    onSelectDate: (String) -> Unit
+) {
+    val selected = runCatching { LocalDate.parse(selectedDate) }.getOrDefault(LocalDate.now())
+    val days = (6 downTo 0).map { selected.minusDays(it.toLong()) }
+    val logsByDate = weeklyLogs.associateBy { it.logDate }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(AppSurface)
+            .border(1.dp, AppLine, RoundedCornerShape(14.dp))
+            .padding(start = 21.dp, end = 21.dp, top = 17.dp, bottom = 17.dp)
+    ) {
+        Text("7 ngày gần đây", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(15.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            days.forEach { day ->
+                Text(
+                    DAY_LABELS[day.dayOfWeek.value - 1],
+                    modifier = Modifier.width(34.dp),
+                    color = if (day == selected) Ink900 else Ink500,
+                    fontSize = 12.sp,
+                    fontWeight = if (day == selected) FontWeight.Bold else FontWeight.Normal,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        Spacer(Modifier.height(9.dp))
+        PixelGoalRow(days, logsByDate, Color(0xFFBBD5DC), onSelectDate) { (it?.waterMl ?: 0) >= waterGoalMl }
+        Spacer(Modifier.height(8.dp))
+        PixelGoalRow(days, logsByDate, Color(0xFFA9DDB5), onSelectDate) { (it?.steps ?: 0) >= stepGoal }
+        Spacer(Modifier.height(17.dp))
+        HorizontalDivider(color = AppLine)
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            PixelLegend(Color(0xFFBBD5DC), "Nước")
+            PixelLegend(Color(0xFFA9DDB5), "Bước chân")
+        }
+    }
+}
+
+@Composable
+private fun PixelGoalRow(
+    days: List<LocalDate>,
+    logsByDate: Map<String, ActivityLogDto>,
+    color: Color,
+    onSelectDate: (String) -> Unit,
+    achieved: (ActivityLogDto?) -> Boolean
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        days.forEach { day ->
+            val date = day.toString()
+            val ok = achieved(logsByDate[date])
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(if (ok) color else Mint100.copy(alpha = 0.5f))
+                    .clickable { onSelectDate(date) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(if (ok) "♢" else "−", color = if (ok) TrainColors.Forest else Ink400, fontSize = 18.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PixelLegend(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Box(Modifier.size(13.dp).clip(CircleShape).background(color))
+        Text(label, color = Ink700, fontSize = 12.sp)
+    }
+}
 
 @Composable
 private fun DateSelector(

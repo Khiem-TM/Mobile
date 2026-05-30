@@ -4,8 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -14,20 +19,27 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.vitalai.core.network.ImageUrlResolver
 import com.vitalai.data.remote.model.AddExerciseRequest
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.ui.components.ErrorState
@@ -54,6 +66,10 @@ fun ExerciseDetailScreen(
     val scope = rememberCoroutineScope()
     var showAddSheet by remember { mutableStateOf(false) }
 
+    LaunchedEffect(id) {
+        detailViewModel.loadExercise(id)
+    }
+
     LaunchedEffect(detailState.saveSuccess, detailState.error) {
         when {
             detailState.saveSuccess -> {
@@ -75,8 +91,8 @@ fun ExerciseDetailScreen(
         Box(Modifier.padding(padding)) {
             ExerciseDetailScreenContent(
                 exercise = exercise,
-                isLoading = libState.isLoading && exercise == null,
-                errorMessage = libState.error,
+                isLoading = (libState.isLoading || detailState.isLoading) && exercise == null,
+                errorMessage = detailState.error ?: libState.error,
                 isFavorite = isFavorite,
                 onRetry = { libraryViewModel.loadExercises() },
                 onBackClick = { navController.popBackStack() },
@@ -132,82 +148,410 @@ private fun DetailShell(
     onFavoriteToggle: () -> Unit,
     onAddToWorkoutClick: () -> Unit
 ) {
-    val uriHandler = LocalUriHandler.current
-    TrainScreen {
-        Column(Modifier.fillMaxSize()) {
-            TrainHeader(
-                title = exercise.name,
-                subtitle = exercise.category ?: exercise.muscleGroup,
-                onBack = onBackClick,
-                right = {
-                    TrainRoundIconButton(
-                        icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Yêu thích",
-                        onClick = onFavoriteToggle,
-                        tint = if (isFavorite) TrainColors.Cardio else TrainColors.Ink
+    var videoUrl by remember { mutableStateOf<String?>(null) }
+    val mediaItems = remember(exercise) { exerciseMediaItems(exercise) }
+    Box(Modifier.fillMaxSize().background(TrainColors.Cream)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 108.dp)
+        ) {
+            item {
+                ExerciseHeroMedia(
+                    exercise = exercise,
+                    mediaItems = mediaItems,
+                    isFavorite = isFavorite,
+                    onBackClick = onBackClick,
+                    onFavoriteToggle = onFavoriteToggle,
+                    onOpenVideo = { videoUrl = it }
+                )
+            }
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(TrainColors.Cream)
+                        .padding(start = 21.dp, end = 21.dp, top = 23.dp)
+                ) {
+                    Text(
+                        exercise.name,
+                        color = TrainColors.Forest,
+                        fontSize = 32.sp,
+                        lineHeight = 34.sp,
+                        fontWeight = FontWeight.Normal,
+                        fontFamily = com.vitalai.ui.theme.VitalDisplayFontFamily
+                    )
+                    Spacer(Modifier.height(13.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        TrainTypeBadge(exercise.exerciseType)
+                        Text(exercise.category ?: exercise.muscleGroup, color = TrainColors.Charcoal, fontSize = 14.sp)
+                        Text("·", color = TrainColors.Charcoal.copy(alpha = 0.55f), fontSize = 14.sp)
+                        Text("★ ${exerciseDifficultyLabel(exercise.difficultyLevel)}", color = TrainColors.Sport, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Spacer(Modifier.height(13.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Favorite, contentDescription = null, tint = TrainColors.Cardio, modifier = Modifier.size(16.dp))
+                        Text("${exercise.favoritesCount} người yêu thích", color = TrainColors.Charcoal, fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.height(26.dp))
+                    ExercisePixelStats(exercise)
+                    Spacer(Modifier.height(23.dp))
+                    ExerciseMuscleAndEquipment(exercise)
+                    Spacer(Modifier.height(20.dp))
+                    TextBlocks(exercise)
+                    Spacer(Modifier.height(10.dp))
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(TrainColors.Cream)
+                .navigationBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 13.dp, bottom = 13.dp)
+        ) {
+            TrainPrimaryButton(
+                text = "Thêm vào buổi tập hôm nay",
+                icon = Icons.Default.Add,
+                onClick = onAddToWorkoutClick,
+                modifier = Modifier.height(56.dp)
+            )
+        }
+    }
+
+    videoUrl?.let { url ->
+        ExerciseVideoDialog(url = url, onDismiss = { videoUrl = null })
+    }
+}
+
+private enum class ExerciseMediaType { Video, Image }
+
+private data class ExerciseMediaItem(
+    val type: ExerciseMediaType,
+    val url: String?,
+    val previewUrl: String?
+)
+
+private fun exerciseMediaItems(exercise: ExerciseDto): List<ExerciseMediaItem> {
+    val images = exercise.imageUrl.orEmpty()
+        .mapNotNull { ImageUrlResolver.resolve(it) }
+        .ifEmpty { listOfNotNull(exercise.displayImageUrl) }
+        .distinct()
+    val items = mutableListOf<ExerciseMediaItem>()
+    if (!exercise.videoUrl.isNullOrBlank()) {
+        items += ExerciseMediaItem(ExerciseMediaType.Video, exercise.videoUrl, images.firstOrNull())
+    }
+    images.forEach { items += ExerciseMediaItem(ExerciseMediaType.Image, it, it) }
+    if (items.isEmpty()) items += ExerciseMediaItem(ExerciseMediaType.Image, null, null)
+    return items
+}
+
+@Composable
+private fun ExerciseHeroMedia(
+    exercise: ExerciseDto,
+    mediaItems: List<ExerciseMediaItem>,
+    isFavorite: Boolean,
+    onBackClick: () -> Unit,
+    onFavoriteToggle: () -> Unit,
+    onOpenVideo: (String) -> Unit
+) {
+    val listState = rememberLazyListState()
+    val page by remember { derivedStateOf { listState.firstVisibleItemIndex.coerceAtMost(mediaItems.lastIndex) } }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(360.dp)
+            .background(Color(0xFFC8DCC8))
+    ) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            LazyRow(
+                state = listState,
+                flingBehavior = rememberSnapFlingBehavior(lazyListState = listState),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                itemsIndexed(mediaItems) { _, item ->
+                    ExerciseHeroPage(
+                        exercise = exercise,
+                        item = item,
+                        width = maxWidth,
+                        onOpenVideo = onOpenVideo
                     )
                 }
-            )
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                item {
-                    TrainCard(tone = TrainTone.Mint, padding = PaddingValues(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            TrainExerciseThumb(exercise, size = 82.dp, radius = 18.dp)
-                            Column(Modifier.weight(1f)) {
-                                TrainTypeBadge(exercise.exerciseType)
-                                Spacer(Modifier.height(8.dp))
-                                TrainDisplayTitle(exercise.name, maxLinesModifier())
-                                Text(
-                                    exercise.description ?: "Chưa có mô tả",
-                                    color = TrainColors.Forest.copy(alpha = 0.78f),
-                                    fontSize = 13.sp,
-                                    lineHeight = 18.sp,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        if (!exercise.videoUrl.isNullOrBlank()) {
-                            Spacer(Modifier.height(14.dp))
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(TrainColors.Forest)
-                                    .clickable { uriHandler.openUri(exercise.videoUrl) }
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = TrainColors.Cream, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Xem video hướng dẫn", color = TrainColors.Cream, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                            }
-                        }
-                    }
-                }
-                item {
-                    when (exercise.exerciseType.uppercase()) {
-                        "GYM" -> GymDetailContent(exercise)
-                        "CARDIO" -> CardioDetailContent(exercise)
-                        else -> SportDetailContent(exercise)
-                    }
-                }
-                item { TextBlocks(exercise) }
             }
-            Box(
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 18.dp, end = 18.dp, top = 18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HeroCircleButton(icon = Icons.AutoMirrored.Filled.ArrowBack, onClick = onBackClick)
+            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                HeroCircleButton(
+                    icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    tint = if (isFavorite) TrainColors.Cardio else TrainColors.Forest,
+                    onClick = onFavoriteToggle
+                )
+                HeroCircleButton(icon = Icons.Default.MoreHoriz, onClick = {})
+            }
+        }
+
+        if (mediaItems[page].type == ExerciseMediaType.Video && !mediaItems[page].url.isNullOrBlank()) {
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(TrainColors.Cream)
-                    .navigationBarsPadding()
-                    .padding(horizontal = 18.dp, vertical = 12.dp)
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = 18.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(TrainColors.Forest.copy(alpha = 0.62f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                TrainPrimaryButton(text = "Thêm vào buổi tập", icon = Icons.Default.Add, onClick = onAddToWorkoutClick)
+                Icon(Icons.Default.PlayArrow, contentDescription = null, tint = TrainColors.Cream, modifier = Modifier.size(14.dp))
+                Text("1:24 · HD", color = TrainColors.Cream, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 17.dp, bottom = 19.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            mediaItems.forEachIndexed { index, _ ->
+                Box(
+                    Modifier
+                        .size(width = if (index == page) 21.dp else 8.dp, height = 8.dp)
+                        .clip(CircleShape)
+                        .background(TrainColors.Cream.copy(alpha = if (index == page) 0.95f else 0.55f))
+                )
             }
         }
     }
+}
+
+@Composable
+private fun ExerciseHeroPage(
+    exercise: ExerciseDto,
+    item: ExerciseMediaItem,
+    width: androidx.compose.ui.unit.Dp,
+    onOpenVideo: (String) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .width(width)
+            .fillMaxHeight()
+            .background(Color(0xFFC8DCC8)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!item.previewUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = item.previewUrl,
+                contentDescription = exercise.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Icon(Icons.Default.FitnessCenter, contentDescription = null, tint = TrainColors.Forest.copy(alpha = 0.35f), modifier = Modifier.size(104.dp))
+        }
+        if (item.type == ExerciseMediaType.Video && !item.url.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .size(84.dp)
+                    .clip(CircleShape)
+                    .background(TrainColors.Cream.copy(alpha = 0.94f))
+                    .clickable { onOpenVideo(item.url) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = "Phát video", tint = TrainColors.Forest, modifier = Modifier.size(44.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroCircleButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tint: Color = TrainColors.Forest,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(46.dp)
+            .clip(CircleShape)
+            .background(TrainColors.Cream.copy(alpha = 0.96f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(23.dp))
+    }
+}
+
+@Composable
+private fun ExercisePixelStats(exercise: ExerciseDto) {
+    Column {
+        Text("Thông số mặc định", color = TrainColors.Charcoal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(14.dp))
+        when (exercise.exerciseType.uppercase()) {
+            "GYM" -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                DefaultStat((exercise.defaultSets ?: 4).toString(), "Sets", Modifier.weight(1f), TrainTone.Keylime)
+                DefaultStat((exercise.defaultReps ?: 6).toString(), "Reps", Modifier.weight(1f), TrainTone.Keylime)
+                DefaultStat(defaultWeightText(exercise), "Tạ", Modifier.weight(1f), TrainTone.Keylime)
+            }
+            "CARDIO" -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                DefaultStat("${exercise.defaultDurationMinutes ?: 30}", "Phút", Modifier.weight(1f), TrainTone.Keylime)
+                DefaultStat("%.1f".format(exercise.metValue.takeIf { it > 0f } ?: 6f), "MET", Modifier.weight(1f), TrainTone.Keylime)
+                DefaultStat("${(exercise.estimatedCaloriesPerMinute ?: exercise.caloriesPerMin).roundToInt()}", "kcal/phút", Modifier.weight(1f), TrainTone.Keylime)
+            }
+            else -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                DefaultStat("${exercise.defaultDurationMinutes ?: 30}", "Phút", Modifier.weight(1f), TrainTone.Keylime)
+                DefaultStat(intensityLabel(exercise.defaultIntensityLevel ?: "MEDIUM"), "Cường độ", Modifier.weight(1f), TrainTone.Keylime)
+                DefaultStat("%.1f".format(exercise.metValue.takeIf { it > 0f } ?: 6f), "MET", Modifier.weight(1f), TrainTone.Keylime)
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            Text("◷", color = TrainColors.Forest, fontSize = 17.sp)
+            Text(
+                when (exercise.exerciseType.uppercase()) {
+                    "GYM" -> "Nghỉ giữa set: "
+                    "CARDIO" -> "Pace/MET: "
+                    else -> "Cường độ mặc định: "
+                },
+                color = TrainColors.Charcoal,
+                fontSize = 14.sp
+            )
+            Text(
+                when (exercise.exerciseType.uppercase()) {
+                    "GYM" -> "${exercise.restTimeSeconds ?: 150} giây · MET: %.1f".format(exercise.metValue.takeIf { it > 0f } ?: 6f)
+                    "CARDIO" -> "MET %.1f".format(exercise.metValue.takeIf { it > 0f } ?: 6f)
+                    else -> intensityLabel(exercise.defaultIntensityLevel ?: "MEDIUM")
+                },
+                color = TrainColors.Forest,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExerciseMuscleAndEquipment(exercise: ExerciseDto) {
+    val muscles = buildList {
+        exercise.targetMuscleGroup?.takeIf { it.isNotBlank() }?.let { add(it) }
+        exercise.muscleGroup.takeIf { it.isNotBlank() }?.let { add(it) }
+        addAll(exercise.secondaryMuscleGroups.orEmpty())
+    }.distinct().ifEmpty { listOf(exercise.category ?: "Toàn thân") }
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column {
+            Text("Nhóm cơ mục tiêu", color = TrainColors.Charcoal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
+                muscles.take(4).forEach { muscle ->
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(TrainColors.MintKiss)
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(muscleLabel(muscle), color = TrainColors.Forest, fontSize = 14.sp)
+                    }
+                }
+            }
+        }
+        Column {
+            Text("Dụng cụ", color = TrainColors.Charcoal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                Text("↱", color = TrainColors.Forest, fontSize = 17.sp)
+                Text(equipmentLabel(exercise.equipment), color = TrainColors.Charcoal, fontSize = 14.sp)
+            }
+        }
+        Column {
+            Text("Mô tả", color = TrainColors.Charcoal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                exercise.description ?: "Chưa có mô tả",
+                color = TrainColors.Charcoal,
+                fontSize = 14.sp,
+                lineHeight = 21.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExerciseVideoDialog(url: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Đóng", color = TrainColors.Forest) }
+        },
+        title = { Text("Video hướng dẫn", color = TrainColors.Ink, fontWeight = FontWeight.Bold) },
+        text = {
+            AndroidView(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                factory = { context ->
+                    WebView(context).apply {
+                        webViewClient = WebViewClient()
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        loadUrl(youtubeEmbedUrl(url))
+                    }
+                },
+                update = { it.loadUrl(youtubeEmbedUrl(url)) }
+            )
+        },
+        containerColor = TrainColors.Cream
+    )
+}
+
+private fun youtubeEmbedUrl(url: String): String {
+    val trimmed = url.trim()
+    val videoId = when {
+        "youtu.be/" in trimmed -> trimmed.substringAfter("youtu.be/").substringBefore("?").substringBefore("/")
+        "v=" in trimmed -> trimmed.substringAfter("v=").substringBefore("&")
+        "/embed/" in trimmed -> trimmed.substringAfter("/embed/").substringBefore("?")
+        else -> ""
+    }
+    return if (videoId.isNotBlank()) "https://www.youtube.com/embed/$videoId" else trimmed
+}
+
+private fun defaultWeightText(exercise: ExerciseDto): String {
+    val weight = exercise.defaultWeightKg ?: 100f
+    return if (weight % 1f == 0f) "${weight.toInt()} kg" else "%.1f kg".format(weight)
+}
+
+private fun muscleLabel(value: String): String = when (value.uppercase()) {
+    "LOWER BACK", "BACK", "LATS" -> "Lưng dưới"
+    "GLUTES" -> "Mông"
+    "HAMSTRINGS" -> "Đùi sau"
+    "ARMS", "BICEPS", "TRICEPS" -> "Cánh tay"
+    "CHEST" -> "Ngực"
+    "SHOULDERS" -> "Vai"
+    "LEGS", "QUADS" -> "Chân"
+    else -> value
+}
+
+private fun equipmentLabel(value: String?): String = when (value?.lowercase()) {
+    null, "", "none", "none (bodyweight exercise)", "bodyweight" -> "Trọng lượng cơ thể"
+    "dumbbell" -> "Tạ đơn"
+    "barbell" -> "Tạ đòn"
+    "bench" -> "Ghế tập"
+    else -> value
+}
+
+private fun exerciseDifficultyLabel(value: String?): String = when (value?.uppercase()) {
+    "BEGINNER" -> "Dễ"
+    "INTERMEDIATE" -> "Vừa"
+    "ADVANCED" -> "Khó"
+    else -> value ?: "Vừa"
 }
 
 @Composable

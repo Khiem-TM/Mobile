@@ -132,10 +132,7 @@ fun CoachScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(uiState.messages) { msg ->
-                            ChatBubble(role = msg.role, content = msg.content)
-                        }
-                        if (uiState.isSending) {
-                            item { TypingIndicator() }
+                            ChatBubble(message = msg)
                         }
                     }
                 }
@@ -353,8 +350,8 @@ private fun SessionHistoryItem(
 // ── Chat UI components ─────────────────────────────────────────────────────────
 
 @Composable
-private fun ChatBubble(role: String, content: String) {
-    val isUser = role == "user"
+private fun ChatBubble(message: CoachMessageUi) {
+    val isUser = message.role == "user"
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
@@ -382,12 +379,85 @@ private fun ChatBubble(role: String, content: String) {
             shadowElevation = 1.dp,
             modifier = Modifier.widthIn(max = 280.dp)
         ) {
-            Text(
-                text = content,
-                color = if (isUser) Color.White else Color(0xFF1F2937),
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                fontSize = 14.sp,
-                lineHeight = 20.sp
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                if (!isUser && message.content.isBlank() && message.isStreaming) {
+                    InlineTypingDots()
+                } else {
+                    Text(
+                        text = message.content,
+                        color = if (isUser) Color.White else Color(0xFF1F2937),
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    )
+                }
+
+                if (!isUser && message.sources.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        message.sources.take(3).forEach { source ->
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = Mint50,
+                                border = SuggestionChipDefaults.suggestionChipBorder(
+                                    enabled = true,
+                                    borderColor = Mint200
+                                )
+                            ) {
+                                Text(
+                                    text = "Nguồn: ${source.title}",
+                                    color = Mint700,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                val disclaimer = message.disclaimer
+                if (!isUser && !disclaimer.isNullOrBlank() && !message.content.contains(disclaimer)) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = disclaimer,
+                        color = Ink500,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+
+                if (!isUser && message.isError) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("Kết nối bị gián đoạn", color = Color(0xFFB91C1C), fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InlineTypingDots() {
+    val infiniteTransition = rememberInfiniteTransition(label = "typing")
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(3) { i ->
+            val alpha by infiniteTransition.animateFloat(
+                initialValue = 0.3f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(600, delayMillis = i * 200),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "dot_$i"
+            )
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(Mint500.copy(alpha = alpha))
             )
         }
     }
@@ -395,7 +465,6 @@ private fun ChatBubble(role: String, content: String) {
 
 @Composable
 private fun TypingIndicator() {
-    val infiniteTransition = rememberInfiniteTransition(label = "typing")
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
         Box(
             modifier = Modifier
@@ -412,28 +481,8 @@ private fun TypingIndicator() {
             color = AppSurface,
             shadowElevation = 1.dp
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(3) { i ->
-                    val alpha by infiniteTransition.animateFloat(
-                        initialValue = 0.3f,
-                        targetValue = 1f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(600, delayMillis = i * 200),
-                            repeatMode = RepeatMode.Reverse
-                        ),
-                        label = "dot_$i"
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(Mint500.copy(alpha = alpha))
-                    )
-                }
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                InlineTypingDots()
             }
         }
     }

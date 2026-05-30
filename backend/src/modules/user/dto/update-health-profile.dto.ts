@@ -78,6 +78,13 @@ export class UpdateHealthProfileDto {
   @Max(10000)
   waterGoalMl?: number;
 
+  @ApiPropertyOptional({ example: 10000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100000)
+  stepGoal?: number;
+
   @ApiPropertyOptional({ example: 2000 })
   @IsOptional()
   @IsNumber()

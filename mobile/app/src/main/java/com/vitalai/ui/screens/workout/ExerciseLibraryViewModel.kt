@@ -43,7 +43,8 @@ class ExerciseLibraryViewModel @Inject constructor(
             trainingRepository.getExercises(
                 type = state.selectedType,
                 name = state.searchQuery.takeIf { it.isNotBlank() },
-                muscleGroup = state.selectedMuscleGroup
+                muscleGroup = state.selectedMuscleGroup,
+                difficultyLevel = state.selectedIntensity
             ).fold(
                 onSuccess = { list ->
                     _uiState.update { s ->
@@ -68,10 +69,8 @@ class ExerciseLibraryViewModel @Inject constructor(
     }
 
     fun setIntensityFilter(intensity: String?) {
-        _uiState.update { state ->
-            val updated = state.copy(selectedIntensity = intensity)
-            updated.copy(filteredExercises = applyLocalFilters(updated))
-        }
+        _uiState.update { it.copy(selectedIntensity = intensity) }
+        loadExercises()
     }
 
     fun setSearchQuery(query: String) {
@@ -123,15 +122,8 @@ class ExerciseLibraryViewModel @Inject constructor(
         }
     }
 
-    // Local filter for difficulty; type/name/muscleGroup are handled server-side.
+    // Server handles type/name/muscle/difficulty; keep local sort for stable UI.
     private fun applyLocalFilters(state: ExerciseLibraryUiState): List<ExerciseDto> {
-        var list = state.exercises
-        if (state.selectedIntensity != null) {
-            list = list.filter {
-                it.difficultyLevel.equals(state.selectedIntensity, ignoreCase = true) ||
-                    it.intensity.equals(state.selectedIntensity, ignoreCase = true)
-            }
-        }
-        return list.sortedByDescending { it.favoritesCount }
+        return state.exercises.sortedByDescending { it.favoritesCount }
     }
 }

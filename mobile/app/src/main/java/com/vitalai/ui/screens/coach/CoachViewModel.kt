@@ -4,18 +4,42 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.ChatMessageDto
 import com.vitalai.data.remote.model.ChatSessionDto
+import com.vitalai.data.remote.model.ChatSourceDto
+import com.vitalai.data.remote.model.ChatStreamEvent
 import com.vitalai.data.repository.ChatbotRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class CoachMessageUi(
+    val id: String,
+    val role: String,
+    val content: String,
+    val createdAt: String,
+    val isStreaming: Boolean = false,
+    val sources: List<ChatSourceDto> = emptyList(),
+    val intent: String? = null,
+    val disclaimer: String? = null,
+    val isError: Boolean = false
+) {
+    companion object {
+        fun fromDto(dto: ChatMessageDto): CoachMessageUi = CoachMessageUi(
+            id = dto.id,
+            role = dto.role,
+            content = dto.content,
+            createdAt = dto.createdAt
+        )
+    }
+}
+
 data class CoachUiState(
     val sessions: List<ChatSessionDto> = emptyList(),
     val currentSessionId: String? = null,
-    val messages: List<ChatMessageDto> = emptyList(),
+    val messages: List<CoachMessageUi> = emptyList(),
     val inputText: String = "",
     val isLoading: Boolean = false,
     val isSending: Boolean = false,
@@ -50,7 +74,12 @@ class CoachViewModel @Inject constructor(
     fun loadMessages(sessionId: String) {
         viewModelScope.launch {
             chatbotRepository.getMessages(sessionId).onSuccess { msgs ->
-                _uiState.update { it.copy(messages = msgs, currentSessionId = sessionId) }
+                _uiState.update {
+                    it.copy(
+                        messages = msgs.map(CoachMessageUi::fromDto),
+                        currentSessionId = sessionId
+                    )
+                }
             }
         }
     }
@@ -96,29 +125,100 @@ class CoachViewModel @Inject constructor(
         val content = _uiState.value.inputText.trim()
         if (content.isBlank()) return
 
-        val userMsg = ChatMessageDto(
-            id = "temp_${System.currentTimeMillis()}",
+        val now = System.currentTimeMillis()
+        val userMsg = CoachMessageUi(
+            id = "temp_user_$now",
             role = "user",
             content = content,
             createdAt = ""
         )
+        val assistantTempId = "temp_assistant_$now"
+        val assistantMsg = CoachMessageUi(
+            id = assistantTempId,
+            role = "assistant",
+            content = "",
+            createdAt = "",
+            isStreaming = true
+        )
 
-        _uiState.update { it.copy(messages = it.messages + userMsg, inputText = "", isSending = true) }
+        _uiState.update {
+            it.copy(
+                messages = it.messages + userMsg + assistantMsg,
+                inputText = "",
+                isSending = true,
+                error = null
+            )
+        }
 
         viewModelScope.launch {
-            chatbotRepository.sendMessage(sessionId, content).onSuccess { aiMsg ->
-                // Update session's lastMessage preview in the list
-                val updatedSessions = _uiState.value.sessions.map { s ->
-                    if (s.id == sessionId) s.copy(lastMessage = aiMsg.content.take(80)) else s
+            chatbotRepository.sendMessageStream(sessionId, content)
+                .catch {
+                    markAssistantError(assistantTempId, "Không gửi được tin nhắn. Thử lại.")
                 }
-                _uiState.update { it.copy(messages = it.messages + aiMsg, isSending = false, sessions = updatedSessions) }
-            }.onFailure {
-                _uiState.update { it.copy(isSending = false, error = "Không gửi được tin nhắn. Thử lại.") }
-            }
+                .collect { event ->
+                    when (event) {
+                        is ChatStreamEvent.Meta -> updateAssistant(assistantTempId) {
+                            it.copy(intent = event.intent, sources = event.sources)
+                        }
+                        is ChatStreamEvent.Delta -> updateAssistant(assistantTempId) {
+                            it.copy(content = it.content + event.text, isStreaming = true)
+                        }
+                        is ChatStreamEvent.Done -> {
+                            val finalMessage = CoachMessageUi.fromDto(event.message).copy(
+                                intent = event.intent,
+                                sources = event.sources,
+                                disclaimer = event.disclaimer,
+                                isStreaming = false
+                            )
+                            val updatedSessions = _uiState.value.sessions.map { s ->
+                                if (s.id == sessionId) s.copy(lastMessage = finalMessage.content.take(80)) else s
+                            }
+                            _uiState.update { state ->
+                                state.copy(
+                                    messages = state.messages.map {
+                                        if (it.id == assistantTempId) finalMessage else it
+                                    },
+                                    isSending = false,
+                                    sessions = updatedSessions
+                                )
+                            }
+                        }
+                        is ChatStreamEvent.Error -> markAssistantError(assistantTempId, event.message)
+                    }
+                }
         }
     }
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    private fun updateAssistant(
+        assistantTempId: String,
+        transform: (CoachMessageUi) -> CoachMessageUi
+    ) {
+        _uiState.update { state ->
+            state.copy(
+                messages = state.messages.map { msg ->
+                    if (msg.id == assistantTempId) transform(msg) else msg
+                }
+            )
+        }
+    }
+
+    private fun markAssistantError(assistantTempId: String, message: String) {
+        _uiState.update { state ->
+            state.copy(
+                messages = state.messages.map { msg ->
+                    if (msg.id == assistantTempId) {
+                        msg.copy(isStreaming = false, isError = true)
+                    } else {
+                        msg
+                    }
+                },
+                isSending = false,
+                error = message
+            )
+        }
     }
 }

@@ -117,6 +117,7 @@ fun GoalsScreen(
                 GoalField("Carbs (g)", uiState.carbsGoalG, viewModel::onCarbs)
                 GoalField("Chất béo (g)", uiState.fatGoalG, viewModel::onFat)
                 GoalField("Nước (ml)", uiState.waterGoalMl, viewModel::onWater)
+                GoalField("Bước chân/ngày", uiState.stepGoal, viewModel::onStepGoal)
 
                 Spacer(Modifier.height(20.dp))
                 SectionLabel("CÂN NẶNG")

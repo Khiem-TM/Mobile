@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.DashboardMonthlyDto
 import com.vitalai.data.remote.model.DashboardWeeklyDto
+import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.remote.model.MealLogDto
 import com.vitalai.data.remote.model.StreakDto
 import com.vitalai.data.remote.model.UserDto
 import com.vitalai.data.repository.DashboardRepository
 import com.vitalai.data.repository.MealLogRepository
+import com.vitalai.data.repository.TrainingRepository
 import com.vitalai.data.repository.UserRepository
 import com.vitalai.core.error.AppErrorMapper
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,6 +30,7 @@ data class HomeUiState(
     val monthlyDashboard: DashboardMonthlyDto? = null,
     val streaks: StreakDto? = null,
     val mealLogs: List<MealLogDto> = emptyList(),
+    val recentActivityLogs: List<ActivityLogDto> = emptyList(),
     val unreadCount: Int = 0,
     val user: UserDto? = null,
     val selectedDate: String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
@@ -40,6 +43,7 @@ data class HomeUiState(
 class HomeViewModel @Inject constructor(
     private val dashboardRepository: DashboardRepository,
     private val mealLogRepository: MealLogRepository,
+    private val trainingRepository: TrainingRepository,
     private val userRepository: UserRepository
 ) : ViewModel() {
 
@@ -66,6 +70,12 @@ class HomeViewModel @Inject constructor(
             val weekStart = selectedLocalDate.minusDays((selectedLocalDate.dayOfWeek.value - 1).toLong())
             val weeklyDeferred = async { dashboardRepository.getWeeklyDashboard(weekStart.toString()) }
             val monthlyDeferred = async { dashboardRepository.getMonthlyDashboard(selectedLocalDate.year, selectedLocalDate.monthValue) }
+            val activityRangeDeferred = async {
+                trainingRepository.getActivityLogRange(
+                    selectedLocalDate.minusDays(6).toString(),
+                    selectedLocalDate.toString()
+                )
+            }
 
             val dashboardResult = dashboardDeferred.await()
             val dashboard = dashboardResult.getOrNull()
@@ -75,6 +85,7 @@ class HomeViewModel @Inject constructor(
             val user = userDeferred.await().getOrNull()
             val weekly = weeklyDeferred.await().getOrNull()
             val monthly = monthlyDeferred.await().getOrNull()
+            val activityRange = activityRangeDeferred.await().getOrElse { emptyList() }
 
             // Only surface a blocking error when the core dashboard load failed and
             // we have nothing to show; otherwise render whatever loaded.
@@ -91,6 +102,7 @@ class HomeViewModel @Inject constructor(
                     monthlyDashboard = monthly ?: it.monthlyDashboard,
                     streaks = streaks ?: it.streaks,
                     mealLogs = mealLogs,
+                    recentActivityLogs = activityRange,
                     unreadCount = unread,
                     user = user ?: it.user,
                     isLoading = false,
@@ -112,18 +124,34 @@ class HomeViewModel @Inject constructor(
     fun addWater(deltaMl: Int = 250) {
         viewModelScope.launch {
             val current = _uiState.value.dashboard?.waterMl ?: 0
-            dashboardRepository.addWater(current + deltaMl).onSuccess { updatedDashboard ->
+            val date = _uiState.value.selectedDate
+            val result = dashboardRepository.addWater((current + deltaMl).coerceAtLeast(0), date)
+            result.onSuccess { updatedDashboard ->
                 _uiState.update { it.copy(dashboard = updatedDashboard) }
             }
+            if (result.isSuccess) refreshActivityRange()
         }
     }
 
     /** Sets today's total step count to [steps]. */
     fun setSteps(steps: Int) {
         viewModelScope.launch {
-            dashboardRepository.addSteps(steps).onSuccess { updatedDashboard ->
+            val date = _uiState.value.selectedDate
+            val result = dashboardRepository.addSteps(steps, date)
+            result.onSuccess { updatedDashboard ->
                 _uiState.update { it.copy(dashboard = updatedDashboard) }
             }
+            if (result.isSuccess) refreshActivityRange()
+        }
+    }
+
+    private suspend fun refreshActivityRange() {
+        val selectedLocalDate = LocalDate.parse(_uiState.value.selectedDate)
+        trainingRepository.getActivityLogRange(
+            selectedLocalDate.minusDays(6).toString(),
+            selectedLocalDate.toString()
+        ).onSuccess { logs ->
+            _uiState.update { it.copy(recentActivityLogs = logs) }
         }
     }
 
