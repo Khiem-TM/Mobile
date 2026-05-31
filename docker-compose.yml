@@ -71,6 +71,8 @@ services:
       dockerfile: Dockerfile
     container_name: calories_rag
     restart: unless-stopped
+    env_file:
+      - ./rag-service/.env
     ports:
       - "8001:8001"
     environment:
@@ -80,17 +82,9 @@ services:
       POSTGRES_URL: postgresql+asyncpg://rag_reader:ragpass@postgres:5432/calories_tracker
       RAG_SCHEMA: rag
       REDIS_URL: redis://redis:6379/1
-      # LLM = OpenAI (generation); để trống key -> service tự chạy chế độ stub (dev)
-      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_LLM_MODEL: ${OPENAI_LLM_MODEL:-gpt-4o-mini}
-      # Fallback Gemini (key đã có trong repo)
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
-      # Embedding = local (intfloat/multilingual-e5-base, 768-dim)
-      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
-      EMBED_MODEL: ${EMBED_MODEL:-intfloat/multilingual-e5-base}
-      EMBED_DIM: ${EMBED_DIM:-768}
+      # LLM/Embedding keys and model settings are loaded from ./rag-service/.env.
+      # Do not override OPENAI_API_KEY here: an empty Compose interpolation would
+      # force StubLLM even when rag-service/.env contains a valid key.
       # Secret nội bộ — phải khớp RAG_INTERNAL_SECRET bên backend/.env
       NESTJS_INTERNAL_SECRET: ${RAG_INTERNAL_SECRET:-dev-secret-change-in-prod}
     volumes:

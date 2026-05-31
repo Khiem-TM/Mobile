@@ -26,7 +26,10 @@ class Settings(BaseSettings):
 
     # LLM generation
     llm_provider: str = "openai"  # openai | gemini | stub
-    openai_api_key: str = ""
+    openai_api_key: str = Field(
+        default="",
+        validation_alias=AliasChoices("OPENAI_API_KEY", "OPEN_AI_KEY", "openai_api_key"),
+    )
     # Chấp nhận cả OPENAI_MODEL (tên trong .env của user) lẫn OPENAI_LLM_MODEL.
     openai_llm_model: str = Field(
         default="gpt-4o-mini",

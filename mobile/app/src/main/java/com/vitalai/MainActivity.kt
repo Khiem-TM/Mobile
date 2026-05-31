@@ -15,6 +15,7 @@ import com.vitalai.core.notification.DeepLinkBus
 import com.vitalai.core.notification.DeviceTokenRegistrar
 import com.vitalai.core.notification.NotificationDeepLink
 import com.vitalai.core.notification.VitalFirebaseMessagingService
+import com.vitalai.core.sync.SyncScheduler
 import com.vitalai.navigation.VitalApp
 import com.vitalai.ui.theme.VitalAITheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var deepLinkBus: DeepLinkBus
     @Inject lateinit var deviceTokenRegistrar: DeviceTokenRegistrar
+    @Inject lateinit var syncScheduler: SyncScheduler
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* kết quả không bắt buộc xử lý */ }
@@ -39,6 +41,9 @@ class MainActivity : ComponentActivity() {
 
         // Đồng bộ FCM token nếu đã đăng nhập (no-op nếu chưa).
         lifecycleScope.launch { runCatching { deviceTokenRegistrar.ensureRegistered() } }
+
+        // Vét hàng đợi ghi còn tồn (ghi offline trước đó) khi mở app.
+        syncScheduler.requestSync()
 
         setContent {
             VitalAITheme {

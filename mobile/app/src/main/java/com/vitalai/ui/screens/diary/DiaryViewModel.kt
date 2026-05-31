@@ -7,10 +7,13 @@ import com.vitalai.data.remote.model.MealLogSummaryDto
 import com.vitalai.data.remote.model.UpdateMealLogItemRequest
 import com.vitalai.data.repository.MealLogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -24,39 +27,58 @@ data class DiaryUiState(
     val error: String? = null
 )
 
+/**
+ * Offline-first: UI **observe** Room (source-of-truth). Mọi thao tác ghi cập nhật
+ * Room ngay -> Flow tự phát -> UI đổi TỨC THÌ (không await network, không refetch).
+ * `refresh()` chỉ kéo dữ liệu mới từ network vào Room (chạy nền).
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DiaryViewModel @Inject constructor(
     private val mealLogRepository: MealLogRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(DiaryUiState())
-    val uiState = _uiState.asStateFlow()
+    private val _selectedDate = MutableStateFlow(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
+    private val _isLoading = MutableStateFlow(false)
+    private val _error = MutableStateFlow<String?>(null)
 
-    init {
-        loadMealLogs()
+    private val mealLogsFlow = _selectedDate.flatMapLatest { date ->
+        mealLogRepository.observeMealLogs(date)
     }
 
-    fun loadMealLogs() {
-        val date = _uiState.value.selectedDate
+    val uiState: StateFlow<DiaryUiState> = combine(
+        _selectedDate, mealLogsFlow, _isLoading, _error
+    ) { date, logs, loading, error ->
+        DiaryUiState(
+            mealLogs = logs,
+            summary = computeSummary(logs),
+            selectedDate = date,
+            isLoading = loading,
+            error = error
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiaryUiState())
+
+    init { refresh() }
+
+    private fun refresh() {
+        val date = _selectedDate.value
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val logsDeferred = async { mealLogRepository.getMealLogs(date) }
-            val summaryDeferred = async { mealLogRepository.getMealSummary(date) }
-            val logs = logsDeferred.await().getOrElse { emptyList() }
-            val summary = summaryDeferred.await().getOrNull()
-            _uiState.update { it.copy(mealLogs = logs, summary = summary, isLoading = false) }
+            _isLoading.value = true
+            mealLogRepository.refreshMealLogs(date)
+            _isLoading.value = false
         }
     }
+
+    fun loadMealLogs() = refresh()
 
     fun selectDate(date: String) {
-        _uiState.update { it.copy(selectedDate = date) }
-        loadMealLogs()
+        _selectedDate.value = date
+        refresh()
     }
 
+    /** Xóa optimistic: repo xóa khỏi Room ngay (Flow tự cập nhật) + đồng bộ nền. */
     fun deleteItem(mealLogId: String, itemId: String) {
-        viewModelScope.launch {
-            mealLogRepository.deleteItem(mealLogId, itemId).onSuccess { loadMealLogs() }
-        }
+        viewModelScope.launch { mealLogRepository.deleteItem(mealLogId, itemId) }
     }
 
     fun editItem(mealLogId: String, itemId: String, quantity: Float, servingUnit: String) {
@@ -65,13 +87,23 @@ class DiaryViewModel @Inject constructor(
                 mealLogId,
                 itemId,
                 UpdateMealLogItemRequest(quantity = quantity, servingUnit = servingUnit)
-            ).onSuccess { loadMealLogs() }
+            )
         }
     }
 
     fun deleteMealLog(mealLogId: String) {
         viewModelScope.launch {
-            mealLogRepository.deleteMealLog(mealLogId).onSuccess { loadMealLogs() }
+            mealLogRepository.deleteMealLog(mealLogId).onSuccess { refresh() }
         }
+    }
+
+    private fun computeSummary(logs: List<MealLogDto>): MealLogSummaryDto {
+        val items = logs.flatMap { it.items }
+        return MealLogSummaryDto(
+            totalCalories = items.sumOf { it.calories.toDouble() }.toFloat(),
+            totalCarbs = items.sumOf { it.carbsG.toDouble() }.toFloat(),
+            totalProtein = items.sumOf { it.proteinG.toDouble() }.toFloat(),
+            totalFat = items.sumOf { it.fatG.toDouble() }.toFloat()
+        )
     }
 }

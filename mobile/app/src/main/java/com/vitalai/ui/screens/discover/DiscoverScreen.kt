@@ -157,7 +157,7 @@ fun DiscoverScreen(
                                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 4.dp)
                             )
                         }
-                        items(uiState.blogs.drop(1)) { blog ->
+                        items(uiState.blogs.drop(1), key = { it.id }) { blog ->
                             BlogListItem(
                                 blog = blog,
                                 onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
@@ -502,7 +502,7 @@ fun DiscoverScreenPreview() {
                         )
                     }
 
-                    items(blogs.drop(1)) { blog ->
+                    items(blogs.drop(1), key = { it.id }) { blog ->
 
                         BlogListItem(
                             blog = blog,

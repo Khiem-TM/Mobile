@@ -118,22 +118,33 @@ class FoodViewModel @Inject constructor(
     fun addToMealLog(mealType: String, date: String, foodId: String, quantity: Float, servingUnit: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isAdding = true, error = null) }
-            val logs = mealLogRepository.getMealLogs(date).getOrElse { emptyList() }
-            var mealLog = logs.find { it.mealType == mealType }
+            // Tìm bữa ăn từ Room (nhanh); chỉ tạo mới qua network nếu chưa có.
+            var mealLog = mealLogRepository.getCachedMealLog(date, mealType)
             if (mealLog == null) {
-                val created = mealLogRepository.createMealLog(mealType, date)
-                mealLog = created.getOrElse {
+                mealLog = mealLogRepository.createMealLog(mealType, date).getOrElse {
                     _uiState.update { it.copy(isAdding = false, error = "Không thể tạo bữa ăn") }
                     return@launch
                 }
             }
-            mealLogRepository.addItem(mealLog.id, AddMealItemRequest(foodId, quantity, servingUnit))
-                .onSuccess {
-                    _uiState.update { it.copy(isAdding = false, addSuccess = true) }
-                }.onFailure { e ->
-                    _uiState.update { it.copy(isAdding = false, error = e.message ?: "Lỗi thêm món ăn") }
-                }
+            val food = findFood(foodId)
+            if (food != null) {
+                // Optimistic: hiện món ngay, đồng bộ nền.
+                mealLogRepository.addItemOptimistic(mealLog.id, food, quantity, servingUnit)
+                _uiState.update { it.copy(isAdding = false, addSuccess = true) }
+            } else {
+                // Fallback (không tìm thấy FoodDto trong state): hành vi cũ.
+                mealLogRepository.addItem(mealLog.id, AddMealItemRequest(foodId, quantity, servingUnit))
+                    .onSuccess { _uiState.update { it.copy(isAdding = false, addSuccess = true) } }
+                    .onFailure { e -> _uiState.update { it.copy(isAdding = false, error = e.message ?: "Lỗi thêm món ăn") } }
+            }
         }
+    }
+
+    private fun findFood(foodId: String): com.vitalai.data.remote.model.FoodDto? {
+        val s = _uiState.value
+        return s.selectedFood?.takeIf { it.id == foodId }
+            ?: (s.searchResults + s.allFoods + s.customFoods + s.exploreFoods + s.favorites)
+                .firstOrNull { it.id == foodId }
     }
 
     fun selectFood(food: FoodDto) {

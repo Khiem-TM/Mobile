@@ -131,7 +131,7 @@ fun CoachScreen(
                         contentPadding = PaddingValues(vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(uiState.messages) { msg ->
+                        items(uiState.messages, key = { it.id }) { msg ->
                             ChatBubble(message = msg)
                         }
                     }
