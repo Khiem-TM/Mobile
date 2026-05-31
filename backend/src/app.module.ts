@@ -13,6 +13,7 @@ import { TrainModule } from './modules/train/train.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -84,6 +85,7 @@ import { ChatbotModule } from './modules/chatbot/chatbot.module';
     BlogModule,
     AdminModule,
     ChatbotModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

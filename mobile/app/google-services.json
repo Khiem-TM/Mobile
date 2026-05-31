@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "452450770412",
+    "project_id": "calories-tracker-mobile",
+    "storage_bucket": "calories-tracker-mobile.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:452450770412:android:62b8c1f55e3cc651bdb4c9",
+        "android_client_info": {
+          "package_name": "com.vitalai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQuri0Hvfllu3IapY3hJm9Qy3K-aRpIL8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

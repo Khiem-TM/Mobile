@@ -6,6 +6,7 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("kotlin-kapt")
+    id("com.google.gms.google-services")
 }
 
 val localProperties = Properties().also { props ->
@@ -126,10 +127,14 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-svg:2.6.0")
 
-    // Firebase skeletons. google-services.json and Firebase dashboard setup are required by the app owner.
+    // Firebase. Yêu cầu app/google-services.json (xem backend/FIREBASE_SETUP.md).
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging")
-    implementation("com.google.firebase:firebase-crashlytics")
+    // Lưu ý: KHÔNG thêm firebase-crashlytics nếu chưa apply plugin Crashlytics
+    // (sẽ crash "Crashlytics build ID is missing" lúc khởi động). CrashReporter
+    // hiện chỉ là skeleton log cục bộ.
+    // .await() cho Task FCM (lấy token)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

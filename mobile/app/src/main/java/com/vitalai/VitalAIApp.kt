@@ -7,6 +7,7 @@ import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.decode.SvgDecoder
 import com.vitalai.core.monitoring.CrashReporter
+import com.vitalai.core.notification.NotificationChannels
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -22,6 +23,7 @@ class VitalAIApp : Application(), Configuration.Provider, ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         crashReporter.initialize()
+        NotificationChannels.ensure(this)
     }
 
     /**

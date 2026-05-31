@@ -25,6 +25,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.vitalai.core.notification.DeepLinkBus
+import com.vitalai.core.notification.NotificationDeepLink
 import com.vitalai.ui.components.VitalBottomNavBar
 import com.vitalai.ui.screens.auth.SignInScreen
 import com.vitalai.ui.screens.auth.SignUpScreen
@@ -87,7 +89,7 @@ private val mainTabRoutes = listOf(
  * thay vì để từng màn hình tab tự dựng lại.
  */
 @Composable
-fun VitalApp() {
+fun VitalApp(deepLinkBus: DeepLinkBus? = null) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -99,6 +101,20 @@ fun VitalApp() {
 
     // Rời khỏi Coach thì luôn đóng Drawer lại.
     LaunchedEffect(isCoach) { if (!isCoach) drawerState.close() }
+
+    // Điều hướng theo deep-link từ notification (nếu có).
+    val pendingDeepLink by (deepLinkBus?.pending
+        ?: remember { kotlinx.coroutines.flow.MutableStateFlow<NotificationDeepLink?>(null) })
+        .collectAsState()
+    LaunchedEffect(pendingDeepLink) {
+        val dl = pendingDeepLink ?: return@LaunchedEffect
+        when (dl.route) {
+            "blog_detail" -> dl.id?.let { navController.navigate(Screen.BlogDetail(it)) }
+            "home" -> navController.navigate(Screen.Home)
+            else -> navController.navigate(Screen.Notifications)
+        }
+        deepLinkBus?.consume()
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,

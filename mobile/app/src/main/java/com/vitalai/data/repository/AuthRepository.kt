@@ -3,6 +3,7 @@ package com.vitalai.data.repository
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.vitalai.core.error.AppErrorMapper
+import com.vitalai.core.notification.DeviceTokenRegistrar
 import com.vitalai.data.local.TokenManager
 import com.vitalai.data.remote.AuthApi
 import com.vitalai.data.remote.model.ApiResponse
@@ -17,8 +18,13 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val authApi: AuthApi,
     private val tokenManager: TokenManager,
+    private val deviceTokenRegistrar: DeviceTokenRegistrar,
     private val moshi: Moshi
 ) {
+    /** Đẩy FCM token lên backend sau khi đã có access token (best-effort). */
+    private suspend fun syncDeviceToken() {
+        runCatching { deviceTokenRegistrar.ensureRegistered() }
+    }
     private fun parseErrorMessage(response: Response<*>, fallback: String): String {
         return try {
             val errorBody = response.errorBody()?.string()
@@ -60,6 +66,7 @@ class AuthRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
+                syncDeviceToken()
                 Result.success(body)
             } else {
                 Result.failure(Exception(loginErrorMessage(response)))
@@ -75,6 +82,7 @@ class AuthRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
+                syncDeviceToken()
                 Result.success(body)
             } else {
                 val msg = parseErrorMessage(response, "Đăng ký thất bại (${response.code()})")
@@ -91,6 +99,7 @@ class AuthRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
+                syncDeviceToken()
                 Result.success(body)
             } else {
                 val msg = parseErrorMessage(response, "Đăng nhập Google thất bại (${response.code()})")
@@ -102,6 +111,8 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun logout() {
+        // Gỡ FCM token trước khi xoá access token (endpoint cần JWT).
+        runCatching { deviceTokenRegistrar.unregisterCurrent() }
         try {
             val refreshToken = tokenManager.getRefreshToken()
             authApi.logout(mapOf("refresh_token" to refreshToken))

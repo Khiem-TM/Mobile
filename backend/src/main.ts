@@ -1,6 +1,8 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { AppModule } from './app.module';
+import { BLOG_NOTIFICATIONS_TOPIC } from './modules/notification/events/notification-events';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { json, urlencoded } from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -56,6 +58,42 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
+
+  // Kafka consumer (Notification Service). Tắt bằng KAFKA_ENABLED=false để dev không cần broker.
+  const kafkaEnabled = (process.env.KAFKA_ENABLED ?? 'true') !== 'false';
+  if (kafkaEnabled) {
+    const brokers = (process.env.KAFKA_BROKERS || 'localhost:9094').split(',');
+    const clientId = process.env.KAFKA_CLIENT_ID || 'vitalai-backend';
+
+    // Pre-create topic (waitForLeaders) để consumer KRaft không gặp race
+    // "This server does not host this topic-partition" lúc cold-start.
+    try {
+      const { Kafka } = await import('kafkajs');
+      const admin = new Kafka({ clientId: `${clientId}-admin`, brokers }).admin();
+      await admin.connect();
+      await admin.createTopics({
+        waitForLeaders: true,
+        topics: [{ topic: BLOG_NOTIFICATIONS_TOPIC, numPartitions: 1 }],
+      });
+      await admin.disconnect();
+    } catch (e) {
+      console.warn('Kafka topic pre-create warning:', (e as Error).message);
+    }
+
+    app.connectMicroservice<MicroserviceOptions>({
+      transport: Transport.KAFKA,
+      options: {
+        client: { clientId, brokers },
+        consumer: { groupId: 'notification-consumer' },
+      },
+    });
+    try {
+      await app.startAllMicroservices();
+      console.log('Kafka microservice (notification-consumer) started');
+    } catch (e) {
+      console.error('Kafka microservice failed to start:', (e as Error).message);
+    }
+  }
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

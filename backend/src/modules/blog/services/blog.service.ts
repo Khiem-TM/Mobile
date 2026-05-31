@@ -15,6 +15,14 @@ import { UpdateBlogDto } from '../dto/update-blog.dto';
 import { CreateBlogBlockDto } from '../dto/create-blog-block.dto';
 import { CreateCommentDto } from '../dto/create-comment.dto';
 import { RedisService } from '../../support/redis/redis.service';
+import { randomUUID } from 'crypto';
+import { UsersService } from '../../user/services/users.service';
+import { BlogEventPublisher } from './blog-event.publisher';
+import {
+  BLOG_NOTIFICATIONS_TOPIC,
+  BlogNotificationEvent,
+  BlogNotificationType,
+} from '../../notification/events/notification-events';
 
 const TTL = {
   BLOG_LIST: 120,  // 2 min — approved blog list
@@ -40,7 +48,37 @@ export class BlogService {
     private readonly dataSource: DataSource,
     private readonly cloudinaryService: CloudinaryService,
     private readonly redisService: RedisService,
+    private readonly usersService: UsersService,
+    private readonly blogEventPublisher: BlogEventPublisher,
   ) {}
+
+  /** Phát event thông báo khi có tương tác mới (like/comment) tới TÁC GIẢ blog. */
+  private async publishBlogInteraction(
+    type: BlogNotificationType,
+    blog: Blog,
+    actorId: string,
+  ): Promise<void> {
+    // Bỏ qua nếu blog không có tác giả (admin blog) hoặc tự tương tác bài mình.
+    if (!blog.author_id || blog.author_id === actorId) return;
+    let actorName = 'Một người dùng';
+    try {
+      const actor = await this.usersService.findById(actorId);
+      if (actor?.display_name) actorName = actor.display_name;
+    } catch {
+      // tên không lấy được -> dùng mặc định, không chặn luồng
+    }
+    const event: BlogNotificationEvent = {
+      eventId: randomUUID(),
+      type,
+      occurredAt: new Date().toISOString(),
+      blogId: blog.id,
+      blogTitle: blog.title,
+      recipientUserId: blog.author_id,
+      actorId,
+      actorName,
+    };
+    this.blogEventPublisher.emit(BLOG_NOTIFICATIONS_TOPIC, event);
+  }
 
   // ─── Public ────────────────────────────────────────────────────────────────
 
@@ -268,6 +306,11 @@ export class BlogService {
       }
     });
 
+    // Chỉ thông báo khi tạo lượt thích mới (không thông báo khi bỏ thích).
+    if (!existing) {
+      await this.publishBlogInteraction(BlogNotificationType.LIKE, blog, userId);
+    }
+
     return { liked: !existing };
   }
 
@@ -306,6 +349,8 @@ export class BlogService {
       await manager.save(BlogComment, comment);
       await manager.increment(Blog, { id: blogId }, 'commentCount', 1);
     });
+
+    await this.publishBlogInteraction(BlogNotificationType.COMMENT, blog, userId);
 
     return this.commentRepo.findOne({
       where: { id: comment.id },

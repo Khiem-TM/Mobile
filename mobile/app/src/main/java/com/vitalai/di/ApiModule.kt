@@ -5,6 +5,7 @@ import com.vitalai.data.remote.BlogApi
 import com.vitalai.data.remote.BodyMetricsApi
 import com.vitalai.data.remote.ChatbotApi
 import com.vitalai.data.remote.DashboardApi
+import com.vitalai.data.remote.DeviceTokenApi
 import com.vitalai.data.remote.FoodApi
 import com.vitalai.data.remote.MealLogApi
 import com.vitalai.data.remote.NotificationsApi
@@ -60,4 +61,9 @@ object ApiModule {
     @Provides
     @Singleton
     fun provideBlogApi(retrofit: Retrofit): BlogApi = retrofit.create(BlogApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideDeviceTokenApi(retrofit: Retrofit): DeviceTokenApi =
+        retrofit.create(DeviceTokenApi::class.java)
 }

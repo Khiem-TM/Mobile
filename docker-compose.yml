@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: pgvector/pgvector:pg16        # postgres 16 + pgvector có sẵn
@@ -16,6 +14,11 @@ services:
       # Chạy lần đầu (data dir trống) sẽ tạo extension/schema rag + role rag_reader.
       # DB đã tồn tại từ trước -> chạy thủ công: psql ... -f rag-service/scripts/init_db.sql
       - ./rag-service/scripts/init_db.sql:/docker-entrypoint-initdb.d/10-rag-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d calories_tracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -23,6 +26,44 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Kafka KRaft 1 node (không cần Zookeeper). Event bus cho Notification Service.
+  # - Trong docker network: kafka:9092
+  # - Từ host (backend chạy `npm run start:dev`): localhost:9094  -> KAFKA_BROKERS
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: calories_kafka
+    restart: unless-stopped
+    ports:
+      - "9094:9094"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: vitalai-kafka-cluster-1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
 
   rag-service:
     build:
@@ -55,9 +96,60 @@ services:
     volumes:
       - rag_hf_cache:/data/hf       # cache model embedding (tải 1 lần)
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ───────────────────────── Backend NestJS ─────────────────────────
+  # Gateway/Business/Source-of-truth. Đọc secrets từ backend/.env (env_file),
+  # các host nội bộ được override sang tên service trong network docker.
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: calories_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # NODE_ENV=development để TypeORM synchronize tự tạo bảng (chưa có migration).
+      NODE_ENV: development
+      PORT: 3005
+      # Hạ tầng nội bộ (ghi đè giá trị localhost trong .env)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      KAFKA_ENABLED: "true"
+      KAFKA_BROKERS: kafka:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+      RAG_SERVICE_URL: http://rag-service:8001
+      # Food AI (nếu chạy ngoài host) — đổi/ bỏ nếu không dùng
+      FOOD_AI_SERVICE_URL: http://host.docker.internal:8000
+      # Service-account Firebase được mount read-only ở /app/secret
+      FIREBASE_SERVICE_ACCOUNT_PATH: ./secret/calories-tracker-mobile-firebase-adminsdk-fbsvc-b641a8db8e.json
+    ports:
+      - "3005:3005"
+    volumes:
+      - ./backend/secret:/app/secret:ro      # khóa Firebase (không bake vào image)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      rag-service:
+        condition: service_started
 
 volumes:
+  # Dùng lại volume data đã có từ stack cũ (DACN/Project) để KHÔNG mất dữ liệu
+  # (39 users, schema rag...). Nếu muốn DB mới tinh: bỏ external + name đi.
   postgres_data:
+    external: true
+    name: project_postgres_data
   rag_hf_cache:
+  kafka_data:
