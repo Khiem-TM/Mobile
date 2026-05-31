@@ -27,3 +27,16 @@ data class HealthProfileDto(
     val waterGoalMl: Int? = null,
     val stepGoal: Int? = null
 )
+
+@JsonClass(generateAdapter = true)
+data class OnboardingRequest(
+    val birthDate: String,
+    val gender: String,
+    val heightCm: Float,
+    val initialWeightKg: Float,
+    val activityLevel: String,
+    val goalType: String,
+    val targetWeightKg: Float? = null,
+    val dietType: String? = null,
+    val foodAllergies: List<String>? = null
+)

@@ -10,6 +10,7 @@ import { TDEEUtil } from '../../../common/utils/tdee.util';
 import { NotificationsService } from './notifications.service';
 import { NotificationType } from '../entities/notification.entity';
 import { OnboardingDto } from '../dto/onboarding.dto';
+import { ActivityLevel } from '../../../common/enums/activity-level.enum';
 
 @Injectable()
 export class UsersService {
@@ -83,13 +84,14 @@ export class UsersService {
     data: Partial<UserHealthProfile>,
   ): Promise<UserHealthProfile> {
     const profile = await this.getHealthProfile(userId);
+    const cleaned = this.compactHealthProfilePatch(data);
 
     const merged: Partial<UserHealthProfile> = profile
-      ? { ...profile, ...data }
-      : { ...data };
+      ? { ...profile, ...cleaned }
+      : this.withRequiredHealthProfileDefaults(cleaned);
 
     // Auto-calculate macros when goalType is set and no manual macro values provided
-    if (data.goalType && !data.proteinGoalG && !data.fatGoalG && !data.carbsGoalG) {
+    if (cleaned.goalType && !cleaned.proteinGoalG && !cleaned.fatGoalG && !cleaned.carbsGoalG) {
       const latestMetric = await this.bodyMetricsService.getLatest(userId);
       let tdee: number | null = latestMetric?.tdee ? Number(latestMetric.tdee) : null;
 
@@ -118,11 +120,11 @@ export class UsersService {
 
       if (tdee) {
         let calories = tdee;
-        if (data.goalType === 'lose_weight') calories = tdee - 500;
-        else if (data.goalType === 'gain_weight') calories = tdee + 300;
-        else if (data.goalType === 'gain_muscle') calories = tdee + 300;
-        else if (data.goalType === 'bulking') calories = tdee + 500;
-        else if (data.goalType === 'cutting') calories = tdee - 500;
+        if (cleaned.goalType === 'lose_weight') calories = tdee - 500;
+        else if (cleaned.goalType === 'gain_weight') calories = tdee + 300;
+        else if (cleaned.goalType === 'gain_muscle') calories = tdee + 300;
+        else if (cleaned.goalType === 'bulking') calories = tdee + 500;
+        else if (cleaned.goalType === 'cutting') calories = tdee - 500;
 
         merged.dailyCaloriesGoal = Number(calories.toFixed(2));
         merged.caloriesGoal = merged.dailyCaloriesGoal;
@@ -130,7 +132,7 @@ export class UsersService {
         merged.fatGoalG = Number(((calories * 0.3) / 9).toFixed(2));
         merged.carbsGoalG = Number(((calories * 0.4) / 4).toFixed(2));
 
-        if (!data.waterGoalMl && merged.initialWeightKg) {
+        if (!cleaned.waterGoalMl && merged.initialWeightKg) {
           merged.waterGoalMl = Math.max(
             2000,
             Math.round(Number(merged.initialWeightKg) * 35),
@@ -153,6 +155,30 @@ export class UsersService {
 
     this.ragEmbedService.triggerUserEmbed(userId);
     return saved;
+  }
+
+  private compactHealthProfilePatch(
+    data: Partial<UserHealthProfile>,
+  ): Partial<UserHealthProfile> {
+    return Object.fromEntries(
+      Object.entries(data).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+    ) as Partial<UserHealthProfile>;
+  }
+
+  private withRequiredHealthProfileDefaults(
+    data: Partial<UserHealthProfile>,
+  ): Partial<UserHealthProfile> {
+    return {
+      birthDate: '1996-01-01',
+      gender: 'other',
+      heightCm: 170,
+      initialWeightKg: 65,
+      activityLevel: ActivityLevel.MODERATELY_ACTIVE,
+      foodAllergies: [],
+      waterGoalMl: 2500,
+      stepGoal: 10000,
+      ...data,
+    };
   }
 
   async completeOnboarding(

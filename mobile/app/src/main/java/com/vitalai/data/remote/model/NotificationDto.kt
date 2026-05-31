@@ -10,6 +10,7 @@ data class NotificationDto(
     // Backend entity column is `body` (notifications.body), not `message`.
     @Json(name = "body") val message: String,
     @Json(name = "type") val type: String,
-    @Json(name = "is_read") val isRead: Boolean,
-    @Json(name = "created_at") val createdAt: String
+    // Backend (TypeORM) serialize camelCase: isRead/createdAt (KHÔNG phải snake_case).
+    @Json(name = "isRead") val isRead: Boolean,
+    @Json(name = "createdAt") val createdAt: String
 )
