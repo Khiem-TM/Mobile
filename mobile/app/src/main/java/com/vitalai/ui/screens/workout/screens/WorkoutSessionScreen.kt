@@ -1,4 +1,7 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.screens
+
+import com.vitalai.ui.screens.workout.components.*
+import com.vitalai.ui.screens.workout.viewmodels.*
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

@@ -1,7 +1,8 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.screens
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import com.vitalai.ui.screens.workout.components.*
+import com.vitalai.ui.screens.workout.viewmodels.*
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -32,54 +32,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.WorkoutSessionDto
-import com.vitalai.data.repository.TrainingRepository
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import javax.inject.Inject
-
-data class WorkoutHistoryUiState(
-    val sessions: List<WorkoutSessionDto> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
-)
-
-@HiltViewModel
-class WorkoutHistoryViewModel @Inject constructor(
-    private val trainingRepository: TrainingRepository
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(WorkoutHistoryUiState())
-    val uiState = _uiState.asStateFlow()
-
-    init { loadData() }
-
-    fun loadData() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            trainingRepository.getSessions(limit = 60).fold(
-                onSuccess = { sessions ->
-                    _uiState.update {
-                        it.copy(
-                            sessions = sessions.sortedByDescending { session -> session.sessionDate },
-                            isLoading = false
-                        )
-                    }
-                },
-                onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Không tải được lịch sử tập luyện") }
-                }
-            )
-        }
-    }
-}
 
 @Composable
 fun WorkoutHistoryScreen(
@@ -92,13 +50,7 @@ fun WorkoutHistoryScreen(
         Column(Modifier.fillMaxSize()) {
             TrainHeader(
                 title = "Lịch sử tập luyện",
-                right = {
-                    TrainRoundIconButton(
-                        icon = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Quay lại",
-                        onClick = { navController.popBackStack() }
-                    )
-                }
+                onBack = { navController.popBackStack() }
             )
             when {
                 uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())

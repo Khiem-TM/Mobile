@@ -21,6 +21,7 @@ sealed class Screen {
     @Serializable object Workout
     @Serializable object WorkoutHistory
     @Serializable data class WorkoutSession(val id: String, val date: String = "")
+    @Serializable object TrainBodyMetrics
     @Serializable object Metrics
     @Serializable object Goals
     @Serializable object Notifications

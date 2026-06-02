@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -164,11 +164,12 @@ fun TrainPrimaryButton(
         elevation = ButtonDefaults.buttonElevation(0.dp),
         contentPadding = PaddingValues(horizontal = 20.dp)
     ) {
+        val contentColor = if (enabled) TrainColors.Cream else TrainColors.Cream.copy(alpha = 0.72f)
         if (icon != null) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(19.dp))
+            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(19.dp))
             Spacer(Modifier.width(9.dp))
         }
-        Text(text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text(text, color = contentColor, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -204,10 +205,12 @@ fun TrainRoundIconButton(
     background: Color = TrainColors.Cream,
     tint: Color = if (active) TrainColors.Cream else TrainColors.Ink,
     activeBackground: Color = TrainColors.Forest,
-    size: Dp = 40.dp
+    size: Dp = 40.dp,
+    enabled: Boolean = true
 ) {
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .size(size)
             .clip(CircleShape)
@@ -397,52 +400,82 @@ fun TrainBarChart(
 ) {
     val maxValue = max(values.maxOfOrNull { it.second } ?: 0f, 1f)
     Row(
-        modifier = modifier.height(128.dp),
+        modifier = modifier.height(136.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.Bottom
     ) {
         values.forEachIndexed { index, item ->
             val active = item.second > 0f
-            val heightFraction = if (active) (item.second / maxValue).coerceIn(0.08f, 1f) else 0.03f
+            val heightFraction = if (active) (item.second / maxValue).coerceIn(0.08f, 1f) else 0.04f
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom
             ) {
                 Box(
-                    modifier = Modifier.height(18.dp).fillMaxWidth(),
+                    modifier = Modifier.height(20.dp).fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
                     if (active) {
                         Text(
-                            item.second.toInt().toString(),
+                            compactKcalLabel(item.second),
                             color = TrainColors.Forest,
                             fontSize = 9.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Canvas(
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height((74.dp * heightFraction).coerceIn(3.dp, 74.dp))
+                        .height(82.dp)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.BottomCenter
                 ) {
-                    drawRoundRect(
-                        color = when {
-                            !active -> TrainColors.Border
-                            index == highlightIndex -> TrainColors.Forest
-                            else -> TrainColors.MintGlaze
-                        },
-                        size = Size(size.width.coerceAtMost(24.dp.toPx()), size.height),
-                        cornerRadius = CornerRadius(7.dp.toPx(), 7.dp.toPx())
-                    )
+                    Canvas(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(heightFraction)
+                            .heightIn(min = 4.dp)
+                    ) {
+                        val barWidth = size.width.coerceAtMost(24.dp.toPx())
+                        drawRoundRect(
+                            color = when {
+                                !active -> TrainColors.Border
+                                index == highlightIndex -> TrainColors.Forest
+                                else -> TrainColors.MintGlaze
+                            },
+                            topLeft = androidx.compose.ui.geometry.Offset(
+                                x = (size.width - barWidth) / 2f,
+                                y = 0f
+                            ),
+                            size = Size(barWidth, size.height),
+                            cornerRadius = CornerRadius(7.dp.toPx(), 7.dp.toPx())
+                        )
+                    }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(item.first, color = TrainColors.Charcoal.copy(alpha = 0.75f), fontSize = 11.sp)
+                Text(
+                    item.first,
+                    color = TrainColors.Charcoal.copy(alpha = 0.75f),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
+    }
+}
+
+private fun compactKcalLabel(value: Float): String {
+    val rounded = value.toInt()
+    return if (rounded >= 1000) {
+        val oneDecimal = rounded / 100f / 10f
+        if (rounded % 1000 >= 100) "${oneDecimal}k" else "${rounded / 1000}k"
+    } else {
+        rounded.toString()
     }
 }
 

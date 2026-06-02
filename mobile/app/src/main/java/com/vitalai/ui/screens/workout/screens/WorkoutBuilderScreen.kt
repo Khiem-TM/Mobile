@@ -1,4 +1,7 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.screens
+
+import com.vitalai.ui.screens.workout.components.*
+import com.vitalai.ui.screens.workout.viewmodels.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,6 +67,7 @@ fun WorkoutBuilderScreen(
         onBackClick = { navController.popBackStack() },
         onSaveSession = viewModel::saveSession,
         onSessionNameChange = viewModel::setSessionName,
+        onSessionNotesChange = viewModel::setSessionNotes,
         onAddSet = viewModel::addSet,
         onUpdateSet = viewModel::updateSet,
         onRemoveExercise = viewModel::removeExercise,
@@ -81,6 +85,7 @@ fun WorkoutBuilderScreenContent(
     onBackClick: () -> Unit,
     onSaveSession: () -> Unit,
     onSessionNameChange: (String) -> Unit,
+    onSessionNotesChange: (String) -> Unit,
     onAddSet: (Int) -> Unit,
     onUpdateSet: (Int, Int, String?, String?, Boolean?) -> Unit,
     onRemoveExercise: (Int) -> Unit,
@@ -92,7 +97,6 @@ fun WorkoutBuilderScreenContent(
     val dateFormatted = remember {
         LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi")))
     }
-    var note by remember { mutableStateOf("") }
     val totalMinutes = uiState.exercises.sumOf { estimateDuration(it) }
     val totalKcal = uiState.exercises.sumOf { estimateCalories(it) }
 
@@ -188,8 +192,8 @@ fun WorkoutBuilderScreenContent(
                     Column {
                         TrainSectionTitle("Ghi chú buổi tập", modifier = Modifier.padding(bottom = 11.dp))
                         OutlinedTextField(
-                            value = note,
-                            onValueChange = { note = it.take(500) },
+                            value = uiState.sessionNotes,
+                            onValueChange = onSessionNotesChange,
                             placeholder = { Text("Cảm nhận, mục tiêu, điều chỉnh...") },
                             minLines = 3,
                             modifier = Modifier.fillMaxWidth(),

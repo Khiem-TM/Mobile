@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -37,6 +37,7 @@ data class BuilderExercise(
 
 data class WorkoutBuilderUiState(
     val sessionName: String = "Buổi tập mới",
+    val sessionNotes: String = "",
     val date: String = LocalDate.now().toString(),
     val exercises: List<BuilderExercise> = emptyList(),
     val elapsedSeconds: Int = 0,
@@ -73,6 +74,10 @@ class WorkoutBuilderViewModel @Inject constructor(
 
     fun setSessionName(name: String) {
         _uiState.update { it.copy(sessionName = name) }
+    }
+
+    fun setSessionNotes(notes: String) {
+        _uiState.update { it.copy(sessionNotes = notes.take(500)) }
     }
 
     fun addSet(exerciseIdx: Int) {
@@ -236,7 +241,7 @@ class WorkoutBuilderViewModel @Inject constructor(
             val request = CreateWorkoutSessionDto(
                 sessionDate = state.date,
                 sessionName = state.sessionName,
-                notes = null,
+                notes = state.sessionNotes.trim().ifBlank { null },
                 details = details
             )
             trainingRepository.createSession(request).fold(
