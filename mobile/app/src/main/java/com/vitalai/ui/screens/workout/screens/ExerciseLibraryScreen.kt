@@ -1,4 +1,7 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.screens
+
+import com.vitalai.ui.screens.workout.components.*
+import com.vitalai.ui.screens.workout.viewmodels.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -119,9 +123,14 @@ fun ExerciseLibraryScreenContent(
                     )
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(16.dp))
                             .background(if (activeFilterCount > 0) TrainColors.Forest else TrainColors.KeylimeWash)
+                            .border(
+                                1.dp,
+                                if (activeFilterCount > 0) TrainColors.Forest else TrainColors.Border,
+                                RoundedCornerShape(16.dp)
+                            )
                             .clickable { filterOpen = true },
                         contentAlignment = Alignment.Center
                     ) {
@@ -134,7 +143,7 @@ fun ExerciseLibraryScreenContent(
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .offset(x = (-6).dp, y = 6.dp)
+                                    .offset(x = (-7).dp, y = 7.dp)
                                     .size(16.dp)
                                     .clip(CircleShape)
                                     .background(TrainColors.Cardio),
@@ -239,36 +248,65 @@ fun ExerciseLibraryScreenContent(
 private fun SearchBox(value: String, onValueChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
-            .height(46.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .height(52.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(TrainColors.KeylimeWash)
-            .padding(horizontal = 15.dp),
+            .border(1.dp, TrainColors.Border.copy(alpha = 0.55f), RoundedCornerShape(16.dp))
+            .padding(start = 13.dp, end = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        Icon(Icons.Default.Search, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(19.dp))
-        TextField(
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(TrainColors.Cream.copy(alpha = 0.82f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(17.dp))
+        }
+        BasicTextField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f),
-            placeholder = { Text("Tìm kiếm bài tập...", color = TrainColors.Charcoal.copy(alpha = 0.6f), fontSize = 15.sp) },
             singleLine = true,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = TrainColors.KeylimeWash,
-                unfocusedContainerColor = TrainColors.KeylimeWash,
-                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                cursorColor = TrainColors.Forest
+            cursorBrush = androidx.compose.ui.graphics.SolidColor(TrainColors.Forest),
+            textStyle = LocalTextStyle.current.copy(
+                color = TrainColors.Ink,
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.Medium
             ),
-            textStyle = LocalTextStyle.current.copy(color = TrainColors.Ink, fontSize = 15.sp)
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (value.isBlank()) {
+                        Text(
+                            "Tìm kiếm bài tập",
+                            color = TrainColors.Charcoal.copy(alpha = 0.52f),
+                            fontSize = 14.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    innerTextField()
+                }
+            }
         )
         if (value.isNotBlank()) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Xóa tìm kiếm",
-                tint = TrainColors.Charcoal,
-                modifier = Modifier.size(17.dp).clickable { onValueChange("") }
-            )
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(TrainColors.Cream.copy(alpha = 0.82f))
+                    .clickable { onValueChange("") },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Xóa tìm kiếm",
+                    tint = TrainColors.Charcoal.copy(alpha = 0.72f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }

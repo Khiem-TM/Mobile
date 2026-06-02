@@ -1,4 +1,7 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.screens
+
+import com.vitalai.ui.screens.workout.components.*
+import com.vitalai.ui.screens.workout.viewmodels.*
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

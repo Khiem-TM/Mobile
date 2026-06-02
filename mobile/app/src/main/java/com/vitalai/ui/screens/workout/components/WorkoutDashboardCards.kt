@@ -1,161 +1,43 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.navigation.NavController
 import com.vitalai.data.remote.model.WorkoutSessionDto
-import com.vitalai.navigation.Screen
-import com.vitalai.ui.components.ErrorState
-import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.screens.workout.viewmodels.DayCalorieData
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @Composable
-fun WorkoutScreen(
-    navController: NavController,
-    viewModel: WorkoutViewModel = hiltViewModel()
-) {
-    val uiState by viewModel.uiState.collectAsState()
-
-    // Reload session history whenever the screen resumes (e.g. after saving a
-    // workout in the builder and navigating back).
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.loadData()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    WorkoutDashboard(
-        uiState = uiState,
-        onNavigateWorkoutBuilder = { navController.navigate(Screen.WorkoutBuilder) },
-        onNavigateLibrary = { navController.navigate(Screen.ExerciseLibrary) },
-        onNavigateMetrics = { navController.navigate(Screen.Metrics) },
-        onNavigateWorkoutHistory = { navController.navigate(Screen.WorkoutHistory) },
-        onSessionClick = { session ->
-            navController.navigate(Screen.WorkoutSession(session.id, session.sessionDate))
-        },
-        onRetry = viewModel::loadData
-    )
-}
-
-@Composable
-private fun WorkoutDashboard(
-    uiState: WorkoutUiState,
-    onNavigateWorkoutBuilder: () -> Unit,
-    onNavigateLibrary: () -> Unit,
-    onNavigateMetrics: () -> Unit,
-    onNavigateWorkoutHistory: () -> Unit,
-    onSessionClick: (WorkoutSessionDto) -> Unit,
-    onRetry: () -> Unit
-) {
-    TrainScreen {
-        when {
-            uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
-            uiState.error != null -> ErrorState(
-                message = uiState.error,
-                onRetry = onRetry,
-                modifier = Modifier.fillMaxSize()
-            )
-            else -> Column(Modifier.fillMaxSize()) {
-                TrainHeader(
-                    title = "Luyện tập",
-                    large = true,
-                    right = {
-                        TrainRoundIconButton(
-                            icon = Icons.Default.AccessibilityNew,
-                            contentDescription = "Chỉ số cơ thể",
-                            onClick = onNavigateMetrics
-                        )
-                    }
-                )
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 28.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    item {
-                        StreakBanner(
-                            streak = uiState.workoutStreak,
-                            longestStreak = uiState.longestStreak
-                        )
-                    }
-                    item {
-                        TodaySummary(
-                            calories = uiState.todayCaloriesBurned.toInt(),
-                            minutes = uiState.todayDurationMinutes
-                        )
-                    }
-                    item {
-                        WeeklyCaloriesCard(uiState.weeklyChartData)
-                    }
-                    item {
-                        TrainPrimaryButton(
-                            text = if (uiState.hasSessionToday) "Tiếp tục buổi tập hôm nay" else "Bắt đầu buổi tập hôm nay",
-                            icon = Icons.Default.Add,
-                            onClick = onNavigateWorkoutBuilder
-                        )
-                    }
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            QuickLinkCard(
-                                icon = Icons.Default.FitnessCenter,
-                                label = "Thư viện bài tập",
-                                tone = TrainTone.Keylime,
-                                onClick = onNavigateLibrary,
-                                modifier = Modifier.weight(1f)
-                            )
-                            QuickLinkCard(
-                                icon = Icons.Default.History,
-                                label = "Lịch sử tập luyện",
-                                tone = TrainTone.Slate,
-                                onClick = onNavigateWorkoutHistory,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
-                    item {
-                        RecentHistory(
-                            sessions = uiState.recentSessions,
-                            onSessionClick = onSessionClick
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StreakBanner(streak: Int, longestStreak: Int) {
+internal fun StreakBanner(streak: Int, longestStreak: Int) {
     TrainCard(tone = TrainTone.Mint, padding = PaddingValues(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
             Box(
@@ -191,7 +73,7 @@ private fun StreakBanner(streak: Int, longestStreak: Int) {
 }
 
 @Composable
-private fun TodaySummary(calories: Int, minutes: Int) {
+internal fun TodaySummary(calories: Int, minutes: Int) {
     val today = LocalDate.now()
     val title = "Hôm nay · ${today.format(DateTimeFormatter.ofPattern("EEEE, dd/MM/yyyy", Locale("vi")))}"
         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("vi")) else it.toString() }
@@ -217,18 +99,71 @@ private fun TodaySummary(calories: Int, minutes: Int) {
 }
 
 @Composable
-private fun WeeklyCaloriesCard(data: List<DayCalorieData>) {
+internal fun WeeklyCaloriesCard(
+    data: List<DayCalorieData>,
+    weekStart: LocalDate,
+    onPreviousWeek: () -> Unit,
+    onNextWeek: () -> Unit
+) {
     val total = data.sumOf { it.calories.toDouble() }.toInt()
     val activeDays = data.count { it.hasSession }
     val maxIndex = data.indices.maxByOrNull { data[it].calories } ?: -1
+    val weekEnd = weekStart.plusDays(6)
+    val currentWeekStart = LocalDate.now().minusDays((LocalDate.now().dayOfWeek.value - 1).toLong())
+    val canGoNext = weekStart.isBefore(currentWeekStart)
+    val weekLabel = "${weekStart.format(DateTimeFormatter.ofPattern("dd/MM"))} - ${weekEnd.format(DateTimeFormatter.ofPattern("dd/MM"))}"
     TrainCard(tone = TrainTone.Cream, padding = PaddingValues(18.dp)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Bottom
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Calories đốt · 7 ngày", color = TrainColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-            Text("$total kcal", color = TrainColors.Charcoal, fontSize = 12.sp)
+            Column(Modifier.weight(1f)) {
+                Text("Calories đốt · 7 ngày", color = TrainColors.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            }
+            CaloriesTotalPill(total = total)
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 13.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            TrainRoundIconButton(
+                icon = Icons.Default.ChevronLeft,
+                contentDescription = "Tuần trước",
+                onClick = onPreviousWeek,
+                background = TrainColors.Cream,
+                tint = TrainColors.Forest,
+                size = 34.dp
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(TrainColors.KeylimeWash)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    weekLabel,
+                    color = TrainColors.Forest,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            TrainRoundIconButton(
+                icon = Icons.Default.ChevronRight,
+                contentDescription = "Tuần sau",
+                onClick = onNextWeek,
+                enabled = canGoNext,
+                background = TrainColors.Cream,
+                tint = if (canGoNext) TrainColors.Forest else TrainColors.Charcoal.copy(alpha = 0.35f),
+                size = 34.dp
+            )
         }
         TrainBarChart(
             values = data.map { it.dayLabel to it.calories },
@@ -245,27 +180,54 @@ private fun WeeklyCaloriesCard(data: List<DayCalorieData>) {
 }
 
 @Composable
-private fun QuickLinkCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun CaloriesTotalPill(total: Int) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(TrainColors.KeylimeWash)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "${String.format(Locale.US, "%,d", total)} kcal",
+            color = TrainColors.Forest,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+internal fun QuickLinkCard(
+    icon: ImageVector,
     label: String,
     tone: TrainTone,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     TrainCard(
-        modifier = modifier.height(92.dp),
+        modifier = modifier.heightIn(min = 92.dp),
         tone = tone,
         padding = PaddingValues(16.dp),
         onClick = onClick
     ) {
         Icon(icon, contentDescription = null, tint = TrainColors.Forest, modifier = Modifier.size(22.dp))
         Spacer(Modifier.height(10.dp))
-        Text(label, color = TrainColors.Forest, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            label,
+            color = TrainColors.Forest,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 17.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
 @Composable
-private fun RecentHistory(sessions: List<WorkoutSessionDto>, onSessionClick: (WorkoutSessionDto) -> Unit) {
+internal fun RecentHistory(sessions: List<WorkoutSessionDto>, onSessionClick: (WorkoutSessionDto) -> Unit) {
     Column {
         TrainSectionTitle("Lịch sử gần đây", modifier = Modifier.padding(bottom = 11.dp))
         if (sessions.isEmpty()) {
@@ -320,7 +282,9 @@ private fun RecentSessionRow(session: WorkoutSessionDto, onClick: () -> Unit) {
                 Text(
                     "${session.details.size} bài tập · ${session.totalDurationMinutes} phút",
                     color = TrainColors.Charcoal,
-                    fontSize = 12.5.sp
+                    fontSize = 12.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Column(horizontalAlignment = Alignment.End) {

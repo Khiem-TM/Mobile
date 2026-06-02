@@ -1,6 +1,7 @@
-package com.vitalai.ui.screens.discover
+package com.vitalai.ui.screens.discover.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -8,17 +9,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -32,9 +33,14 @@ import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogBlockDto
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.data.remote.model.CommentDto
+import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.VitalIconButton
+import com.vitalai.ui.screens.discover.components.BlogAuthorAvatar
+import com.vitalai.ui.screens.discover.components.BlogCover
+import com.vitalai.ui.screens.discover.components.BlogSearchBar
+import com.vitalai.ui.screens.discover.components.BlogStatPill
+import com.vitalai.ui.screens.discover.viewmodels.BlogDetailViewModel
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -50,7 +56,27 @@ fun BlogDetailScreen(
         viewModel.loadBlog(blogId)
     }
 
-    Scaffold(containerColor = AppMutedBackground) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    BlogSearchBar(
+                        value = "",
+                        onValueChange = {},
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink800)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+            )
+        },
+        containerColor = AppMutedBackground
+    ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
             uiState.error != null -> ErrorState(
@@ -64,7 +90,17 @@ fun BlogDetailScreen(
                 isLiked = uiState.isLiked,
                 isPostingComment = uiState.isPostingComment,
                 paddingValues = padding,
-                onBack = { navController.popBackStack() },
+                onOpenAuthor = { blog ->
+                    blog.authorUser?.let { author ->
+                        navController.navigate(
+                            Screen.AuthorBlogs(
+                                authorId = author.id,
+                                authorName = blog.displayAuthor,
+                                avatarUrl = author.avatarUrl
+                            )
+                        )
+                    }
+                },
                 onToggleLike = viewModel::toggleLike,
                 onPostComment = viewModel::postComment,
                 onDeleteComment = viewModel::deleteComment
@@ -80,7 +116,7 @@ private fun BlogContent(
     isLiked: Boolean,
     isPostingComment: Boolean,
     paddingValues: PaddingValues,
-    onBack: () -> Unit,
+    onOpenAuthor: (BlogDto) -> Unit,
     onToggleLike: () -> Unit,
     onPostComment: (String) -> Unit,
     onDeleteComment: (String) -> Unit
@@ -92,74 +128,34 @@ private fun BlogContent(
             .padding(paddingValues)
             .verticalScroll(rememberScrollState())
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(328.dp)) {
-            if (blog.thumbnailUrl != null) {
-                AsyncImage(
-                    model = blog.thumbnailImage,
-                    contentDescription = blog.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Brush.linearGradient(listOf(Mint300, Mint700))),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Article, contentDescription = null, tint = Color.White.copy(alpha = 0.86f), modifier = Modifier.size(54.dp))
-                }
-            }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.42f),
-                            0.45f to Color.Transparent,
-                            1f to Color.Black.copy(alpha = 0.58f)
-                        )
-                    )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 12.dp)
+                .height(196.dp)
+                .clip(RoundedCornerShape(VitalRadius.Xl))
+        ) {
+            BlogCover(
+                blog = blog,
+                modifier = Modifier.fillMaxSize(),
+                radius = VitalRadius.Xl,
+                fallbackGradient = true
             )
-            Row(
+            Icon(
+                Icons.Default.BookmarkBorder,
+                contentDescription = "Lưu bài",
+                tint = Color.White,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                VitalIconButton(
-                    onClick = onBack,
-                    containerColor = Color.Black.copy(alpha = 0.36f)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Color.White)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    HeroStatPill(icon = Icons.Default.Visibility, text = "${blog.viewCount}")
-                    HeroStatPill(icon = Icons.Default.Favorite, text = "${blog.likesCount}")
-                }
-            }
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(horizontal = 20.dp, vertical = 50.dp)
-            ) {
-                blog.firstTag?.let {
-                    Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Mint500.copy(alpha = 0.92f)) {
-                        Text(it, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp))
-                    }
-                    Spacer(Modifier.height(10.dp))
-                }
-                Text(blog.title, fontSize = 29.sp, fontWeight = FontWeight.Bold, color = Color.White, lineHeight = 33.sp)
-            }
+                    .align(Alignment.TopEnd)
+                    .padding(14.dp)
+                    .size(28.dp)
+            )
         }
 
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .offset(y = (-28).dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             shape = RoundedCornerShape(VitalRadius.Xl),
             color = AppSurface,
             border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
@@ -168,8 +164,11 @@ private fun BlogContent(
             Column(modifier = Modifier.padding(18.dp)) {
                 val tags = blog.tags
                 if (!tags.isNullOrEmpty()) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        tags.take(3).forEach { tag ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        tags.take(2).forEach { tag ->
                             Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Mint50) {
                                 Text(
                                     tag,
@@ -180,29 +179,35 @@ private fun BlogContent(
                                 )
                             }
                         }
+                        Spacer(Modifier.weight(1f))
+                        Text("${blog.createdAt.take(10)} · ${blog.viewCount} views", color = Ink500, fontSize = 11.sp)
                     }
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
 
+                Text(blog.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Ink900, lineHeight = 30.sp)
+                Spacer(Modifier.height(14.dp))
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier.size(42.dp).clip(CircleShape).background(Mint100),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            blog.displayAuthor.firstOrNull()?.uppercaseChar()?.toString() ?: "V",
-                            fontWeight = FontWeight.Bold,
-                            color = Mint700,
-                            fontSize = 15.sp
-                        )
-                    }
+                    BlogAuthorAvatar(
+                        name = blog.displayAuthor,
+                        avatarUrl = blog.authorUser?.avatarUrl,
+                        modifier = Modifier
+                            .clickable(enabled = blog.authorUser != null) { onOpenAuthor(blog) },
+                        size = 42.dp
+                    )
                     Spacer(Modifier.width(10.dp))
-                    Column {
+                    Column(
+                        modifier = Modifier.clickable(enabled = blog.authorUser != null) { onOpenAuthor(blog) }
+                    ) {
                         Text(blog.displayAuthor, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Ink900)
                         Text(blog.createdAt.take(10), fontSize = 12.sp, color = Ink500)
                     }
                     Spacer(Modifier.weight(1f))
-                    DetailStat(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
+                    IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.Share, contentDescription = "Chia sẻ", tint = Ink500, modifier = Modifier.size(18.dp))
+                    }
+                    BlogStatPill(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
                     Spacer(Modifier.width(8.dp))
                     Surface(
                         onClick = onToggleLike,
@@ -321,36 +326,6 @@ private fun BlogBlockView(block: BlogBlockDto) {
     }
 }
 
-@Composable
-private fun HeroStatPill(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(VitalRadius.Pill))
-            .background(Color.Black.copy(alpha = 0.36f))
-            .padding(horizontal = 9.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-        Text(text, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun DetailStat(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, color: Color = Mint500) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(VitalRadius.Pill))
-            .background(AppSurface2)
-            .padding(horizontal = 9.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-        Text(value, color = Ink700, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun BlogDetailScreenPreview() {
@@ -421,7 +396,7 @@ fun BlogDetailScreenPreview() {
                 isLiked = false,
                 isPostingComment = false,
                 paddingValues = padding,
-                onBack = {},
+                onOpenAuthor = {},
                 onToggleLike = {},
                 onPostComment = {},
                 onDeleteComment = {}

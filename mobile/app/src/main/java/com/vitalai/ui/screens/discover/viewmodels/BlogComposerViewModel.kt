@@ -1,7 +1,8 @@
-package com.vitalai.ui.screens.discover
+package com.vitalai.ui.screens.discover.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.data.remote.model.CreateBlogBlockRequest
 import com.vitalai.data.remote.model.CreateBlogRequest
 import com.vitalai.data.repository.BlogRepository
@@ -24,6 +25,7 @@ data class ContentBlock(
 )
 
 data class BlogComposerUiState(
+    val editingBlogId: String? = null,
     val title: String = "",
     val coverUrl: String = "",
     val tags: List<String> = emptyList(),
@@ -31,6 +33,7 @@ data class BlogComposerUiState(
     val tagInput: String = "",
     val isSaving: Boolean = false,
     val isPublishing: Boolean = false,
+    val isLoadingBlog: Boolean = false,
     val savedDraft: Boolean = false,
     val published: Boolean = false,
     val error: String? = null,
@@ -44,6 +47,28 @@ class BlogComposerViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(BlogComposerUiState())
     val uiState = _uiState.asStateFlow()
+
+    fun loadBlogForEdit(blogId: String?) {
+        if (blogId.isNullOrBlank()) return
+        val state = _uiState.value
+        if (state.editingBlogId == blogId && state.title.isNotBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(editingBlogId = blogId, isLoadingBlog = true, error = null) }
+            blogRepository.getMyBlogById(blogId).fold(
+                onSuccess = { blog ->
+                    _uiState.update { blog.toComposerState() }
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isLoadingBlog = false,
+                            error = err.message ?: "Không tải được bài viết"
+                        )
+                    }
+                }
+            )
+        }
+    }
 
     fun setTitle(title: String) = _uiState.update { it.copy(title = title) }
     fun setCoverUrl(url: String) = _uiState.update { it.copy(coverUrl = url) }
@@ -93,7 +118,10 @@ class BlogComposerViewModel @Inject constructor(
         viewModelScope.launch {
             val request = buildRequest(status = "draft") ?: return@launch
             _uiState.update { it.copy(isSaving = true, error = null, savedDraft = false) }
-            blogRepository.createBlog(request).fold(
+            val result = _uiState.value.editingBlogId?.let { id ->
+                blogRepository.updateBlog(id, request)
+            } ?: blogRepository.createBlog(request)
+            result.fold(
                 onSuccess = {
                     _uiState.update { state ->
                         state.copy(isSaving = false, savedDraft = true, error = null)
@@ -115,7 +143,10 @@ class BlogComposerViewModel @Inject constructor(
         viewModelScope.launch {
             val request = buildRequest(status = null) ?: return@launch
             _uiState.update { it.copy(isPublishing = true, error = null, published = false) }
-            blogRepository.createBlog(request).fold(
+            val result = _uiState.value.editingBlogId?.let { id ->
+                blogRepository.updateBlog(id, request)
+            } ?: blogRepository.createBlog(request)
+            result.fold(
                 onSuccess = {
                     _uiState.update { state ->
                         state.copy(isPublishing = false, published = true, error = null)
@@ -171,6 +202,37 @@ class BlogComposerViewModel @Inject constructor(
             tags = state.tags.takeIf { it.isNotEmpty() },
             status = status,
             blocks = blocks.takeIf { it.isNotEmpty() }
+        )
+    }
+
+    private fun BlogDto.toComposerState(): BlogComposerUiState {
+        val mappedBlocks = blocks
+            ?.sortedBy { it.order }
+            ?.map { block ->
+                when (block.type) {
+                    "image" -> ContentBlock(
+                        type = ContentBlockType.IMAGE,
+                        imageUrl = block.imageUrl ?: ""
+                    )
+                    else -> ContentBlock(
+                        type = ContentBlockType.TEXT,
+                        text = block.textContent ?: ""
+                    )
+                }
+            }
+            ?.takeIf { it.isNotEmpty() }
+            ?: content
+                ?.takeIf { it.isNotBlank() }
+                ?.let { listOf(ContentBlock(text = it)) }
+            ?: listOf(ContentBlock())
+
+        return BlogComposerUiState(
+            editingBlogId = id,
+            title = title,
+            coverUrl = thumbnailUrl ?: "",
+            tags = tags.orEmpty(),
+            blocks = mappedBlocks,
+            isLoadingBlog = false
         )
     }
 }

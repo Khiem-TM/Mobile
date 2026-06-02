@@ -41,10 +41,11 @@ import com.vitalai.ui.screens.diary.DiaryScreen
 import com.vitalai.ui.screens.diary.FoodDetailScreen
 import com.vitalai.ui.screens.diary.MealHistoryScreen
 import com.vitalai.ui.screens.diary.SearchFoodScreen
-import com.vitalai.ui.screens.discover.BlogComposerScreen
-import com.vitalai.ui.screens.discover.BlogDetailScreen
-import com.vitalai.ui.screens.discover.DiscoverScreen
-import com.vitalai.ui.screens.discover.MyBlogsScreen
+import com.vitalai.ui.screens.discover.screens.BlogComposerScreen
+import com.vitalai.ui.screens.discover.screens.BlogDetailScreen
+import com.vitalai.ui.screens.discover.screens.AuthorBlogsScreen
+import com.vitalai.ui.screens.discover.screens.DiscoverScreen
+import com.vitalai.ui.screens.discover.screens.MyBlogsScreen
 import com.vitalai.ui.screens.home.HomeScreen
 import com.vitalai.ui.screens.metrics.MetricsHistoryScreen
 import com.vitalai.ui.screens.metrics.MetricsScreen
@@ -53,13 +54,14 @@ import com.vitalai.ui.screens.notifications.NotificationsScreen
 import com.vitalai.ui.screens.onboarding.OnboardingScreen
 import com.vitalai.ui.screens.profile.ProfileScreen
 import com.vitalai.ui.screens.scan.ScanScreen
-import com.vitalai.ui.screens.workout.ActivityScreen
-import com.vitalai.ui.screens.workout.ExerciseDetailScreen
-import com.vitalai.ui.screens.workout.ExerciseLibraryScreen
-import com.vitalai.ui.screens.workout.WorkoutBuilderScreen
-import com.vitalai.ui.screens.workout.WorkoutHistoryScreen
-import com.vitalai.ui.screens.workout.WorkoutScreen
-import com.vitalai.ui.screens.workout.WorkoutSessionScreen
+import com.vitalai.ui.screens.workout.screens.ActivityScreen
+import com.vitalai.ui.screens.workout.screens.ExerciseDetailScreen
+import com.vitalai.ui.screens.workout.screens.ExerciseLibraryScreen
+import com.vitalai.ui.screens.workout.screens.WorkoutBuilderScreen
+import com.vitalai.ui.screens.workout.screens.WorkoutHistoryScreen
+import com.vitalai.ui.screens.workout.screens.WorkoutScreen
+import com.vitalai.ui.screens.workout.screens.WorkoutSessionScreen
+import com.vitalai.ui.screens.workout.screens.TrainBodyMetricsScreen
 import com.vitalai.ui.theme.AppMutedBackground
 import kotlinx.coroutines.launch
 
@@ -79,6 +81,7 @@ private fun WithStatusBarInset(content: @Composable () -> Unit) {
 private val mainTabRoutes = listOf(
     Screen.Home::class.qualifiedName,
     Screen.Diary::class.qualifiedName,
+    Screen.Discover::class.qualifiedName,
     Screen.Coach::class.qualifiedName,
     Screen.Profile::class.qualifiedName
 )
@@ -248,6 +251,9 @@ fun VitalNavGraph(
             val route: Screen.WorkoutSession = backStackEntry.toRoute()
             WorkoutSessionScreen(sessionId = route.id, date = route.date, navController = navController)
         }
+        composable<Screen.TrainBodyMetrics> {
+            TrainBodyMetricsScreen(navController)
+        }
         composable<Screen.Metrics> {
             MetricsScreen(navController)
         }
@@ -262,6 +268,15 @@ fun VitalNavGraph(
         composable<Screen.BlogDetail> { backStackEntry ->
             val route: Screen.BlogDetail = backStackEntry.toRoute()
             BlogDetailScreen(blogId = route.id, navController = navController)
+        }
+        composable<Screen.AuthorBlogs> { backStackEntry ->
+            val route: Screen.AuthorBlogs = backStackEntry.toRoute()
+            AuthorBlogsScreen(
+                authorId = route.authorId,
+                authorName = route.authorName,
+                avatarUrl = route.avatarUrl,
+                navController = navController
+            )
         }
 
         // ── Notifications ─────────────────────────────────────
@@ -296,8 +311,9 @@ fun VitalNavGraph(
         }
 
         // ── Blog sub-screens ──────────────────────────────────
-        composable<Screen.BlogComposer> {
-            BlogComposerScreen(navController)
+        composable<Screen.BlogComposer> { backStackEntry ->
+            val route: Screen.BlogComposer = backStackEntry.toRoute()
+            BlogComposerScreen(navController, blogId = route.blogId)
         }
         composable<Screen.MyBlogs> {
             MyBlogsScreen(navController)

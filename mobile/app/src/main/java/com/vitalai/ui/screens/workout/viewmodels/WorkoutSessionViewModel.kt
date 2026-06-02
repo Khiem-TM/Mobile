@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

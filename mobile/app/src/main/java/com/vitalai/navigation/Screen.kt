@@ -21,16 +21,22 @@ sealed class Screen {
     @Serializable object Workout
     @Serializable object WorkoutHistory
     @Serializable data class WorkoutSession(val id: String, val date: String = "")
+    @Serializable object TrainBodyMetrics
     @Serializable object Metrics
     @Serializable object Goals
     @Serializable object Notifications
     @Serializable data class BlogDetail(val id: String)
+    @Serializable data class AuthorBlogs(
+        val authorId: String,
+        val authorName: String = "",
+        val avatarUrl: String? = null
+    )
     @Serializable object Discover
     @Serializable data class Activity(val date: String = "")
     @Serializable object ExerciseLibrary
     @Serializable data class ExerciseDetail(val id: String = "")
     @Serializable object WorkoutBuilder
     @Serializable object MetricsHistory
-    @Serializable object BlogComposer
+    @Serializable data class BlogComposer(val blogId: String? = null)
     @Serializable object MyBlogs
 }

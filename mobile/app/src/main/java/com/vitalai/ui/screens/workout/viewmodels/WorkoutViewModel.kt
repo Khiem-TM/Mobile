@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.workout
+package com.vitalai.ui.screens.workout.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,6 +29,7 @@ data class WorkoutUiState(
     val todayDurationMinutes: Int = 0,
     val hasSessionToday: Boolean = false,
     val weeklyChartData: List<DayCalorieData> = emptyList(),
+    val selectedWeekStart: LocalDate = LocalDate.now().minusDays((LocalDate.now().dayOfWeek.value - 1).toLong()),
     val recentSessions: List<WorkoutSessionDto> = emptyList(),
     val recentExerciseItems: List<SessionExerciseDto> = emptyList(),
     val todayActivityLog: ActivityLogDto? = null,
@@ -57,59 +58,58 @@ class WorkoutViewModel @Inject constructor(
     fun loadData() {
         val today = LocalDate.now()
         val todayStr = today.format(ISO_FMT)
-        val fromDate = today.minusDays(6).format(ISO_FMT)
+        val weekStart = _uiState.value.selectedWeekStart
+        val weekRange = weekRange(weekStart)
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val sessionsDeferred = async {
-                    trainingRepository.getSessions(fromDate = fromDate, toDate = todayStr)
+                    trainingRepository.getSessions(fromDate = weekRange.first, toDate = weekRange.second)
+                }
+                val todaySessionsDeferred = async {
+                    trainingRepository.getSessions(date = todayStr)
+                }
+                val recentSessionsDeferred = async {
+                    trainingRepository.getSessions(limit = 60)
                 }
                 val activityLogDeferred = async {
                     trainingRepository.getActivityLog(todayStr)
                 }
                 val weeklyLogsDeferred = async {
-                    trainingRepository.getActivityLogRange(fromDate, todayStr)
+                    trainingRepository.getActivityLogRange(weekRange.first, weekRange.second)
                 }
 
                 val sessions = sessionsDeferred.await().getOrElse { emptyList() }
+                val todaySessions = todaySessionsDeferred.await().getOrElse { emptyList() }
+                val historySessions = recentSessionsDeferred.await().getOrElse { emptyList() }
                 val todayActivityLog = activityLogDeferred.await().getOrNull()
                 val weeklyLogs = weeklyLogsDeferred.await().getOrElse { emptyList() }
 
-                // Build 7-day chart data (Mon → Sun labels based on DayOfWeek)
-                val last7Days = (6 downTo 0).map { today.minusDays(it.toLong()) }
+                // Build current-week chart data in a stable Mon -> Sun order.
                 val sessionsByDate = sessions.groupBy { it.sessionDate }
 
-                val weeklyChartData = last7Days.map { day ->
-                    val dayStr = day.format(ISO_FMT)
-                    val daySessions = sessionsByDate[dayStr] ?: emptyList()
-                    val totalCals = daySessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
-                    val dayOfWeek = day.dayOfWeek
-                    val label = VN_DAY_LABELS[dayOfWeek.value - 1]
-                    DayCalorieData(
-                        dayLabel = label,
-                        calories = totalCals,
-                        hasSession = daySessions.isNotEmpty()
-                    )
-                }
+                val weeklyChartData = buildWeekChartData(weekStart, sessionsByDate)
 
                 // Today's stats
-                val todaySessions = sessionsByDate[todayStr] ?: emptyList()
                 val todayCaloriesBurned = todaySessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
                 val todayDurationMinutes = todaySessions.sumOf { it.totalDurationMinutes }
                 val hasSessionToday = todaySessions.isNotEmpty()
 
                 // Recent exercise items — last 3 from most recent session
-                val mostRecentSession = sessions.maxByOrNull { it.sessionDate }
+                val mostRecentSession = historySessions.maxByOrNull { it.sessionDate }
                 val recentExerciseItems = mostRecentSession?.details?.takeLast(3) ?: emptyList()
-                val recentSessions = sessions
+                val recentSessions = historySessions
                     .sortedByDescending { it.sessionDate }
                     .take(4)
 
                 // Compute workout streak (consecutive days with sessions going back from today)
-                val sessionDates = sessions.map { it.sessionDate }.toSet()
+                val sessionDates = historySessions.map { it.sessionDate }.toSet()
                 val streak = computeStreak(today, sessionDates)
-                val longestStreak = computeLongestStreak(last7Days.map { it.format(ISO_FMT) }, sessionDates)
+                val longestStreak = computeLongestStreak(
+                    historySessions.map { it.sessionDate }.distinct().sorted(),
+                    sessionDates
+                )
 
                 _uiState.update {
                     it.copy(
@@ -155,7 +155,62 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
+    fun showPreviousWeek() {
+        val weekStart = _uiState.value.selectedWeekStart.minusWeeks(1)
+        loadWeekChart(weekStart)
+    }
+
+    fun showNextWeek() {
+        val currentWeekStart = LocalDate.now().minusDays((LocalDate.now().dayOfWeek.value - 1).toLong())
+        val weekStart = _uiState.value.selectedWeekStart.plusWeeks(1).coerceAtMost(currentWeekStart)
+        if (weekStart != _uiState.value.selectedWeekStart) {
+            loadWeekChart(weekStart)
+        }
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private fun loadWeekChart(weekStart: LocalDate) {
+        val range = weekRange(weekStart)
+        viewModelScope.launch {
+            trainingRepository.getSessions(fromDate = range.first, toDate = range.second).fold(
+                onSuccess = { sessions ->
+                    val chartData = buildWeekChartData(weekStart, sessions.groupBy { it.sessionDate })
+                    _uiState.update {
+                        it.copy(
+                            selectedWeekStart = weekStart,
+                            weeklyChartData = chartData,
+                            error = null
+                        )
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(error = e.message ?: "Lỗi tải dữ liệu tuần") }
+                }
+            )
+        }
+    }
+
+    private fun weekRange(weekStart: LocalDate): Pair<String, String> {
+        return weekStart.format(ISO_FMT) to weekStart.plusDays(6).format(ISO_FMT)
+    }
+
+    private fun buildWeekChartData(
+        weekStart: LocalDate,
+        sessionsByDate: Map<String, List<WorkoutSessionDto>>
+    ): List<DayCalorieData> {
+        return (0..6).map { offset ->
+            val day = weekStart.plusDays(offset.toLong())
+            val dayStr = day.format(ISO_FMT)
+            val daySessions = sessionsByDate[dayStr] ?: emptyList()
+            val totalCals = daySessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
+            DayCalorieData(
+                dayLabel = VN_DAY_LABELS[day.dayOfWeek.value - 1],
+                calories = totalCals,
+                hasSession = daySessions.isNotEmpty()
+            )
+        }
+    }
 
     private fun computeStreak(today: LocalDate, sessionDates: Set<String>): Int {
         var streak = 0

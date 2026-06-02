@@ -75,6 +75,14 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun verifyEmailCode(email: String, code: String) {
+        _authState.value = if (email.isNotBlank() && code.length == 6) {
+            AuthState.Success(email)
+        } else {
+            AuthState.Error("Mã xác minh không hợp lệ")
+        }
+    }
+
     fun resetState() {
         _authState.value = AuthState.Idle
     }
