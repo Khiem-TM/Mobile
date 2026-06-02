@@ -1,7 +1,6 @@
 package com.vitalai.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -72,11 +71,12 @@ fun VitalScroll(
     )
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun VitalCard(
     modifier: Modifier = Modifier,
-    color: Color = AppSurface,
-    borderColor: Color = AppLine,
+    color: Color = Color.White,
+    borderColor: Color = Color.Transparent,
     radius: Dp = VitalRadius.Md,
     contentPadding: PaddingValues = PaddingValues(VitalSpacing.Card),
     onClick: (() -> Unit)? = null,
@@ -88,8 +88,7 @@ fun VitalCard(
         shape = shape,
         color = color,
         tonalElevation = 0.dp,
-        shadowElevation = VitalElevation.Level1,
-        border = BorderStroke(1.dp, borderColor)
+        shadowElevation = VitalElevation.Level2
     ) {
         Column(modifier = Modifier.padding(contentPadding), content = content)
     }
@@ -199,6 +198,7 @@ fun VitalIconButton(
 fun SectionHeader(
     title: String,
     modifier: Modifier = Modifier,
+    color: Color = Ink900,
     action: String? = null,
     onAction: (() -> Unit)? = null
 ) {
@@ -207,7 +207,7 @@ fun SectionHeader(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = Ink900)
+        Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = color)
         if (action != null && onAction != null) {
             Text(
                 action,
