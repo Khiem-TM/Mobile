@@ -30,18 +30,21 @@ export class BlogController {
   @ApiQuery({ name: 'limit', required: false })
   @ApiQuery({ name: 'search', required: false })
   @ApiQuery({ name: 'tag', required: false })
+  @ApiQuery({ name: 'authorId', required: false })
   @Get()
   getBlogs(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('tag') tag?: string,
+    @Query('authorId') authorId?: string,
   ) {
     return this.blogService.getApprovedBlogs(
       page ? Number(page) : 1,
       limit ? Number(limit) : 20,
       search,
       tag,
+      authorId,
     );
   }
 

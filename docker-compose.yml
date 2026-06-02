@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16        # postgres 16 + pgvector có sẵn
+    image: pgvector/pgvector:pg16-trixie # postgres 16 + pgvector có sẵn
     container_name: calories_tracker
     restart: always
     environment:
@@ -146,7 +146,7 @@ services:
       # Service-account Firebase được mount read-only ở /app/secret
       FIREBASE_SERVICE_ACCOUNT_PATH: ./secret/calories-tracker-mobile-firebase-adminsdk-fbsvc-b641a8db8e.json
     ports:
-      - "3005:3005"
+      - "3006:3005"
     volumes:
       - ./backend/secret:/app/secret:ro      # khóa Firebase (không bake vào image)
     extra_hosts:
