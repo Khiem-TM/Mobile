@@ -12,7 +12,6 @@ data class HealthProfileDto(
     val activityLevel: String? = null,
     val dietType: String? = null,
     val foodAllergies: List<String>? = null,
-    val weightGoalKg: Float? = null,
     val caloriesGoal: Float? = null,
     val goalType: String? = null,
     val targetWeightKg: Float? = null,

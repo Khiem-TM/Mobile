@@ -103,7 +103,7 @@ describe('Users', () => {
       .send({
         heightCm: 170,
         initialWeightKg: 65,
-        weightGoalKg: 60,
+        targetWeightKg: 60,
         activityLevel: 'moderately_active',
         gender: 'male',
         birthDate: '1999-01-01',
