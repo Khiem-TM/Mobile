@@ -61,7 +61,7 @@ fun MyBlogsScreen(
                 },
                 actions = {
                     VitalIconButton(
-                        onClick = { navController.navigate(Screen.BlogComposer) },
+                        onClick = { navController.navigate(Screen.BlogComposer()) },
                         modifier = Modifier
                             .padding(end = 8.dp)
                             .size(40.dp),
@@ -141,7 +141,7 @@ fun MyBlogsScreen(
                         Text(uiState.error ?: "Chưa có bài viết nào", color = Ink500, fontSize = 15.sp)
                         Spacer(Modifier.height(8.dp))
                         Button(
-                            onClick = { navController.navigate(Screen.BlogComposer) },
+                            onClick = { navController.navigate(Screen.BlogComposer()) },
                             colors = ButtonDefaults.buttonColors(containerColor = Mint500),
                             shape = RoundedCornerShape(VitalRadius.Pill)
                         ) {
@@ -156,12 +156,12 @@ fun MyBlogsScreen(
                             blog = blog,
                             onClick = {
                                 if (blog.status != "approved") {
-                                    navController.navigate(Screen.BlogComposer)
+                                    navController.navigate(Screen.BlogComposer(blog.id))
                                 } else {
                                     navController.navigate(Screen.BlogDetail(blog.id))
                                 }
                             },
-                            onEdit = { navController.navigate(Screen.BlogComposer) },
+                            onEdit = { navController.navigate(Screen.BlogComposer(blog.id)) },
                             onDelete = { viewModel.deleteBlog(blog.id) }
                         )
                     }
@@ -325,21 +325,17 @@ private fun MyBlogCard(
                     .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                when (blog.status) {
-                    "approved" -> {
-                        TextButton(onClick = onClick) {
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Xem bài", fontSize = 12.sp, color = Mint500)
-                        }
+                if (blog.status == "approved") {
+                    TextButton(onClick = onClick) {
+                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Xem bài", fontSize = 12.sp, color = Mint500)
                     }
-                    else -> {
-                        TextButton(onClick = onEdit) {
-                            Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("Chỉnh sửa", fontSize = 12.sp)
-                        }
-                    }
+                }
+                TextButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(14.dp), tint = Ink700)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Sửa", fontSize = 12.sp, color = Ink700)
                 }
                 TextButton(onClick = onDelete) {
                     Icon(Icons.Default.Delete, contentDescription = null, tint = MacroProtein, modifier = Modifier.size(14.dp))

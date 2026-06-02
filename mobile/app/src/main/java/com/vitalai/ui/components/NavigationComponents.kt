@@ -14,10 +14,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,7 +68,7 @@ val bottomNavItemsLeft = listOf(
 )
 
 val bottomNavItemsRight = listOf(
-    BottomNavItem("AI Coach", Icons.Default.SmartToy, Screen.Coach),
+    BottomNavItem("Khám phá", Icons.Default.Explore, Screen.Discover),
     BottomNavItem("Hồ sơ", Icons.Default.Person, Screen.Profile)
 )
 
@@ -148,6 +150,7 @@ fun VitalBottomNavBar(navController: NavController) {
     var offset by remember { mutableStateOf(Offset.Zero) }
     var pressed by remember { mutableStateOf(false) }
     var physicsJob by remember { mutableStateOf<Job?>(null) }
+    var showAiActions by remember { mutableStateOf(false) }
 
     // Theo dõi vận tốc ngón tay để cú thả nối tiếp liền mạch (không khựng)
     val velocityTracker = remember { VelocityTracker() }
@@ -202,6 +205,36 @@ fun VitalBottomNavBar(navController: NavController) {
                         NavBarItem(item, currentRoute, navController)
                     }
                 }
+            }
+        }
+
+        if (showAiActions) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = (-62).dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AiQuickActionButton(
+                    icon = Icons.Default.ChatBubble,
+                    label = "Hỏi AI",
+                    onClick = {
+                        showAiActions = false
+                        navController.navigate(Screen.Coach) {
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+                AiQuickActionButton(
+                    icon = Icons.Default.CameraAlt,
+                    label = "Camera",
+                    onClick = {
+                        showAiActions = false
+                        navController.navigate(Screen.Scan)
+                    }
+                )
             }
         }
 
@@ -263,13 +296,46 @@ fun VitalBottomNavBar(navController: NavController) {
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {
-                        navController.navigate(Screen.Scan)
+                        showAiActions = !showAiActions
                     }
                 ),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Default.AutoAwesome, contentDescription = "Scan", tint = Color.White, modifier = Modifier.size(28.dp))
         }
+    }
+}
+
+@Composable
+private fun AiQuickActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .shadow(VitalElevation.Level2, RoundedCornerShape(VitalRadius.Pill), clip = false)
+            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .background(AppSurface)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 13.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(Mint600),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
+        }
+        Spacer(modifier = Modifier.width(7.dp))
+        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Mint600, maxLines = 1)
     }
 }
 

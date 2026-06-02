@@ -43,6 +43,7 @@ import com.vitalai.ui.screens.diary.MealHistoryScreen
 import com.vitalai.ui.screens.diary.SearchFoodScreen
 import com.vitalai.ui.screens.discover.BlogComposerScreen
 import com.vitalai.ui.screens.discover.BlogDetailScreen
+import com.vitalai.ui.screens.discover.AuthorBlogsScreen
 import com.vitalai.ui.screens.discover.DiscoverScreen
 import com.vitalai.ui.screens.discover.MyBlogsScreen
 import com.vitalai.ui.screens.home.HomeScreen
@@ -79,6 +80,7 @@ private fun WithStatusBarInset(content: @Composable () -> Unit) {
 private val mainTabRoutes = listOf(
     Screen.Home::class.qualifiedName,
     Screen.Diary::class.qualifiedName,
+    Screen.Discover::class.qualifiedName,
     Screen.Coach::class.qualifiedName,
     Screen.Profile::class.qualifiedName
 )
@@ -263,6 +265,15 @@ fun VitalNavGraph(
             val route: Screen.BlogDetail = backStackEntry.toRoute()
             BlogDetailScreen(blogId = route.id, navController = navController)
         }
+        composable<Screen.AuthorBlogs> { backStackEntry ->
+            val route: Screen.AuthorBlogs = backStackEntry.toRoute()
+            AuthorBlogsScreen(
+                authorId = route.authorId,
+                authorName = route.authorName,
+                avatarUrl = route.avatarUrl,
+                navController = navController
+            )
+        }
 
         // ── Notifications ─────────────────────────────────────
         composable<Screen.Notifications> {
@@ -296,8 +307,9 @@ fun VitalNavGraph(
         }
 
         // ── Blog sub-screens ──────────────────────────────────
-        composable<Screen.BlogComposer> {
-            BlogComposerScreen(navController)
+        composable<Screen.BlogComposer> { backStackEntry ->
+            val route: Screen.BlogComposer = backStackEntry.toRoute()
+            BlogComposerScreen(navController, blogId = route.blogId)
         }
         composable<Screen.MyBlogs> {
             MyBlogsScreen(navController)

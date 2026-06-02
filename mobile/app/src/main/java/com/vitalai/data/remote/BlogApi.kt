@@ -20,6 +20,7 @@ interface BlogApi {
     @GET("blogs")
     suspend fun getBlogs(
         @Query("tag") tag: String? = null,
+        @Query("authorId") authorId: String? = null,
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 10
     ): Response<ApiResponse<BlogPageDto>>
@@ -60,6 +61,9 @@ interface BlogApi {
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 50
     ): Response<ApiResponse<BlogPageDto>>
+
+    @GET("user/blogs/{id}")
+    suspend fun getMyBlogById(@Path("id") id: String): Response<ApiResponse<BlogDto>>
 
     @POST("user/blogs")
     suspend fun createBlog(@Body request: CreateBlogRequest): Response<ApiResponse<BlogDto>>

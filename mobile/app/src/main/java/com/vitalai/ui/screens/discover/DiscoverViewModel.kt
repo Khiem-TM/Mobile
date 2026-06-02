@@ -67,6 +67,5 @@ class DiscoverViewModel @Inject constructor(
 
     fun filterByTag(tag: String?) {
         _uiState.update { it.copy(selectedTag = tag) }
-        loadBlogs()
     }
 }

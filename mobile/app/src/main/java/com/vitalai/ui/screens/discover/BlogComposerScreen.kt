@@ -31,10 +31,16 @@ import com.vitalai.ui.theme.*
 @Composable
 fun BlogComposerScreen(
     navController: NavController,
+    blogId: String? = null,
     viewModel: BlogComposerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val sheetState = rememberModalBottomSheetState()
+    val isEditing = uiState.editingBlogId != null
+
+    LaunchedEffect(blogId) {
+        viewModel.loadBlogForEdit(blogId)
+    }
 
     // Navigate away after publish
     LaunchedEffect(uiState.published) {
@@ -47,8 +53,8 @@ fun BlogComposerScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Bài viết mới", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink900)
-                        Text("Soạn nội dung cộng đồng", fontSize = 12.sp, color = Ink500)
+                        Text(if (isEditing) "Sửa bài viết" else "Bài viết mới", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink900)
+                        Text(if (isEditing) "Cập nhật nội dung cộng đồng" else "Soạn nội dung cộng đồng", fontSize = 12.sp, color = Ink500)
                     }
                 },
                 navigationIcon = {
@@ -83,7 +89,7 @@ fun BlogComposerScreen(
                         if (uiState.isSaving) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Mint500)
                         } else {
-                            Text("Lưu nháp", color = Ink700)
+                            Text(if (isEditing) "Lưu sửa" else "Lưu nháp", color = Ink700)
                         }
                     }
                     Button(
@@ -96,13 +102,25 @@ fun BlogComposerScreen(
                         if (uiState.isPublishing) {
                             CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                         } else {
-                            Text("Đăng bài", fontWeight = FontWeight.SemiBold)
+                            Text(if (isEditing) "Cập nhật" else "Đăng bài", fontWeight = FontWeight.SemiBold)
                         }
                     }
                 }
             }
         }
     ) { padding ->
+        if (uiState.isLoadingBlog) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Mint500)
+            }
+            return@Scaffold
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

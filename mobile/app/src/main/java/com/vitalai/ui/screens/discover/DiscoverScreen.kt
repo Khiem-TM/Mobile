@@ -9,16 +9,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -38,39 +39,73 @@ import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.SectionHeader
 import com.vitalai.ui.components.VitalIconButton
 import com.vitalai.ui.components.VitalPill
+import com.vitalai.ui.components.blog.BlogCover
+import com.vitalai.ui.components.blog.BlogMetaRow
+import com.vitalai.ui.components.blog.BlogSearchBar
+import com.vitalai.ui.components.blog.BlogStatPill
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverScreen(
     navController: NavController,
-    viewModel: DiscoverViewModel = hiltViewModel()
+    viewModel: DiscoverViewModel = hiltViewModel(),
+    showBackButton: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val tags = remember(uiState.tags) {
-        listOf(null to "Tất cả") + uiState.tags.map { it to it }
+    var searchQuery by remember { mutableStateOf("") }
+    val tags = remember(uiState.tags, uiState.blogs) {
+        val fallbackTags = listOf("Dinh dưỡng", "Tập luyện", "Sức khỏe", "Giảm cân", "Eat clean")
+        val blogTags = uiState.blogs.flatMap { it.tags.orEmpty() }
+        val mergedTags = (uiState.tags + blogTags + fallbackTags).distinctBy { it.lowercase() }
+        listOf(null to "Tất cả") + mergedTags.map { it to it }
+    }
+    val searchedBlogs = remember(uiState.blogs, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isBlank()) {
+            uiState.blogs
+        } else {
+            uiState.blogs.filter { blog ->
+                blog.title.contains(query, ignoreCase = true) ||
+                    blog.displayAuthor.contains(query, ignoreCase = true) ||
+                    blog.tags.orEmpty().any { it.contains(query, ignoreCase = true) }
+            }
+        }
+    }
+    val latestBlogs = remember(searchedBlogs, uiState.selectedTag) {
+        val tag = uiState.selectedTag
+        if (tag == null) {
+            searchedBlogs
+        } else {
+            searchedBlogs.filter { blog ->
+                blog.tags.orEmpty().any { it.equals(tag, ignoreCase = true) }
+            }
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("Khám phá", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Ink900)
-                        Text("Bài viết sức khỏe mới nhất", fontSize = 12.sp, color = Ink500)
-                    }
+                    BlogSearchBar(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                    if (showBackButton) {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        }
                     }
                 },
                 actions = {
-                    TextButton(onClick = { navController.navigate(Screen.MyBlogs) }) {
-                        Text("Bài của tôi", color = Ink700, fontSize = 13.sp)
+                    IconButton(onClick = { navController.navigate(Screen.Notifications) }) {
+                        Icon(Icons.Default.Notifications, contentDescription = "Thông báo", tint = Ink700)
                     }
                     VitalIconButton(
-                        onClick = { navController.navigate(Screen.BlogComposer) },
+                        onClick = { navController.navigate(Screen.BlogComposer()) },
                         modifier = Modifier.padding(end = 12.dp),
                         containerColor = Mint500
                     ) {
@@ -87,29 +122,10 @@ fun DiscoverScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(AppMutedBackground)
-                    .padding(vertical = 10.dp)
-            ) {
-                items(tags) { (key, label) ->
-                    val isSelected = uiState.selectedTag == key
-                    VitalPill(
-                        text = label,
-                        selected = isSelected,
-                        mint = !isSelected,
-                        onClick = { viewModel.filterByTag(key) },
-                    )
-                }
-            }
-
             when {
                 uiState.isLoading -> LoadingState()
                 uiState.error != null -> ErrorState(message = uiState.error!!, onRetry = viewModel::loadBlogs)
-                uiState.blogs.isEmpty() -> Box(
+                searchedBlogs.isEmpty() -> Box(
                     Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
@@ -120,11 +136,53 @@ fun DiscoverScreen(
                     }
                 }
                 else -> LazyColumn(contentPadding = PaddingValues(bottom = 28.dp)) {
+                    item {
+                        Text(
+                            "Recommended",
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Ink900
+                        )
+                    }
+
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(searchedBlogs.take(5), key = { it.id }) { blog ->
+                                FeaturedBlogCard(
+                                    blog = blog,
+                                    onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
+                                )
+                            }
+                        }
+                    }
+
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(top = 18.dp, bottom = 14.dp)
+                        ) {
+                            items(tags) { (key, label) ->
+                                val isSelected = uiState.selectedTag == key
+                                VitalPill(
+                                    text = label,
+                                    selected = isSelected,
+                                    mint = !isSelected,
+                                    onClick = { viewModel.filterByTag(key) },
+                                )
+                            }
+                        }
+                    }
+
                     if (uiState.exploreFoods.isNotEmpty()) {
                         item {
                             SectionHeader(
                                 title = "Món nên thử",
-                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
                             )
                             LazyRow(
                                 contentPadding = PaddingValues(horizontal = 20.dp),
@@ -139,25 +197,26 @@ fun DiscoverScreen(
                             }
                         }
                     }
+
                     item {
-                        val featured = uiState.blogs.first()
                         SectionHeader(
-                            title = "Nổi bật",
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                        )
-                        FeaturedBlogCard(
-                            blog = featured,
-                            onClick = { navController.navigate(Screen.BlogDetail(featured.id)) }
+                            title = "Bài viết mới",
+                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)
                         )
                     }
-                    if (uiState.blogs.drop(1).isNotEmpty()) {
+                    if (latestBlogs.isEmpty()) {
                         item {
-                            SectionHeader(
-                                title = "Bài viết mới",
-                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 4.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Chưa có bài viết cho tag này", color = Ink500, fontSize = 14.sp)
+                            }
                         }
-                        items(uiState.blogs.drop(1)) { blog ->
+                    } else {
+                        items(latestBlogs, key = { it.id }) { blog ->
                             BlogListItem(
                                 blog = blog,
                                 onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
@@ -214,73 +273,67 @@ private fun ExploreFoodCard(food: FoodDto, onClick: () -> Unit) {
 private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp)
-            .height(232.dp)
+            .width(286.dp)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(VitalRadius.Xl),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(VitalElevation.Level1)
+        elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (blog.thumbnailUrl != null) {
-                AsyncImage(
-                    model = blog.thumbnailImage,
-                    contentDescription = blog.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Brush.linearGradient(listOf(Mint500, Mint700)))
-                )
-            }
-            // Gradient overlay
+        Column {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
-                        )
-                    )
-            )
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(18.dp)
+                    .fillMaxWidth()
+                    .height(156.dp)
+                    .clip(RoundedCornerShape(VitalRadius.Xl))
             ) {
+                BlogCover(
+                    blog = blog,
+                    modifier = Modifier.fillMaxSize(),
+                    radius = VitalRadius.Xl,
+                    fallbackGradient = true
+                )
                 blog.firstTag?.let {
                     Surface(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp),
                         shape = RoundedCornerShape(VitalRadius.Pill),
-                        color = Mint500.copy(alpha = 0.9f)
+                        color = Color.White.copy(alpha = 0.82f)
                     ) {
-                        Text(it, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                        Text(it, color = Ink700, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
                     }
-                    Spacer(Modifier.height(8.dp))
                 }
-                Text(
-                    blog.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp,
-                    color = Color.White,
-                    lineHeight = 26.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                Icon(
+                    Icons.Default.BookmarkBorder,
+                    contentDescription = "Lưu bài",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .size(25.dp)
                 )
-                Spacer(Modifier.height(10.dp))
-                BlogMetaRow(blog = blog, inverse = true)
             }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                blog.title,
+                modifier = Modifier.padding(horizontal = 2.dp),
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = Ink900,
+                lineHeight = 23.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(10.dp))
+            BlogMetaRow(blog = blog, modifier = Modifier.padding(horizontal = 2.dp))
+            Spacer(Modifier.height(8.dp))
             Row(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(14.dp),
+                modifier = Modifier.padding(horizontal = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                BlogStatPill(icon = Icons.Default.Visibility, value = "${blog.viewCount}", inverse = true)
-                BlogStatPill(icon = Icons.Default.Favorite, value = "${blog.likesCount}", inverse = true)
+                BlogStatPill(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
+                BlogStatPill(icon = Icons.Default.Favorite, value = "${blog.likesCount}", color = MacroProtein)
+                BlogStatPill(icon = Icons.Default.ChatBubbleOutline, value = "${blog.commentCount}", color = Mint600)
             }
         }
     }
@@ -302,26 +355,11 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
             modifier = Modifier.padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (blog.thumbnailUrl != null) {
-                AsyncImage(
-                    model = blog.thumbnailImage,
-                    contentDescription = blog.title,
-                    modifier = Modifier
-                        .size(width = 96.dp, height = 108.dp)
-                        .clip(RoundedCornerShape(VitalRadius.Md)),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(width = 96.dp, height = 108.dp)
-                        .clip(RoundedCornerShape(VitalRadius.Md))
-                        .background(Mint50),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Article, contentDescription = null, tint = Mint600, modifier = Modifier.size(30.dp))
-                }
-            }
+            BlogCover(
+                blog = blog,
+                modifier = Modifier.size(width = 96.dp, height = 108.dp),
+                radius = VitalRadius.Md
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 blog.firstTag?.let {
@@ -340,46 +378,15 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(8.dp))
-                BlogMetaRow(blog = blog, inverse = false)
+                BlogMetaRow(blog = blog)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     BlogStatPill(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
                     BlogStatPill(icon = Icons.Default.Favorite, value = "${blog.likesCount}", color = MacroProtein)
+                    BlogStatPill(icon = Icons.Default.ChatBubbleOutline, value = "${blog.commentCount}", color = Mint600)
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun BlogMetaRow(blog: BlogDto, inverse: Boolean) {
-    val textColor = if (inverse) Color.White.copy(alpha = 0.78f) else Ink500
-    Text(
-        text = "${blog.displayAuthor} · ${blog.createdAt.take(10)}",
-        fontSize = 12.sp,
-        color = textColor,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
-    )
-}
-
-@Composable
-private fun BlogStatPill(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    value: String,
-    inverse: Boolean = false,
-    color: Color = Mint500
-) {
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(VitalRadius.Pill))
-            .background(if (inverse) Color.Black.copy(alpha = 0.34f) else AppSurface2)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(icon, contentDescription = null, tint = if (inverse) Color.White else color, modifier = Modifier.size(13.dp))
-        Text(value, color = if (inverse) Color.White else Ink700, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     }
 }
 
