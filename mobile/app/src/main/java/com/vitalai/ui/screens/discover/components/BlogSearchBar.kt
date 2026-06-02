@@ -1,4 +1,4 @@
-package com.vitalai.ui.components.blog
+package com.vitalai.ui.screens.discover.components
 
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size

@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.discover
+package com.vitalai.ui.screens.discover.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

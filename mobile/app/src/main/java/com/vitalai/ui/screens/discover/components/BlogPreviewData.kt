@@ -1,4 +1,4 @@
-package com.vitalai.ui.components.blog
+package com.vitalai.ui.screens.discover.components
 
 import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogDto

@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.discover
+package com.vitalai.ui.screens.discover.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,6 +29,7 @@ import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.VitalIconButton
+import com.vitalai.ui.screens.discover.viewmodels.MyBlogsViewModel
 import com.vitalai.ui.theme.*
 
 private val statusTabs = listOf(

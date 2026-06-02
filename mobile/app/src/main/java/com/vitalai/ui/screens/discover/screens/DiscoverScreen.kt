@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.discover
+package com.vitalai.ui.screens.discover.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,10 +39,11 @@ import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.SectionHeader
 import com.vitalai.ui.components.VitalIconButton
 import com.vitalai.ui.components.VitalPill
-import com.vitalai.ui.components.blog.BlogCover
-import com.vitalai.ui.components.blog.BlogMetaRow
-import com.vitalai.ui.components.blog.BlogSearchBar
-import com.vitalai.ui.components.blog.BlogStatPill
+import com.vitalai.ui.screens.discover.components.BlogCover
+import com.vitalai.ui.screens.discover.components.BlogMetaRow
+import com.vitalai.ui.screens.discover.components.BlogSearchBar
+import com.vitalai.ui.screens.discover.components.BlogStatPill
+import com.vitalai.ui.screens.discover.viewmodels.DiscoverViewModel
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,4 +1,4 @@
-package com.vitalai.ui.components.blog
+package com.vitalai.ui.screens.discover.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box

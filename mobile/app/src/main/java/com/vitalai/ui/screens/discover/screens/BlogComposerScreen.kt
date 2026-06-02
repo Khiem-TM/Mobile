@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.discover
+package com.vitalai.ui.screens.discover.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +25,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.ui.components.SectionHeader
+import com.vitalai.ui.screens.discover.viewmodels.BlogComposerUiState
+import com.vitalai.ui.screens.discover.viewmodels.BlogComposerViewModel
+import com.vitalai.ui.screens.discover.viewmodels.ContentBlock
+import com.vitalai.ui.screens.discover.viewmodels.ContentBlockType
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)

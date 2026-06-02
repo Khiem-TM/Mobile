@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.discover
+package com.vitalai.ui.screens.discover.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,9 +27,10 @@ import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
-import com.vitalai.ui.components.blog.BlogAuthorAvatar
-import com.vitalai.ui.components.blog.BlogCover
-import com.vitalai.ui.components.blog.BlogStatPill
+import com.vitalai.ui.screens.discover.components.BlogAuthorAvatar
+import com.vitalai.ui.screens.discover.components.BlogCover
+import com.vitalai.ui.screens.discover.components.BlogStatPill
+import com.vitalai.ui.screens.discover.viewmodels.AuthorBlogsViewModel
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
