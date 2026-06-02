@@ -1,6 +1,7 @@
 package com.vitalai.ui.screens.discover.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,17 +10,16 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -38,11 +38,8 @@ import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.SectionHeader
 import com.vitalai.ui.components.VitalIconButton
-import com.vitalai.ui.components.VitalPill
 import com.vitalai.ui.screens.discover.components.BlogCover
-import com.vitalai.ui.screens.discover.components.BlogMetaRow
 import com.vitalai.ui.screens.discover.components.BlogSearchBar
-import com.vitalai.ui.screens.discover.components.BlogStatPill
 import com.vitalai.ui.screens.discover.viewmodels.DiscoverViewModel
 import com.vitalai.ui.theme.*
 
@@ -148,31 +145,23 @@ fun DiscoverScreen(
                     }
 
                     item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            items(searchedBlogs.take(5), key = { it.id }) { blog ->
-                                FeaturedBlogCard(
-                                    blog = blog,
-                                    onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
-                                )
-                            }
-                        }
+                        FeaturedBlogCard(
+                            blog = searchedBlogs.first(),
+                            onClick = { navController.navigate(Screen.BlogDetail(searchedBlogs.first().id)) }
+                        )
                     }
 
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.padding(top = 18.dp, bottom = 14.dp)
                         ) {
                             items(tags) { (key, label) ->
                                 val isSelected = uiState.selectedTag == key
-                                VitalPill(
-                                    text = label,
+                                BlogTagChip(
+                                    label = label,
                                     selected = isSelected,
-                                    mint = !isSelected,
                                     onClick = { viewModel.filterByTag(key) },
                                 )
                             }
@@ -205,7 +194,15 @@ fun DiscoverScreen(
                             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)
                         )
                     }
-                    if (latestBlogs.isEmpty()) {
+                    val visibleLatestBlogs = if (
+                        uiState.selectedTag == null &&
+                        latestBlogs.firstOrNull()?.id == searchedBlogs.firstOrNull()?.id
+                    ) {
+                        latestBlogs.drop(1)
+                    } else {
+                        latestBlogs
+                    }
+                    if (visibleLatestBlogs.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -217,7 +214,7 @@ fun DiscoverScreen(
                             }
                         }
                     } else {
-                        items(latestBlogs, key = { it.id }) { blog ->
+                        items(visibleLatestBlogs, key = { it.id }) { blog ->
                             BlogListItem(
                                 blog = blog,
                                 onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
@@ -227,6 +224,43 @@ fun DiscoverScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BlogTagChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(VitalRadius.Pill)
+    val background = if (selected) Ink900 else Color(0xFFE7F5EA)
+    val foreground = if (selected) Color.White else Mint700
+    val borderColor = if (selected) Ink900 else Color(0xFFD5ECD9)
+
+    Row(
+        modifier = Modifier
+            .height(36.dp)
+            .clip(shape)
+            .background(background)
+            .border(1.dp, borderColor, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
+                    .background(Mint300)
+            )
+            Spacer(Modifier.width(7.dp))
+        }
+        Text(
+            label,
+            color = foreground,
+            fontSize = 13.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+            maxLines = 1
+        )
     }
 }
 
@@ -272,122 +306,169 @@ private fun ExploreFoodCard(food: FoodDto, onClick: () -> Unit) {
 
 @Composable
 private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
-    Card(
+    Box(
         modifier = Modifier
-            .width(286.dp)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(VitalRadius.Xl),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        elevation = CardDefaults.cardElevation(0.dp)
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .height(224.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(onClick = onClick)
     ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(156.dp)
-                    .clip(RoundedCornerShape(VitalRadius.Xl))
-            ) {
-                BlogCover(
-                    blog = blog,
-                    modifier = Modifier.fillMaxSize(),
-                    radius = VitalRadius.Xl,
-                    fallbackGradient = true
+        BlogCover(
+            blog = blog,
+            modifier = Modifier.fillMaxSize(),
+            radius = 24.dp,
+            fallbackGradient = true
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.48f to Color.Black.copy(alpha = 0.08f),
+                        1f to Color.Black.copy(alpha = 0.72f)
+                    )
                 )
-                blog.firstTag?.let {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(12.dp),
-                        shape = RoundedCornerShape(VitalRadius.Pill),
-                        color = Color.White.copy(alpha = 0.82f)
-                    ) {
-                        Text(it, color = Ink700, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
-                    }
-                }
-                Icon(
-                    Icons.Default.BookmarkBorder,
-                    contentDescription = "Lưu bài",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp)
-                        .size(25.dp)
-                )
-            }
-            Spacer(Modifier.height(12.dp))
+        )
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(16.dp),
+            shape = RoundedCornerShape(VitalRadius.Pill),
+            color = Mint500
+        ) {
+            Text(
+                "FEATURED",
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
+            )
+        }
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp),
+            shape = RoundedCornerShape(VitalRadius.Pill),
+            color = Color.Black.copy(alpha = 0.22f)
+        ) {
+            Icon(
+                Icons.Default.BookmarkBorder,
+                contentDescription = "Lưu bài",
+                tint = Color.White,
+                modifier = Modifier.padding(8.dp).size(22.dp)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(horizontal = 16.dp, vertical = 18.dp)
+        ) {
+            Text(
+                "${blog.primaryTagLabel()} • ${blog.readMinutes()} min read",
+                color = Color.White.copy(alpha = 0.88f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(4.dp))
             Text(
                 blog.title,
-                modifier = Modifier.padding(horizontal = 2.dp),
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                color = Ink900,
-                lineHeight = 23.sp,
+                color = Color.White,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.ExtraBold,
+                lineHeight = 25.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(10.dp))
-            BlogMetaRow(blog = blog, modifier = Modifier.padding(horizontal = 2.dp))
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.padding(horizontal = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                BlogStatPill(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
-                BlogStatPill(icon = Icons.Default.Favorite, value = "${blog.likesCount}", color = MacroProtein)
-                BlogStatPill(icon = Icons.Default.ChatBubbleOutline, value = "${blog.commentCount}", color = Mint600)
-            }
         }
     }
 }
 
 @Composable
 private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp)
+            .padding(horizontal = 20.dp, vertical = 7.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        shape = RoundedCornerShape(22.dp),
+        color = AppSurface,
         border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-        elevation = CardDefaults.cardElevation(0.dp)
+        shadowElevation = VitalElevation.Level1
     ) {
         Row(
-            modifier = Modifier.padding(10.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             BlogCover(
                 blog = blog,
-                modifier = Modifier.size(width = 96.dp, height = 108.dp),
-                radius = VitalRadius.Md
+                modifier = Modifier
+                    .size(112.dp)
+                    .clip(RoundedCornerShape(VitalRadius.Lg)),
+                radius = VitalRadius.Lg,
+                fallbackGradient = true
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                blog.firstTag?.let {
-                    Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Mint50) {
-                        Text(it, color = Mint700, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
-                    }
-                    Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.width(16.dp))
+            Column(
+                modifier = Modifier
+                    .heightIn(min = 112.dp)
+                    .weight(1f)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(VitalRadius.Pill),
+                    color = Mint100
+                ) {
+                    Text(
+                        blog.primaryTagLabel(),
+                        color = Mint700,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
+                Spacer(Modifier.height(12.dp))
                 Text(
                     blog.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
                     color = Ink900,
-                    lineHeight = 20.sp,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    lineHeight = 22.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(8.dp))
-                BlogMetaRow(blog = blog)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    BlogStatPill(icon = Icons.Default.Visibility, value = "${blog.viewCount}")
-                    BlogStatPill(icon = Icons.Default.Favorite, value = "${blog.likesCount}", color = MacroProtein)
-                    BlogStatPill(icon = Icons.Default.ChatBubbleOutline, value = "${blog.commentCount}", color = Mint600)
+                Spacer(Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Ink700, modifier = Modifier.size(17.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("${blog.readMinutes()} min", color = Ink500, fontSize = 13.sp)
                 }
             }
         }
+    }
+}
+
+private fun BlogDto.primaryTagLabel(): String = tags?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Nutrition"
+
+private fun BlogDto.readMinutes(): Int {
+    val body = content
+        ?: blocks
+            ?.sortedBy { it.order }
+            ?.mapNotNull { it.textContent }
+            ?.joinToString(" ")
+    val wordCount = body
+        ?.trim()
+        ?.split(Regex("\\s+"))
+        ?.count { it.isNotBlank() }
+        ?: 0
+    return if (wordCount > 0) {
+        (wordCount / 180).coerceAtLeast(1)
+    } else {
+        (title.length / 16).coerceIn(3, 8)
     }
 }
 
