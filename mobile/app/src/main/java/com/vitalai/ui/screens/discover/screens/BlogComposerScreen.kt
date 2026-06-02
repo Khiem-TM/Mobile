@@ -9,15 +9,18 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,8 +60,8 @@ fun BlogComposerScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(if (isEditing) "Sửa bài viết" else "Bài viết mới", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink900)
-                        Text(if (isEditing) "Cập nhật nội dung cộng đồng" else "Soạn nội dung cộng đồng", fontSize = 12.sp, color = Ink500)
+                        Text(if (isEditing) "Sửa bài viết" else "Viết bài", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Ink900)
+                        Text(if (isEditing) "Cập nhật bài cộng đồng" else "Chia sẻ kiến thức sức khỏe", fontSize = 12.sp, color = Ink500)
                     }
                 },
                 navigationIcon = {
@@ -67,50 +70,41 @@ fun BlogComposerScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = {}) {
-                        Text("Xem trước", color = Mint500, fontWeight = FontWeight.SemiBold)
+                    Surface(
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .clip(RoundedCornerShape(VitalRadius.Pill))
+                            .clickable(onClick = { }),
+                        shape = RoundedCornerShape(VitalRadius.Pill),
+                        color = Color(0xFFE7F5EA)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Default.Visibility, contentDescription = null, tint = Mint700, modifier = Modifier.size(16.dp))
+                            Text(
+                                "Xem trước",
+                                color = Mint700,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
             )
         },
         bottomBar = {
-            Surface(shadowElevation = VitalElevation.Level2, color = AppSurface) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = viewModel::saveDraft,
-                        modifier = Modifier.weight(1f),
-                        enabled = !uiState.isSaving,
-                        shape = RoundedCornerShape(VitalRadius.Pill),
-                        border = ButtonDefaults.outlinedButtonBorder
-                    ) {
-                        if (uiState.isSaving) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Mint500)
-                        } else {
-                            Text(if (isEditing) "Lưu sửa" else "Lưu nháp", color = Ink700)
-                        }
-                    }
-                    Button(
-                        onClick = viewModel::publishPost,
-                        modifier = Modifier.weight(1f),
-                        enabled = !uiState.isPublishing && uiState.title.isNotBlank(),
-                        shape = RoundedCornerShape(VitalRadius.Pill),
-                        colors = ButtonDefaults.buttonColors(containerColor = Mint500)
-                    ) {
-                        if (uiState.isPublishing) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        } else {
-                            Text(if (isEditing) "Cập nhật" else "Đăng bài", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
+            ComposerBottomBar(
+                isEditing = isEditing,
+                isSaving = uiState.isSaving,
+                isPublishing = uiState.isPublishing,
+                canPublish = uiState.title.isNotBlank(),
+                onSaveDraft = viewModel::saveDraft,
+                onPublish = viewModel::publishPost
+            )
         }
     ) { padding ->
         if (uiState.isLoadingBlog) {
@@ -129,155 +123,82 @@ fun BlogComposerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 16.dp)
+            contentPadding = PaddingValues(bottom = 18.dp)
         ) {
             item {
                 ComposerStatusStrip(uiState = uiState)
             }
 
             item {
+                CoverComposerCard(uiState = uiState, onCoverUrlChange = viewModel::setCoverUrl)
+            }
+
+            item {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(VitalRadius.Xl),
+                    shape = RoundedCornerShape(24.dp),
                     color = AppSurface,
                     border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
                     shadowElevation = VitalElevation.Level1
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(VitalRadius.Lg))
-                                .background(AppSurface2),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (uiState.coverUrl.isNotBlank()) {
-                                AsyncImage(
-                                    model = uiState.coverUrl,
-                                    contentDescription = "Ảnh bìa",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Ink300, modifier = Modifier.size(40.dp))
-                                    Spacer(Modifier.height(8.dp))
-                                    Text("Thêm ảnh bìa", color = Ink500, fontSize = 14.sp)
-                                    Text("Dán URL ảnh bìa bên dưới", color = Ink300, fontSize = 12.sp)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = uiState.coverUrl,
-                            onValueChange = viewModel::setCoverUrl,
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            placeholder = { Text("URL ảnh bìa", fontSize = 13.sp, color = Ink400) },
-                            shape = RoundedCornerShape(VitalRadius.Md),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Mint500,
-                                unfocusedBorderColor = AppLine,
-                                focusedContainerColor = AppSurface,
-                                unfocusedContainerColor = AppSurface
-                            )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Thông tin bài viết", fontSize = 13.sp, color = Mint700, fontWeight = FontWeight.Bold)
+                        TextField(
+                            value = uiState.title,
+                            onValueChange = viewModel::setTitle,
+                            placeholder = {
+                                Text("Tiêu đề bài viết...", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Ink300)
+                            },
+                            textStyle = LocalTextStyle.current.copy(
+                                fontSize = 24.sp,
+                                lineHeight = 29.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Ink900
+                            ),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         )
-                    }
-                }
-            }
-
-            item {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    shape = RoundedCornerShape(VitalRadius.Lg),
-                    color = AppSurface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
-                ) {
-                    TextField(
-                        value = uiState.title,
-                        onValueChange = viewModel::setTitle,
-                        placeholder = {
-                            Text("Tiêu đề bài viết...", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Ink300)
-                        },
-                        textStyle = LocalTextStyle.current.copy(
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Ink900
-                        ),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            item {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(VitalRadius.Lg),
-                    color = AppSurface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
-                ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text("Thẻ", fontSize = 13.sp, color = Ink700, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(6.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(uiState.tags.size) { i ->
-                            val tag = uiState.tags[i]
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(VitalRadius.Pill))
-                                    .background(Mint50)
-                                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(tag, fontSize = 12.sp, color = Mint700)
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Xóa",
-                                    modifier = Modifier
-                                        .size(14.dp)
-                                        .clickable { viewModel.removeTag(tag) },
-                                    tint = Mint700
-                                )
+                        Spacer(Modifier.height(8.dp))
+                        Text("Chủ đề", fontSize = 13.sp, color = Ink700, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(8.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(uiState.tags.size) { i ->
+                                val tag = uiState.tags[i]
+                                ComposerTagChip(tag = tag, onRemove = { viewModel.removeTag(tag) })
                             }
-                        }
-                        item {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                OutlinedTextField(
-                                    value = uiState.tagInput,
-                                    onValueChange = viewModel::setTagInput,
-                                    placeholder = { Text("Thêm thẻ...", fontSize = 12.sp) },
-                                    modifier = Modifier.width(120.dp),
-                                    singleLine = true,
-                                    shape = RoundedCornerShape(VitalRadius.Pill),
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Mint500,
-                                        unfocusedBorderColor = Ink200
+                            item {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    OutlinedTextField(
+                                        value = uiState.tagInput,
+                                        onValueChange = viewModel::setTagInput,
+                                        placeholder = { Text("Thêm thẻ", fontSize = 12.sp) },
+                                        modifier = Modifier.width(132.dp),
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(VitalRadius.Pill),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Mint500,
+                                            unfocusedBorderColor = Color(0xFFD5ECD9),
+                                            focusedContainerColor = Color(0xFFF3FAF5),
+                                            unfocusedContainerColor = Color(0xFFF3FAF5)
+                                        )
                                     )
-                                )
-                                IconButton(
-                                    onClick = { viewModel.addTag(uiState.tagInput) },
-                                    enabled = uiState.tagInput.isNotBlank()
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = "Thêm", tint = Mint500)
+                                    IconButton(
+                                        onClick = { viewModel.addTag(uiState.tagInput) },
+                                        enabled = uiState.tagInput.isNotBlank()
+                                    ) {
+                                        Icon(Icons.Default.AddCircle, contentDescription = "Thêm", tint = if (uiState.tagInput.isNotBlank()) Mint500 else Ink300)
+                                    }
                                 }
                             }
                         }
                     }
-                }
                 }
             }
 
@@ -357,30 +278,251 @@ fun BlogComposerScreen(
 }
 
 @Composable
-private fun ComposerStatusStrip(uiState: BlogComposerUiState) {
+private fun ComposerBottomBar(
+    isEditing: Boolean,
+    isSaving: Boolean,
+    isPublishing: Boolean,
+    canPublish: Boolean,
+    onSaveDraft: () -> Unit,
+    onPublish: () -> Unit
+) {
+    Surface(
+        color = AppSurface.copy(alpha = 0.96f),
+        shadowElevation = VitalElevation.Level2
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier
+                    .height(46.dp)
+                    .weight(1f)
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
+                    .clickable(enabled = !isSaving, onClick = onSaveDraft),
+                shape = RoundedCornerShape(VitalRadius.Pill),
+                color = AppSurface,
+                border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(17.dp), strokeWidth = 2.dp, color = Mint500)
+                    } else {
+                        Icon(Icons.Default.BookmarkBorder, contentDescription = null, tint = Ink700, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text(
+                            if (isEditing) "Lưu sửa" else "Lưu nháp",
+                            color = Ink700,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
+            Surface(
+                modifier = Modifier
+                    .height(46.dp)
+                    .weight(1.05f)
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
+                    .clickable(enabled = !isPublishing && canPublish, onClick = onPublish),
+                shape = RoundedCornerShape(VitalRadius.Pill),
+                color = if (canPublish) Color(0xFF19C287) else Ink200
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (isPublishing) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(17.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (isEditing) "Cập nhật" else "Đăng bài",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CoverComposerCard(uiState: BlogComposerUiState, onCoverUrlChange: (String) -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        shape = RoundedCornerShape(VitalRadius.Pill),
+        shape = RoundedCornerShape(28.dp),
         color = AppSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        shadowElevation = VitalElevation.Level1
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            StatusChip("Bản nháp", Mint500)
-            StatusChip("${uiState.blocks.size} khối", MacroWater)
-            StatusChip("${uiState.tags.size} thẻ", MacroCarbs)
-            Spacer(Modifier.weight(1f))
+        Column(modifier = Modifier.padding(14.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Brush.linearGradient(listOf(Mint100, Mint500))),
+                contentAlignment = Alignment.Center
+            ) {
+                if (uiState.coverUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = uiState.coverUrl,
+                        contentDescription = "Ảnh bìa",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    0f to Color.Black.copy(alpha = 0.04f),
+                                    1f to Color.Black.copy(alpha = 0.58f)
+                                )
+                            )
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Color.White.copy(alpha = 0.78f)) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Mint700, modifier = Modifier.padding(16.dp).size(34.dp))
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text("Thêm ảnh bìa nổi bật", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("Dán URL ảnh để hiển thị như hero blog", color = Ink700, fontSize = 13.sp)
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(14.dp),
+                    shape = RoundedCornerShape(VitalRadius.Pill),
+                    color = Mint500
+                ) {
+                    Text(
+                        "COVER",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    )
+                }
+
+                if (uiState.title.isNotBlank()) {
+                    Text(
+                        uiState.title,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(16.dp),
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        lineHeight = 26.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = uiState.coverUrl,
+                onValueChange = onCoverUrlChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Link, contentDescription = null, tint = Mint700) },
+                placeholder = { Text("URL ảnh bìa", fontSize = 13.sp, color = Ink400) },
+                shape = RoundedCornerShape(VitalRadius.Pill),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint500,
+                    unfocusedBorderColor = Color(0xFFD5ECD9),
+                    focusedContainerColor = Color(0xFFF6FBF7),
+                    unfocusedContainerColor = Color(0xFFF6FBF7)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun ComposerTagChip(tag: String, onRemove: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .height(36.dp)
+            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .background(Color(0xFFE7F5EA))
+            .border(1.dp, Color(0xFFD5ECD9), RoundedCornerShape(VitalRadius.Pill))
+            .padding(start = 14.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(tag, fontSize = 13.sp, color = Mint700, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Icon(
+            Icons.Default.Close,
+            contentDescription = "Xóa",
+            modifier = Modifier
+                .size(18.dp)
+                .clip(RoundedCornerShape(VitalRadius.Pill))
+                .clickable(onClick = onRemove)
+                .padding(2.dp),
+            tint = Mint700
+        )
+    }
+}
+
+@Composable
+private fun ComposerStatusStrip(uiState: BlogComposerUiState) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = AppSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        shadowElevation = VitalElevation.Level1
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Color(0xFFE7F5EA)) {
+                    Icon(Icons.Default.EditNote, contentDescription = null, tint = Mint700, modifier = Modifier.padding(9.dp).size(22.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Blog cộng đồng", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Tạo bài viết theo style editorial của VitalAI", color = Ink500, fontSize = 12.sp)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                StatusChip("Bản nháp", Mint500)
+                StatusChip("${uiState.blocks.size} khối", MacroWater)
+                StatusChip("${uiState.tags.size} thẻ", MacroCarbs)
+                Spacer(Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(8.dp))
             Text(
                 when {
                     uiState.error != null -> uiState.error.orEmpty()
                     uiState.savedDraft -> "Đã lưu nháp"
                     uiState.title.isBlank() -> "Chưa có tiêu đề"
-                    else -> "Tự động đăng"
+                    else -> "Sẵn sàng đăng"
                 },
                 color = when {
                     uiState.error != null -> MacroProtein
@@ -421,29 +563,41 @@ private fun ContentBlockCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        shape = RoundedCornerShape(VitalRadius.Lg),
+            .padding(horizontal = 16.dp, vertical = 7.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
         border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-        elevation = CardDefaults.cardElevation(0.dp)
+        elevation = CardDefaults.cardElevation(VitalElevation.Level1)
     ) {
         Column {
-            // Block header bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AppSurface2)
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .background(Color(0xFFF6FBF7))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.DragHandle, contentDescription = null, tint = Ink300, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    if (block.type == ContentBlockType.TEXT) "Văn bản" else "Hình ảnh",
-                    fontSize = 11.sp,
-                    color = Ink500,
-                    modifier = Modifier.weight(1f)
-                )
+                Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = if (block.type == ContentBlockType.TEXT) Mint100 else Color(0xFFFFF1D6)) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            if (block.type == ContentBlockType.TEXT) Icons.Default.TextFields else Icons.Default.Image,
+                            contentDescription = null,
+                            tint = if (block.type == ContentBlockType.TEXT) Mint700 else MacroCarbs,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            if (block.type == ContentBlockType.TEXT) "Văn bản" else "Hình ảnh",
+                            fontSize = 12.sp,
+                            color = if (block.type == ContentBlockType.TEXT) Mint700 else MacroCarbs,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+                Spacer(Modifier.weight(1f))
                 if (index > 0) {
                     IconButton(onClick = onMoveUp, modifier = Modifier.size(28.dp)) {
                         Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên", tint = Ink500, modifier = Modifier.size(16.dp))
@@ -459,7 +613,6 @@ private fun ContentBlockCard(
                 }
             }
 
-            // Block body
             when (block.type) {
                 ContentBlockType.TEXT -> {
                     TextField(
@@ -468,8 +621,8 @@ private fun ContentBlockCard(
                         placeholder = { Text("Nhập nội dung...", color = Ink300) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
+                            focusedContainerColor = AppSurface,
+                            unfocusedContainerColor = AppSurface,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),
@@ -493,15 +646,15 @@ private fun ContentBlockCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(120.dp)
-                                    .clip(RoundedCornerShape(VitalRadius.Md))
-                                    .background(AppSurface2)
-                                    .border(width = 1.dp, color = AppLine, shape = RoundedCornerShape(VitalRadius.Md))
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(Brush.linearGradient(listOf(Mint50, Mint100)))
+                                    .border(width = 1.dp, color = Color(0xFFD5ECD9), shape = RoundedCornerShape(18.dp))
                                     .clickable { /* pick image */ },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Ink300, modifier = Modifier.size(32.dp))
-                                    Text("Chọn ảnh", color = Ink500, fontSize = 13.sp)
+                                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Mint700, modifier = Modifier.size(32.dp))
+                                    Text("Thêm ảnh minh họa", color = Ink700, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -512,10 +665,12 @@ private fun ContentBlockCard(
                             placeholder = { Text("URL hình ảnh...", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(VitalRadius.Md),
+                            shape = RoundedCornerShape(VitalRadius.Pill),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Mint500,
-                                unfocusedBorderColor = AppLine
+                                unfocusedBorderColor = Color(0xFFD5ECD9),
+                                focusedContainerColor = Color(0xFFF6FBF7),
+                                unfocusedContainerColor = Color(0xFFF6FBF7)
                             )
                         )
                         Spacer(Modifier.height(8.dp))
@@ -525,10 +680,12 @@ private fun ContentBlockCard(
                             placeholder = { Text("Chú thích ảnh...", fontSize = 12.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            shape = RoundedCornerShape(VitalRadius.Md),
+                            shape = RoundedCornerShape(VitalRadius.Pill),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Mint500,
-                                unfocusedBorderColor = Ink200
+                                unfocusedBorderColor = Color(0xFFD5ECD9),
+                                focusedContainerColor = Color(0xFFF6FBF7),
+                                unfocusedContainerColor = Color(0xFFF6FBF7)
                             )
                         )
                     }
