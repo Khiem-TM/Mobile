@@ -95,6 +95,28 @@ services:
       redis:
         condition: service_healthy
 
+  # ───────────────────── Food AI (computer vision) ──────────────────
+  # FastAPI service: photo -> YOLOv8-seg + nateraw/food + Depth-Anything-V2
+  # -> [{food_title, volume_cm3}]. Backend maps volume->grams->nutrition.
+  food-ai-service:
+    build:
+      context: ./calories_tracker_service
+      dockerfile: Dockerfile
+    container_name: calories_food_ai
+    restart: unless-stopped
+    environment:
+      DEVICE: cpu
+    ports:
+      - "8000:8000"
+    volumes:
+      - food_ai_hf_cache:/data/hf       # cache HF model weights (tải 1 lần)
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s                # model load on CPU is slow
+
   # ───────────────────────── Backend NestJS ─────────────────────────
   # Gateway/Business/Source-of-truth. Đọc secrets từ backend/.env (env_file),
   # các host nội bộ được override sang tên service trong network docker.
@@ -119,8 +141,8 @@ services:
       KAFKA_BROKERS: kafka:9092
       KAFKAJS_NO_PARTITIONER_WARNING: "1"
       RAG_SERVICE_URL: http://rag-service:8001
-      # Food AI (nếu chạy ngoài host) — đổi/ bỏ nếu không dùng
-      FOOD_AI_SERVICE_URL: http://host.docker.internal:8000
+      # Food AI service trong cùng docker network.
+      FOOD_AI_SERVICE_URL: http://food-ai-service:8000
       # Service-account Firebase được mount read-only ở /app/secret
       FIREBASE_SERVICE_ACCOUNT_PATH: ./secret/calories-tracker-mobile-firebase-adminsdk-fbsvc-b641a8db8e.json
     ports:
@@ -138,6 +160,8 @@ services:
         condition: service_healthy
       rag-service:
         condition: service_started
+      food-ai-service:
+        condition: service_started
 
 volumes:
   # Dùng lại volume data đã có từ stack cũ (DACN/Project) để KHÔNG mất dữ liệu
@@ -146,4 +170,5 @@ volumes:
     external: true
     name: project_postgres_data
   rag_hf_cache:
+  food_ai_hf_cache:
   kafka_data:

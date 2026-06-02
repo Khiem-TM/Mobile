@@ -29,7 +29,7 @@ export class ExercisesService {
 
   async getExerciseById(id: string, userId?: string) {
     const exercise = await this.exerciseRepo.findById(id);
-    if (!exercise) throw new NotFoundException('Exercise not found');
+    if (!exercise || !exercise.isActive) throw new NotFoundException('Exercise not found');
     if (!userId) return toExerciseMobileDto(exercise);
 
     const fav = await this.favoriteRepo.findOne({ where: { userId, exerciseId: id } });

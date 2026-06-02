@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { SupportModule } from '../support/support.module';
 import { UserModule } from '../user/user.module';
+import { AdminModule } from '../admin/admin.module';
 import { Blog } from './entities/blog.entity';
 import { BlogBlock } from './entities/blog-block.entity';
 import { BlogLike } from './entities/blog-like.entity';
@@ -18,6 +19,7 @@ import { BlogEventPublisher, KAFKA_CLIENT } from './services/blog-event.publishe
     TypeOrmModule.forFeature([Blog, BlogBlock, BlogLike, BlogComment]),
     SupportModule,
     UserModule, // UsersService -> lấy tên người like/comment
+    AdminModule,
     ClientsModule.register([
       {
         name: KAFKA_CLIENT,

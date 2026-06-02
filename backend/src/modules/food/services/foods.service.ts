@@ -43,7 +43,7 @@ export class FoodsService {
     const cached = await this.redisService.getJson<{ items: Food[]; total: number; page: number; limit: number }>(key);
     if (cached) return cached;
 
-    const where: any = { is_custom: false, is_active: true };
+    const where: any = { is_custom: false, is_active: true, is_verified: true };
     if (query) where.name = ILike(`%${query}%`);
 
     const [foods, total] = await this.foodRepository.findAndCount({
@@ -63,7 +63,7 @@ export class FoodsService {
     const cached = await this.redisService.getJson<{ items: Food[]; total: number; page: number; limit: number }>(key);
     if (cached) return cached;
 
-    const where: any = { food_type: 'dish', is_active: true, is_custom: false };
+    const where: any = { food_type: 'dish', is_active: true, is_custom: false, is_verified: true };
     if (category) where.category = ILike(`%${category}%`);
 
     const [items, total] = await this.foodRepository.findAndCount({
@@ -80,10 +80,10 @@ export class FoodsService {
   async findOne(id: string): Promise<Food> {
     const key = `cache:foods:one:${id}`;
     const cached = await this.redisService.getJson<Food>(key);
-    if (cached && !cached.is_custom && cached.is_active) return cached;
+    if (cached && !cached.is_custom && cached.is_active && cached.is_verified) return cached;
 
     const food = await this.foodRepository.findOne({
-      where: { id, is_custom: false, is_active: true },
+      where: { id, is_custom: false, is_active: true, is_verified: true },
     });
     if (!food) throw new NotFoundException('Food not found');
     await this.redisService.setJson(key, food, TTL.FOOD_ONE);
@@ -265,14 +265,14 @@ export class FoodsService {
   async findByBarcode(barcode: string): Promise<Food> {
     const key = `cache:foods:barcode:${barcode}`;
     const cached = await this.redisService.getJson<Food>(key);
-    if (cached && !cached.is_custom && cached.is_active) return cached;
+    if (cached && !cached.is_custom && cached.is_active && cached.is_verified) return cached;
 
     const record = await this.barcodeRepository.findOne({
       where: { barcode },
       relations: ['food'],
     });
     if (record?.food) {
-      if (record.food.is_custom || !record.food.is_active) {
+      if (record.food.is_custom || !record.food.is_active || !record.food.is_verified) {
         throw new NotFoundException(`Food with barcode ${barcode} not found`);
       }
       await this.redisService.setJson(key, record.food, TTL.FOOD_BARCODE);

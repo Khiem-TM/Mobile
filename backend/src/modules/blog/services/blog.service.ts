@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { Blog } from '../entities/blog.entity';
 import { BlogBlock } from '../entities/blog-block.entity';
 import { BlogLike } from '../entities/blog-like.entity';
@@ -17,6 +17,10 @@ import { CreateCommentDto } from '../dto/create-comment.dto';
 import { RedisService } from '../../support/redis/redis.service';
 import { randomUUID } from 'crypto';
 import { UsersService } from '../../user/services/users.service';
+import {
+  AdminAuditContext,
+  AuditLogService,
+} from '../../admin/services/audit-log.service';
 import { BlogEventPublisher } from './blog-event.publisher';
 import {
   BLOG_NOTIFICATIONS_TOPIC,
@@ -50,6 +54,7 @@ export class BlogService {
     private readonly redisService: RedisService,
     private readonly usersService: UsersService,
     private readonly blogEventPublisher: BlogEventPublisher,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /** Phát event thông báo khi có tương tác mới (like/comment) tới TÁC GIẢ blog. */
@@ -91,6 +96,7 @@ export class BlogService {
       .createQueryBuilder('blog')
       .leftJoinAndSelect('blog.authorUser', 'author')
       .where('blog.status = :status', { status: 'approved' })
+      .andWhere('blog.deleted_at IS NULL')
       .orderBy('blog.createdAt', 'DESC');
 
     if (search) {
@@ -117,14 +123,14 @@ export class BlogService {
   async getOneBlog(id: string) {
     const key = `cache:blogs:one:${id}`;
     const cached = await this.redisService.getJson<Blog>(key);
-    if (cached) {
+    if (cached && cached.status === 'approved' && !cached.deletedAt) {
       // Still increment view count even when serving from cache
       void this.blogRepo.increment({ id }, 'viewCount', 1);
       return cached;
     }
 
     const blog = await this.blogRepo.findOne({
-      where: { id, status: 'approved' },
+      where: { id, status: 'approved', deletedAt: IsNull() },
       relations: ['blocks', 'authorUser'],
       order: { blocks: { order: 'ASC' } },
     });
@@ -145,6 +151,7 @@ export class BlogService {
       .createQueryBuilder('blog')
       .select('blog.tags', 'tags')
       .where('blog.status = :s', { s: 'approved' })
+      .andWhere('blog.deleted_at IS NULL')
       .andWhere('blog.tags IS NOT NULL')
       .andWhere("blog.tags != ''")
       .getRawMany<{ tags: string }>();
@@ -173,7 +180,7 @@ export class BlogService {
 
   async createUserBlog(userId: string, dto: CreateBlogDto) {
     const savedId = await this.dataSource.transaction(async (manager) => {
-      const status = dto.status === 'draft' ? 'draft' : 'approved';
+      const status = dto.status === 'draft' ? 'draft' : 'pending';
 
       const blog = manager.create(Blog, {
         title: dto.title,
@@ -202,14 +209,12 @@ export class BlogService {
 
       return saved.id;
     });
-    if (dto.status !== 'draft') {
-      await this.invalidateBlogListCache();
-    }
+    await this.invalidateBlogListCache();
     return this.findWithBlocks(savedId);
   }
 
   async updateUserBlog(userId: string, blogId: string, dto: UpdateBlogDto) {
-    const blog = await this.blogRepo.findOne({ where: { id: blogId } });
+    const blog = await this.blogRepo.findOne({ where: { id: blogId, deletedAt: IsNull() } });
     if (!blog) throw new NotFoundException('Blog not found');
     if (blog.author_id !== userId) throw new ForbiddenException('Not your blog');
 
@@ -239,7 +244,7 @@ export class BlogService {
       }
 
       const keepAsDraft = (dto.status as string) === 'draft';
-      blog.status = keepAsDraft ? 'draft' : 'approved';
+      blog.status = keepAsDraft ? 'draft' : 'pending';
       blog.rejectionReason = null;
 
       await manager.save(Blog, blog);
@@ -266,21 +271,21 @@ export class BlogService {
 
   async deleteUserBlog(userId: string, blogId: string) {
     const blog = await this.blogRepo.findOne({
-      where: { id: blogId },
+      where: { id: blogId, deletedAt: IsNull() },
       relations: ['blocks'],
     });
     if (!blog) throw new NotFoundException('Blog not found');
     if (blog.author_id !== userId) throw new ForbiddenException('Not your blog');
 
-    await this.cleanupBlogAssets(blog);
-    await this.blogRepo.delete(blogId);
+    blog.deletedAt = new Date();
+    await this.blogRepo.save(blog);
     await this.invalidateBlogListCache();
     await this.redisService.del(`cache:blogs:one:${blogId}`);
   }
 
   async getUserBlogs(userId: string, page = 1, limit = 20) {
     const [items, total] = await this.blogRepo.findAndCount({
-      where: { author_id: userId },
+      where: { author_id: userId, deletedAt: IsNull() },
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -289,7 +294,9 @@ export class BlogService {
   }
 
   async toggleLike(userId: string, blogId: string) {
-    const blog = await this.blogRepo.findOne({ where: { id: blogId, status: 'approved' } });
+    const blog = await this.blogRepo.findOne({
+      where: { id: blogId, status: 'approved', deletedAt: IsNull() },
+    });
     if (!blog) throw new NotFoundException('Blog not found');
 
     const existing = await this.likeRepo.findOne({
@@ -322,11 +329,13 @@ export class BlogService {
   // ─── Comments (Feature 1) ──────────────────────────────────────────────────
 
   async getComments(blogId: string, page = 1, limit = 20) {
-    const blog = await this.blogRepo.findOne({ where: { id: blogId, status: 'approved' } });
+    const blog = await this.blogRepo.findOne({
+      where: { id: blogId, status: 'approved', deletedAt: IsNull() },
+    });
     if (!blog) throw new NotFoundException('Blog not found');
 
     const [items, total] = await this.commentRepo.findAndCount({
-      where: { blog_id: blogId },
+      where: { blog_id: blogId, deletedAt: IsNull() },
       relations: ['authorUser'],
       order: { createdAt: 'ASC' },
       skip: (page - 1) * limit,
@@ -336,7 +345,9 @@ export class BlogService {
   }
 
   async addComment(userId: string, blogId: string, dto: CreateCommentDto) {
-    const blog = await this.blogRepo.findOne({ where: { id: blogId, status: 'approved' } });
+    const blog = await this.blogRepo.findOne({
+      where: { id: blogId, status: 'approved', deletedAt: IsNull() },
+    });
     if (!blog) throw new NotFoundException('Blog not found');
 
     const comment = this.commentRepo.create({
@@ -359,145 +370,358 @@ export class BlogService {
   }
 
   async deleteOwnComment(userId: string, commentId: string) {
-    const comment = await this.commentRepo.findOne({ where: { id: commentId } });
+    const comment = await this.commentRepo.findOne({
+      where: { id: commentId, deletedAt: IsNull() },
+    });
     if (!comment) throw new NotFoundException('Comment not found');
     if (comment.author_id !== userId) throw new ForbiddenException('Not your comment');
 
     await this.dataSource.transaction(async (manager) => {
-      await manager.delete(BlogComment, { id: commentId });
+      await manager.update(BlogComment, { id: commentId }, { deletedAt: new Date() });
       await manager.decrement(Blog, { id: comment.blog_id }, 'commentCount', 1);
     });
   }
 
-  async adminDeleteComment(commentId: string) {
-    const comment = await this.commentRepo.findOne({ where: { id: commentId } });
-    if (!comment) throw new NotFoundException('Comment not found');
+  async adminDeleteComment(
+    commentId: string,
+    context?: AdminAuditContext,
+    expectedBlogId?: string,
+  ) {
+    const operation = async () => {
+      const comment = await this.commentRepo.findOne({
+        where: { id: commentId, deletedAt: IsNull() },
+      });
+      if (!comment || (expectedBlogId && comment.blog_id !== expectedBlogId)) {
+        throw new NotFoundException('Comment not found');
+      }
 
-    await this.dataSource.transaction(async (manager) => {
-      await manager.delete(BlogComment, { id: commentId });
-      await manager.decrement(Blog, { id: comment.blog_id }, 'commentCount', 1);
-    });
+      await this.dataSource.transaction(async (manager) => {
+        await manager.update(BlogComment, { id: commentId }, { deletedAt: new Date() });
+        await manager.decrement(Blog, { id: comment.blog_id }, 'commentCount', 1);
+      });
+      await this.invalidateBlogListCache();
+      await this.redisService.del(`cache:blogs:one:${comment.blog_id}`);
+      return {
+        id: comment.id,
+        blogId: comment.blog_id,
+        authorId: comment.author_id,
+      };
+    };
+
+    if (context) {
+      return this.auditMutation(
+        context,
+        'admin.blog_comment.delete',
+        'blog_comment',
+        commentId,
+        { blogId: expectedBlogId ?? null },
+        operation,
+      );
+    }
+
+    await operation();
   }
 
   // ─── Admin ─────────────────────────────────────────────────────────────────
 
-  async adminGetBlogs(page = 1, limit = 20, status?: string, tag?: string) {
-    if (status && !['approved', 'draft'].includes(status)) {
-      return { items: [], total: 0, page, limit };
-    }
-
+  async adminGetBlogs(
+    page = 1,
+    limit = 20,
+    filters: {
+      status?: string;
+      tag?: string;
+      search?: string;
+      authorId?: string;
+      createdFrom?: string;
+      createdTo?: string;
+    } = {},
+  ) {
     const qb = this.blogRepo
       .createQueryBuilder('blog')
       .leftJoinAndSelect('blog.authorUser', 'author')
+      .where('blog.deleted_at IS NULL')
       .orderBy('blog.createdAt', 'DESC');
 
-    if (status) {
-      qb.andWhere('blog.status = :status', { status });
+    if (filters.status) {
+      qb.andWhere('blog.status = :status', { status: filters.status });
     }
 
-    if (tag) {
-      qb.andWhere(":tag = ANY(string_to_array(blog.tags, ','))", { tag });
+    if (filters.search) {
+      qb.andWhere(
+        '(LOWER(blog.title) LIKE :search OR LOWER(author.display_name) LIKE :search)',
+        { search: `%${filters.search.toLowerCase()}%` },
+      );
     }
 
+    if (filters.authorId) {
+      qb.andWhere('blog.author_id = :authorId', { authorId: filters.authorId });
+    }
+
+    if (filters.tag) {
+      qb.andWhere(":tag = ANY(string_to_array(blog.tags, ','))", { tag: filters.tag });
+    }
+
+    if (filters.createdFrom) {
+      qb.andWhere('blog.createdAt >= :createdFrom', {
+        createdFrom: filters.createdFrom,
+      });
+    }
+    if (filters.createdTo) {
+      qb.andWhere('blog.createdAt <= :createdTo', {
+        createdTo: `${filters.createdTo} 23:59:59`,
+      });
+    }
+
+    const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const [items, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
+      .skip((page - 1) * safeLimit)
+      .take(safeLimit)
       .getManyAndCount();
 
-    return { items, total, page, limit };
+    return { items, total, page, limit: safeLimit };
   }
 
-  async adminCreateBlog(dto: CreateBlogDto) {
-    const savedId = await this.dataSource.transaction(async (manager) => {
-      const blog = manager.create(Blog, {
-        title: dto.title,
-        author_id: null,
-        status: 'approved',
-        tags: dto.tags?.length ? dto.tags : null,
-      });
-
-      if (dto.thumbnailBase64) {
-        const result = await this.cloudinaryService.uploadBase64(
-          dto.thumbnailBase64,
-          'blog-thumbnails',
-        );
-        blog.thumbnailUrl = result.url;
-        blog.thumbnailPublicId = result.publicId;
-      } else if (dto.thumbnailUrl) {
-        blog.thumbnailUrl = dto.thumbnailUrl;
-      }
-
-      const saved = await manager.save(Blog, blog);
-
-      if (dto.blocks?.length) {
-        const blocks = await this.buildBlocks(saved.id, dto.blocks);
-        await manager.save(BlogBlock, blocks);
-      }
-
-      return saved.id;
+  async adminGetBlogById(id: string) {
+    const blog = await this.blogRepo.findOne({
+      where: { id, deletedAt: IsNull() },
+      relations: ['blocks', 'authorUser'],
+      order: { blocks: { order: 'ASC' } },
     });
-    await this.invalidateBlogListCache();
-    return this.findWithBlocks(savedId);
+    if (!blog) throw new NotFoundException('Blog not found');
+    return blog;
   }
 
-  async adminUpdateBlog(id: string, dto: UpdateBlogDto) {
-    const blog = await this.blogRepo.findOne({ where: { id }, relations: ['blocks'] });
+  async adminGetBlogComments(blogId: string, page = 1, limit = 20) {
+    const blog = await this.blogRepo.findOne({
+      where: { id: blogId, deletedAt: IsNull() },
+    });
     if (!blog) throw new NotFoundException('Blog not found');
 
-    await this.dataSource.transaction(async (manager) => {
-      if (dto.thumbnailBase64) {
-        if (blog.thumbnailPublicId) {
-          await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
-        }
-        const result = await this.cloudinaryService.uploadBase64(
-          dto.thumbnailBase64,
-          'blog-thumbnails',
-        );
-        blog.thumbnailUrl = result.url;
-        blog.thumbnailPublicId = result.publicId;
-      } else if (dto.thumbnailUrl !== undefined) {
-        if (blog.thumbnailPublicId) {
-          await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
-          blog.thumbnailPublicId = null;
-        }
-        blog.thumbnailUrl = dto.thumbnailUrl || null;
-      }
+    const safeLimit = this.clampLimit(limit);
+    const [items, total] = await this.commentRepo.findAndCount({
+      where: { blog_id: blogId, deletedAt: IsNull() },
+      relations: ['authorUser'],
+      order: { createdAt: 'ASC' },
+      skip: (page - 1) * safeLimit,
+      take: safeLimit,
+    });
+    return { items, total, page, limit: safeLimit };
+  }
 
-      if (dto.title) blog.title = dto.title;
-      if (dto.tags !== undefined) {
-        blog.tags = dto.tags.length ? dto.tags : null;
-      }
-      await manager.save(Blog, blog);
+  async adminCreateBlog(dto: CreateBlogDto, context?: AdminAuditContext) {
+    return this.auditMutation(context, 'admin.blog.create', 'blog', null, {
+      title: dto.title,
+    }, async () => {
+      const savedId = await this.dataSource.transaction(async (manager) => {
+        const blog = manager.create(Blog, {
+          title: dto.title,
+          author_id: null,
+          status: 'approved',
+          tags: dto.tags?.length ? dto.tags : null,
+        });
 
-      if (dto.blocks !== undefined) {
-        for (const block of blog.blocks) {
-          if (block.imagePublicId) {
-            await this.cloudinaryService.deleteFile(block.imagePublicId);
-          }
+        if (dto.thumbnailBase64) {
+          const result = await this.cloudinaryService.uploadBase64(
+            dto.thumbnailBase64,
+            'blog-thumbnails',
+          );
+          blog.thumbnailUrl = result.url;
+          blog.thumbnailPublicId = result.publicId;
+        } else if (dto.thumbnailUrl) {
+          blog.thumbnailUrl = dto.thumbnailUrl;
         }
-        await manager.delete(BlogBlock, { blog_id: id });
 
-        if (dto.blocks.length) {
-          const blocks = await this.buildBlocks(id, dto.blocks);
+        const saved = await manager.save(Blog, blog);
+
+        if (dto.blocks?.length) {
+          const blocks = await this.buildBlocks(saved.id, dto.blocks);
           await manager.save(BlogBlock, blocks);
         }
-      }
+
+        return saved.id;
+      });
+      await this.invalidateBlogListCache();
+      return this.findWithBlocks(savedId);
     });
-    await this.invalidateBlogListCache();
-    await this.redisService.del(`cache:blogs:one:${id}`);
-    return this.findWithBlocks(id);
   }
 
-  async adminDeleteBlog(id: string) {
-    const blog = await this.blogRepo.findOne({ where: { id }, relations: ['blocks'] });
-    if (!blog) throw new NotFoundException('Blog not found');
-    await this.cleanupBlogAssets(blog);
-    await this.blogRepo.delete(id);
-    await this.invalidateBlogListCache();
-    await this.redisService.del(`cache:blogs:one:${id}`);
+  async adminUpdateBlog(id: string, dto: UpdateBlogDto, context?: AdminAuditContext) {
+    return this.auditMutation(context, 'admin.blog.update', 'blog', id, {
+      fields: Object.keys(dto),
+    }, async () => {
+      const blog = await this.blogRepo.findOne({
+        where: { id, deletedAt: IsNull() },
+        relations: ['blocks'],
+      });
+      if (!blog) throw new NotFoundException('Blog not found');
+
+      await this.dataSource.transaction(async (manager) => {
+        if (dto.thumbnailBase64) {
+          if (blog.thumbnailPublicId) {
+            await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
+          }
+          const result = await this.cloudinaryService.uploadBase64(
+            dto.thumbnailBase64,
+            'blog-thumbnails',
+          );
+          blog.thumbnailUrl = result.url;
+          blog.thumbnailPublicId = result.publicId;
+        } else if (dto.thumbnailUrl !== undefined) {
+          if (blog.thumbnailPublicId) {
+            await this.cloudinaryService.deleteFile(blog.thumbnailPublicId);
+            blog.thumbnailPublicId = null;
+          }
+          blog.thumbnailUrl = dto.thumbnailUrl || null;
+        }
+
+        if (dto.title) blog.title = dto.title;
+        if (dto.tags !== undefined) {
+          blog.tags = dto.tags.length ? dto.tags : null;
+        }
+        if (dto.status !== undefined) {
+          blog.status = dto.status;
+          blog.rejectionReason = null;
+        }
+        await manager.save(Blog, blog);
+
+        if (dto.blocks !== undefined) {
+          for (const block of blog.blocks) {
+            if (block.imagePublicId) {
+              await this.cloudinaryService.deleteFile(block.imagePublicId);
+            }
+          }
+          await manager.delete(BlogBlock, { blog_id: id });
+
+          if (dto.blocks.length) {
+            const blocks = await this.buildBlocks(id, dto.blocks);
+            await manager.save(BlogBlock, blocks);
+          }
+        }
+      });
+      await this.invalidateBlogListCache();
+      await this.redisService.del(`cache:blogs:one:${id}`);
+      return this.findWithBlocks(id);
+    });
+  }
+
+  async adminApproveBlog(id: string, context?: AdminAuditContext) {
+    return this.auditMutation(context, 'admin.blog.approve', 'blog', id, null, async () => {
+      const blog = await this.blogRepo.findOne({ where: { id, deletedAt: IsNull() } });
+      if (!blog) throw new NotFoundException('Blog not found');
+      blog.status = 'approved';
+      blog.rejectionReason = null;
+      const saved = await this.blogRepo.save(blog);
+      await this.invalidateBlogListCache();
+      await this.redisService.del(`cache:blogs:one:${id}`);
+      return saved;
+    });
+  }
+
+  async adminRejectBlog(id: string, reason?: string, context?: AdminAuditContext) {
+    return this.auditMutation(context, 'admin.blog.reject', 'blog', id, {
+      reason: reason ?? null,
+    }, async () => {
+      const blog = await this.blogRepo.findOne({ where: { id, deletedAt: IsNull() } });
+      if (!blog) throw new NotFoundException('Blog not found');
+      blog.status = 'rejected';
+      blog.rejectionReason = reason ?? null;
+      const saved = await this.blogRepo.save(blog);
+      await this.invalidateBlogListCache();
+      await this.redisService.del(`cache:blogs:one:${id}`);
+      return saved;
+    });
+  }
+
+  async adminBatchApproveBlogs(ids: string[], context?: AdminAuditContext) {
+    return this.auditMutation(context, 'admin.blog.batch_approve', 'blog', null, {
+      ids,
+    }, async () => {
+      await this.blogRepo
+        .createQueryBuilder()
+        .update(Blog)
+        .set({ status: 'approved', rejectionReason: null })
+        .where('id IN (:...ids)', { ids })
+        .andWhere('deleted_at IS NULL')
+        .execute();
+      await this.invalidateBlogListCache();
+      await Promise.all(ids.map((id) => this.redisService.del(`cache:blogs:one:${id}`)));
+      return { updated: ids.length };
+    });
+  }
+
+  async adminBatchRejectBlogs(ids: string[], reason?: string, context?: AdminAuditContext) {
+    return this.auditMutation(context, 'admin.blog.batch_reject', 'blog', null, {
+      ids,
+      reason: reason ?? null,
+    }, async () => {
+      await this.blogRepo
+        .createQueryBuilder()
+        .update(Blog)
+        .set({ status: 'rejected', rejectionReason: reason ?? null })
+        .where('id IN (:...ids)', { ids })
+        .andWhere('deleted_at IS NULL')
+        .execute();
+      await this.invalidateBlogListCache();
+      await Promise.all(ids.map((id) => this.redisService.del(`cache:blogs:one:${id}`)));
+      return { updated: ids.length };
+    });
+  }
+
+  async adminDeleteBlog(id: string, context?: AdminAuditContext) {
+    await this.auditMutation(context, 'admin.blog.delete', 'blog', id, null, async () => {
+      const blog = await this.blogRepo.findOne({ where: { id, deletedAt: IsNull() } });
+      if (!blog) throw new NotFoundException('Blog not found');
+      blog.deletedAt = new Date();
+      await this.blogRepo.save(blog);
+      await this.invalidateBlogListCache();
+      await this.redisService.del(`cache:blogs:one:${id}`);
+    });
   }
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
+
+  private async auditMutation<T>(
+    context: AdminAuditContext | undefined,
+    action: string,
+    targetType: string,
+    targetId: string | null,
+    metadata: Record<string, unknown> | null,
+    operation: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      const result = await operation();
+      await this.auditLogService.recordFromContext(context, {
+        action,
+        targetType,
+        targetId: this.resolveTargetId(targetId, result),
+        metadata,
+      });
+      return result;
+    } catch (error) {
+      await this.auditLogService.recordFromContext(context, {
+        action,
+        targetType,
+        targetId,
+        status: 'failure',
+        metadata,
+        errorMessage: error instanceof Error ? error.message : 'Admin blog action failed',
+      });
+      throw error;
+    }
+  }
+
+  private resolveTargetId(targetId: string | null, result: unknown): string | null {
+    if (targetId) return targetId;
+    if (result && typeof result === 'object' && 'id' in result) {
+      const id = (result as { id?: unknown }).id;
+      return typeof id === 'string' ? id : null;
+    }
+    return null;
+  }
+
+  private clampLimit(limit: number): number {
+    return Math.min(Math.max(Number(limit) || 20, 1), 100);
+  }
 
   private async buildBlocks(blogId: string, dtos: CreateBlogBlockDto[]): Promise<BlogBlock[]> {
     const blocks: BlogBlock[] = [];
@@ -539,7 +763,7 @@ export class BlogService {
 
   private async findWithBlocks(id: string) {
     return this.blogRepo.findOne({
-      where: { id },
+      where: { id, deletedAt: IsNull() },
       relations: ['blocks', 'authorUser'],
       order: { blocks: { order: 'ASC' } },
     });

@@ -1,0 +1,17 @@
+# Runtime deps for the Docker image (test-only deps dropped vs requirements.txt).
+# NOTE: torch is installed separately from the CPU wheel index in the Dockerfile
+# to avoid pulling CUDA libraries (keeps the image much smaller).
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+gunicorn>=22.0.0
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+numpy>=1.26.0
+opencv-python-headless>=4.9.0
+Pillow>=10.3.0
+python-multipart>=0.0.9
+# AI models (torch comes from the CPU index, see Dockerfile)
+ultralytics>=8.2.0
+transformers>=4.40.0
+timm>=0.9.16
+safetensors>=0.4.0
