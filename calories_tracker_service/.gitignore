@@ -1,0 +1,7 @@
+.venv/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+.env
+# Model weights (downloaded on first run)
+*.pt

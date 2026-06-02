@@ -23,6 +23,9 @@ import {
 } from '@nestjs/swagger';
 import { ExercisesService } from '../services/exercises.service';
 import { JwtAuthGuard } from '../../../common/guards/jwt.guard';
+import { RolesGuard } from '../../../common/guards/roles.guard';
+import { Roles } from '../../../common/decorators/roles.decorator';
+import { UserRole } from '../../../common/enums/user-role.enum';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Public } from '../../../common/decorators/public.decorator';
 import type { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
@@ -66,6 +69,8 @@ export class ExercisesController {
     },
   })
   @Post(':id/image/avatar')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('file', buildMulterOptions('exercises')))
   uploadAvtImage(
     @Param('id') id: string,
@@ -84,6 +89,8 @@ export class ExercisesController {
     },
   })
   @Post(':id/image/gallery')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('file', buildMulterOptions('exercises')))
   addGalleryImage(
     @Param('id') id: string,
@@ -94,6 +101,8 @@ export class ExercisesController {
 
   @ApiOperation({ summary: 'Remove image from exercise gallery' })
   @Delete(':id/image/gallery/:publicId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   removeGalleryImage(@Param('id') id: string, @Param('publicId') publicId: string) {
     return this.exercisesService.removeExerciseGalleryImage(id, publicId);

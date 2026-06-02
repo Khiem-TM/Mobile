@@ -217,7 +217,7 @@ fun NotificationsScreenPreview() {
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
 
-            items(notifications) { notification ->
+            items(notifications, key = { it.id }) { notification ->
 
                 NotificationItem(
                     notification = notification,

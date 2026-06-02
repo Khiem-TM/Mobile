@@ -64,13 +64,6 @@ export class UpdateHealthProfileDto {
   @IsEnum(FoodAllergyType, { each: true })
   foodAllergies?: FoodAllergyType[];
 
-  @ApiPropertyOptional({ example: 60 })
-  @IsOptional()
-  @IsNumber()
-  @Min(10)
-  @Max(500)
-  weightGoalKg?: number;
-
   @ApiPropertyOptional({ example: 2000 })
   @IsOptional()
   @IsNumber()

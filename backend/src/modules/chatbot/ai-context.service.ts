@@ -3,10 +3,6 @@ import { createHash } from 'crypto';
 import { UsersService } from '../user/services/users.service';
 import { DashboardService } from '../user/services/dashboard.service';
 
-/**
- * Xây dựng UserContext v1 (đã MASK PII) để gửi sang FastAPI RAG service.
- * Xem plan mục 3. KHÔNG bao giờ đưa email/phone/password... vào context.
- */
 @Injectable()
 export class AiContextService {
   private readonly logger = new Logger(AiContextService.name);
@@ -18,7 +14,9 @@ export class AiContextService {
 
   /** Hash userId -> user_ref ổn định (không lộ id thật trong DB/log của AI). */
   static userRef(userId: string): string {
-    return 'u_' + createHash('sha256').update(userId).digest('hex').slice(0, 24);
+    return (
+      'u_' + createHash('sha256').update(userId).digest('hex').slice(0, 24)
+    );
   }
 
   async buildUserContext(userId: string): Promise<Record<string, unknown>> {
@@ -50,7 +48,9 @@ export class AiContextService {
         allergies: profile.foodAllergies ?? [],
         goal_type: profile.goalType ?? null,
         target_weight_kg: this.num(profile.targetWeightKg),
-        daily_calories_goal: this.num(profile.dailyCaloriesGoal ?? profile.caloriesGoal),
+        daily_calories_goal: this.num(
+          profile.dailyCaloriesGoal ?? profile.caloriesGoal,
+        ),
         macro_goal_g: {
           protein: this.num(profile.proteinGoalG),
           carbs: this.num(profile.carbsGoalG),

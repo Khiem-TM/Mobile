@@ -53,7 +53,7 @@ describe('FoodsService', () => {
 
     expect(foodRepository.findAndCount).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { is_custom: false, is_active: true },
+        where: { is_custom: false, is_active: true, is_verified: true },
       }),
     );
   });
@@ -79,7 +79,7 @@ describe('FoodsService', () => {
     const result = await service.findOne('custom-food');
 
     expect(foodRepository.findOne).toHaveBeenCalledWith({
-      where: { id: 'custom-food', is_custom: false, is_active: true },
+      where: { id: 'custom-food', is_custom: false, is_active: true, is_verified: true },
     });
     expect(result.id).toBe('system-food');
   });

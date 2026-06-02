@@ -71,7 +71,7 @@ class GoalsViewModel @Inject constructor(
                 fatGoalG = p.fatGoalG?.toFloatString() ?: "",
                 waterGoalMl = p.waterGoalMl?.toString() ?: "2500",
                 stepGoal = p.stepGoal?.toString() ?: "10000",
-                targetWeightKg = p.targetWeightKg?.toFloatString() ?: p.weightGoalKg?.toFloatString() ?: "",
+                targetWeightKg = p.targetWeightKg?.toFloatString() ?: "",
                 weeklyRateKg = p.weeklyRateKg?.toFloatString() ?: "",
                 goalType = p.goalType ?: "maintain"
             )

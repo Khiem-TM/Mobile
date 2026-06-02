@@ -1,6 +1,9 @@
 package com.vitalai.data.repository
 
 import android.content.Context
+import com.vitalai.core.sync.SyncScheduler
+import com.vitalai.data.local.dao.PendingSyncActionDao
+import com.vitalai.data.local.entity.PendingSyncActionEntity
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.remote.model.AddExerciseRequest
@@ -17,9 +20,41 @@ import javax.inject.Singleton
 @Singleton
 class TrainingRepository @Inject constructor(
     private val trainingApi: TrainingApi,
+    private val pendingSyncActionDao: PendingSyncActionDao,
+    private val syncScheduler: SyncScheduler,
     @ApplicationContext private val context: Context
 ) {
     private val sharedPrefs = context.getSharedPreferences("training_prefs", Context.MODE_PRIVATE)
+
+    // ── Ghi optimistic: chỉ đẩy vào hàng đợi (last-write-wins theo ngày) rồi để
+    //    SyncWorker gửi nền. KHÔNG await network, KHÔNG refetch -> UI mượt. ──────
+    suspend fun enqueueWater(waterMl: Int, logDate: String = LocalDate.now().toString()) {
+        val type = "UPDATE_WATER:$logDate"
+        pendingSyncActionDao.deleteByActionType(type)
+        pendingSyncActionDao.insert(PendingSyncActionEntity(actionType = type, payload = waterMl.toString()))
+        syncScheduler.requestSync()
+    }
+
+    suspend fun enqueueSteps(steps: Int, logDate: String = LocalDate.now().toString()) {
+        val type = "UPDATE_STEPS:$logDate"
+        pendingSyncActionDao.deleteByActionType(type)
+        pendingSyncActionDao.insert(PendingSyncActionEntity(actionType = type, payload = steps.toString()))
+        syncScheduler.requestSync()
+    }
+
+    /** Giá trị nước/bước người dùng vừa đổi nhưng CHƯA đồng bộ (giữ qua restart). */
+    suspend fun pendingWater(date: String): Int? =
+        pendingSyncActionDao.getByActionType("UPDATE_WATER:$date")?.payload?.toIntOrNull()
+
+    suspend fun pendingSteps(date: String): Int? =
+        pendingSyncActionDao.getByActionType("UPDATE_STEPS:$date")?.payload?.toIntOrNull()
+
+    /** Ghi đè field nóng bằng giá trị optimistic còn chờ đồng bộ (chống "snap back"). */
+    private suspend fun applyPendingOverride(dto: ActivityLogDto, date: String): ActivityLogDto =
+        dto.copy(
+            waterMl = pendingWater(date) ?: dto.waterMl,
+            steps = pendingSteps(date) ?: dto.steps
+        )
     suspend fun getSessions(
         date: String? = null,
         limit: Int? = null,
@@ -205,10 +240,10 @@ class TrainingRepository @Inject constructor(
                 val manualCalories = sharedPrefs.getFloat("manual_calories_$date", 0f)
                 val manualMinutes = sharedPrefs.getInt("manual_minutes_$date", 0)
 
-                Result.success(body.copy(
+                Result.success(applyPendingOverride(body.copy(
                     caloriesBurned = workoutCalories + manualCalories,
                     activeMinutes = workoutMinutes + manualMinutes
-                ))
+                ), date))
             } else {
                 Result.failure(Exception("Lỗi tải hoạt động"))
             }

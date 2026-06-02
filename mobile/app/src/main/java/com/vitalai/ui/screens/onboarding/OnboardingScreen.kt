@@ -49,6 +49,8 @@ fun OnboardingScreen(
 ) {
     var step by remember { mutableIntStateOf(initialStep) }
     val uiState by viewModel.uiState.collectAsState()
+    val isLoading = uiState is OnboardingState.Loading
+    val canContinue = viewModel.isStepValid(step)
 
     LaunchedEffect(uiState) {
         if (uiState is OnboardingState.Success) {
@@ -58,7 +60,7 @@ fun OnboardingScreen(
         }
     }
 
-    BackHandler(enabled = true) {
+    BackHandler(enabled = !isLoading) {
         if (step > 1) {
             step--
         } else {
@@ -84,7 +86,7 @@ fun OnboardingScreen(
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(Ink100)
-                        .clickable {
+                        .clickable(enabled = !isLoading) {
                             if (step > 1) {
                                 step--
                             } else {
@@ -170,18 +172,18 @@ fun OnboardingScreen(
                     transitionSpec = {
                         if (targetState > initialState) {
                             slideInHorizontally(
-                                animationSpec = tween(400),
+                                animationSpec = tween(240),
                                 initialOffsetX = { fullWidth -> fullWidth }
                             ) togetherWith slideOutHorizontally(
-                                animationSpec = tween(400),
+                                animationSpec = tween(240),
                                 targetOffsetX = { fullWidth -> -fullWidth }
                             )
                         } else {
                             slideInHorizontally(
-                                animationSpec = tween(400),
+                                animationSpec = tween(240),
                                 initialOffsetX = { fullWidth -> -fullWidth }
                             ) togetherWith slideOutHorizontally(
-                                animationSpec = tween(400),
+                                animationSpec = tween(240),
                                 targetOffsetX = { fullWidth -> fullWidth }
                             )
                         }
@@ -233,10 +235,12 @@ fun OnboardingScreen(
             // Next Button
             Button(
                 onClick = {
-                    if (step < 4) {
-                        step++
-                    } else {
-                        viewModel.submitProfile()
+                    if (canContinue && !isLoading) {
+                        if (step < 4) {
+                            step++
+                        } else {
+                            viewModel.submitProfile()
+                        }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Ink900),
@@ -245,9 +249,9 @@ fun OnboardingScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
-                enabled = uiState !is OnboardingState.Loading
+                enabled = canContinue && !isLoading
             ) {
-                if (uiState is OnboardingState.Loading) {
+                if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
                         color = Color.White,

@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #191d17;
+  background: #f8faf0;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito Sans', ui-sans-serif, system-ui, sans-serif;
+  background: #f8faf0;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d3dac7;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b8c1ae;
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-border bg-surface shadow-soft;
+  }
+
+  .input {
+    @apply h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-text outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
+
+  .textarea {
+    @apply min-h-24 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
+
+  .select {
+    @apply h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-text outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
+
+  .btn-primary {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary-dark disabled:hover:bg-primary;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 text-sm font-semibold text-text transition hover:border-primary/40 hover:bg-primary-faint;
+  }
+
+  .btn-danger {
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md bg-danger px-4 text-sm font-semibold text-white transition hover:bg-danger/90;
+  }
+
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md border border-transparent text-muted transition hover:border-border hover:bg-primary-faint hover:text-primary;
+  }
+
+  .page-title {
+    @apply text-2xl font-bold tracking-normal text-text;
+  }
+
+  .label {
+    @apply text-xs font-bold uppercase tracking-wide text-muted;
+  }
+}

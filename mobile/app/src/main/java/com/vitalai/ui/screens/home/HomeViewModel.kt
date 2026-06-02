@@ -127,46 +127,35 @@ class HomeViewModel @Inject constructor(
         loadData()
     }
 
-    /** Adds [deltaMl] to today's water (repository call sets an absolute value). */
+    /**
+     * Adds [deltaMl] to today's water. Optimistic: cập nhật UI NGAY rồi đẩy lên
+     * hàng đợi đồng bộ nền (SyncWorker tự gửi + retry). Không await network, không refetch.
+     */
     fun addWater(deltaMl: Int = 250) {
-        viewModelScope.launch {
-            val current = _uiState.value.dashboard?.waterMl ?: 0
-            val date = _uiState.value.selectedDate
-            val result = dashboardRepository.addWater((current + deltaMl).coerceAtLeast(0), date)
-            result.onSuccess { updatedDashboard ->
-                _uiState.update { it.copy(dashboard = updatedDashboard) }
-            }
-            if (result.isSuccess) refreshActivityRange()
-        }
+        val current = _uiState.value.dashboard?.waterMl ?: 0
+        val newVal = (current + deltaMl).coerceAtLeast(0)
+        val date = _uiState.value.selectedDate
+        _uiState.update { st -> st.copy(dashboard = st.dashboard?.copy(waterMl = newVal)) }
+        viewModelScope.launch { trainingRepository.enqueueWater(newVal, date) }
     }
 
-    /** Sets today's total step count to [steps]. */
+    /** Sets today's total step count to [steps]. Optimistic + đồng bộ nền. */
     fun setSteps(steps: Int) {
-        viewModelScope.launch {
-            val date = _uiState.value.selectedDate
-            val result = dashboardRepository.addSteps(steps, date)
-            result.onSuccess { updatedDashboard ->
-                _uiState.update { it.copy(dashboard = updatedDashboard) }
-            }
-            if (result.isSuccess) refreshActivityRange()
-        }
+        val newVal = steps.coerceAtLeast(0)
+        val date = _uiState.value.selectedDate
+        _uiState.update { st -> st.copy(dashboard = st.dashboard?.copy(steps = newVal)) }
+        viewModelScope.launch { trainingRepository.enqueueSteps(newVal, date) }
     }
 
-    private suspend fun refreshActivityRange() {
-        val selectedLocalDate = LocalDate.parse(_uiState.value.selectedDate)
-        trainingRepository.getActivityLogRange(
-            selectedLocalDate.minusDays(6).toString(),
-            selectedLocalDate.toString()
-        ).onSuccess { logs ->
-            _uiState.update { it.copy(recentActivityLogs = logs) }
-        }
-    }
-
+    /** Xóa món optimistic: bỏ khỏi danh sách trên UI ngay + xóa Room/đồng bộ nền (no refetch). */
     fun deleteMealItem(mealLogId: String, itemId: String) {
-        viewModelScope.launch {
-            mealLogRepository.deleteItem(mealLogId, itemId).onSuccess {
-                loadData()
-            }
+        _uiState.update { st ->
+            st.copy(
+                mealLogs = st.mealLogs.map { ml ->
+                    if (ml.id == mealLogId) ml.copy(items = ml.items.filterNot { it.id == itemId }) else ml
+                }
+            )
         }
+        viewModelScope.launch { mealLogRepository.deleteItem(mealLogId, itemId) }
     }
 }

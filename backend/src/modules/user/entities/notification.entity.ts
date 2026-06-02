@@ -13,6 +13,7 @@ export enum NotificationType {
   GOAL_PROGRESS = 'goal_progress',
   REMINDER = 'reminder',
   SYSTEM = 'system',
+  WARNING = 'warning',
 }
 
 @Entity('notifications')

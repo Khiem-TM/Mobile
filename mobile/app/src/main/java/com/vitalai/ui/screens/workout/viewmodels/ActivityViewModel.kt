@@ -85,45 +85,27 @@ class ActivityViewModel @Inject constructor(
         }
     }
 
+    // Water/Steps optimistic: cập nhật UI ngay + đẩy hàng đợi đồng bộ nền (no await/refetch).
     fun addWater(deltaMl: Int) {
         val current = _uiState.value.log?.waterMl ?: 0
         val newVal = (current + deltaMl).coerceAtLeast(0)
         val date = _uiState.value.selectedDate
-        viewModelScope.launch {
-            val result = trainingRepository.updateWater(newVal, date)
-            result.onSuccess { log ->
-                _uiState.update { it.copy(log = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
-            if (result.isSuccess) loadWeeklyLogs()
-        }
+        _uiState.update { it.copy(log = (it.log ?: ActivityLogDto(logDate = date)).copy(waterMl = newVal)) }
+        viewModelScope.launch { trainingRepository.enqueueWater(newVal, date) }
     }
 
     fun updateSteps(steps: Int) {
+        val newVal = steps.coerceAtLeast(0)
         val date = _uiState.value.selectedDate
-        viewModelScope.launch {
-            val result = trainingRepository.updateSteps(steps, date)
-            result.onSuccess { log ->
-                _uiState.update { it.copy(log = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
-            if (result.isSuccess) loadWeeklyLogs()
-        }
+        _uiState.update { it.copy(log = (it.log ?: ActivityLogDto(logDate = date)).copy(steps = newVal)) }
+        viewModelScope.launch { trainingRepository.enqueueSteps(newVal, date) }
     }
 
     fun updateWater(ml: Int) {
+        val newVal = ml.coerceAtLeast(0)
         val date = _uiState.value.selectedDate
-        viewModelScope.launch {
-            val result = trainingRepository.updateWater(ml, date)
-            result.onSuccess { log ->
-                _uiState.update { it.copy(log = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
-            if (result.isSuccess) loadWeeklyLogs()
-        }
+        _uiState.update { it.copy(log = (it.log ?: ActivityLogDto(logDate = date)).copy(waterMl = newVal)) }
+        viewModelScope.launch { trainingRepository.enqueueWater(newVal, date) }
     }
 
     fun updateSleep(sleepHours: Float) {

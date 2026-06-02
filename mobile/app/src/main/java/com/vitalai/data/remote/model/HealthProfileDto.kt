@@ -12,7 +12,6 @@ data class HealthProfileDto(
     val activityLevel: String? = null,
     val dietType: String? = null,
     val foodAllergies: List<String>? = null,
-    val weightGoalKg: Float? = null,
     val caloriesGoal: Float? = null,
     val goalType: String? = null,
     val targetWeightKg: Float? = null,
@@ -26,4 +25,17 @@ data class HealthProfileDto(
     val goalStatus: String? = null,
     val waterGoalMl: Int? = null,
     val stepGoal: Int? = null
+)
+
+@JsonClass(generateAdapter = true)
+data class OnboardingRequest(
+    val birthDate: String,
+    val gender: String,
+    val heightCm: Float,
+    val initialWeightKg: Float,
+    val activityLevel: String,
+    val goalType: String,
+    val targetWeightKg: Float? = null,
+    val dietType: String? = null,
+    val foodAllergies: List<String>? = null
 )

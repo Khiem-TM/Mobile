@@ -1,5 +1,6 @@
 package com.vitalai.data.repository
 
+import com.vitalai.data.local.dao.PendingSyncActionDao
 import com.vitalai.data.remote.DashboardApi
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.DashboardDto
@@ -15,7 +16,8 @@ import javax.inject.Singleton
 class DashboardRepository @Inject constructor(
     private val dashboardApi: DashboardApi,
     private val trainingApi: TrainingApi,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val pendingSyncActionDao: PendingSyncActionDao
 ) {
     suspend fun getDashboard(date: String? = null): Result<DashboardDto> {
         return try {
@@ -43,9 +45,9 @@ class DashboardRepository @Inject constructor(
                     proteinGoal = profile?.proteinGoalG ?: 150f,
                     fatG = body.nutrition.totalFat,
                     fatGoal = profile?.fatGoalG ?: 65f,
-                    waterMl = body.activity.waterMl,
+                    waterMl = pendingWater(targetDate) ?: body.activity.waterMl,
                     waterGoalMl = profile?.waterGoalMl ?: 2000,
-                    steps = body.activity.steps,
+                    steps = pendingSteps(targetDate) ?: body.activity.steps,
                     stepGoal = profile?.stepGoal ?: 10000
                 )
                 Result.success(flatDashboard)
@@ -56,6 +58,12 @@ class DashboardRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    private suspend fun pendingWater(date: String): Int? =
+        pendingSyncActionDao.getByActionType("UPDATE_WATER:$date")?.payload?.toIntOrNull()
+
+    private suspend fun pendingSteps(date: String): Int? =
+        pendingSyncActionDao.getByActionType("UPDATE_STEPS:$date")?.payload?.toIntOrNull()
 
     suspend fun getStreaks(): Result<StreakDto> {
         return try {

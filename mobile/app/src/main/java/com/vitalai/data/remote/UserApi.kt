@@ -2,6 +2,7 @@ package com.vitalai.data.remote
 
 import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.HealthProfileDto
+import com.vitalai.data.remote.model.OnboardingRequest
 import com.vitalai.data.remote.model.UpdateProfileRequest
 import com.vitalai.data.remote.model.UserDto
 import okhttp3.MultipartBody
@@ -37,4 +38,7 @@ interface UserApi {
 
     @PUT("users/me/health-profile")
     suspend fun updateHealthProfile(@Body profile: HealthProfileDto): Response<ApiResponse<HealthProfileDto>>
+
+    @POST("users/me/onboarding")
+    suspend fun completeOnboarding(@Body request: OnboardingRequest): Response<ApiResponse<HealthProfileDto>>
 }

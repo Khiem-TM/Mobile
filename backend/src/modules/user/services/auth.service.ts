@@ -49,7 +49,13 @@ export class AuthService {
     private readonly redisService: RedisService,
   ) {}
 
-  private async generateAuthResponse(user: User): Promise<AuthResponseDto> {
+  async generateAuthResponse(user: User): Promise<AuthResponseDto> {
+    if (!user.is_active) {
+      throw new ForbiddenException(
+        'Your account has been deactivated. Please contact support.',
+      );
+    }
+
     const jwtSecret = process.env.JWT_SECRET;
     const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
     if (!jwtSecret || !jwtRefreshSecret) {
@@ -118,6 +124,7 @@ export class AuthService {
       password_hash,
       display_name,
       is_verified: true,
+      is_active: true,
     });
     await this.userRepository.save(user);
 
@@ -261,6 +268,11 @@ export class AuthService {
 
       const user = await this.userRepository.findOne({ where: { id: userId } });
       if (!user) throw new UnauthorizedException('Invalid refresh token');
+      if (!user.is_active) {
+        throw new ForbiddenException(
+          'Your account has been deactivated. Please contact support.',
+        );
+      }
 
       const jti = randomBytes(16).toString('hex');
       const access_token = this.jwtService.sign(

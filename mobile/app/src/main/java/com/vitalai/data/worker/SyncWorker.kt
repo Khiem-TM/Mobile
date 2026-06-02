@@ -10,6 +10,7 @@ import com.vitalai.data.local.entity.PendingSyncActionEntity
 import com.vitalai.data.remote.MealLogApi
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.AddMealItemRequest
+import com.vitalai.data.remote.model.UpdateMealLogItemRequest
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.LocalDate
@@ -61,24 +62,26 @@ class SyncWorker @AssistedInject constructor(
                 val response = mealLogApi.deleteItem(parts[0], parts[1])
                 response.isSuccessful
             }
-            action.actionType == "UPDATE_STEPS" -> {
-                val steps = action.payload.toIntOrNull() ?: return false
-                val response = trainingApi.updateSteps(
-                    mapOf(
-                        "logDate" to LocalDate.now().toString(),
-                        "steps" to steps,
-                    ),
-                )
+            action.actionType.startsWith("UPDATE_MEAL_ITEM:") -> {
+                val parts = action.actionType.removePrefix("UPDATE_MEAL_ITEM:").split(":")
+                if (parts.size != 2) return true // malformed -> discard
+                val req = moshi.adapter(UpdateMealLogItemRequest::class.java).fromJson(action.payload)
+                    ?: return false
+                val response = mealLogApi.updateItem(parts[0], parts[1], req)
                 response.isSuccessful
             }
-            action.actionType == "UPDATE_WATER" -> {
+            // "UPDATE_STEPS:<date>" (date trong actionType, value trong payload). Có nhánh
+            // cũ "UPDATE_STEPS" (today) để tương thích ngược.
+            action.actionType.startsWith("UPDATE_STEPS") -> {
+                val date = action.actionType.substringAfter(":", LocalDate.now().toString())
+                val steps = action.payload.toIntOrNull() ?: return false
+                val response = trainingApi.updateSteps(mapOf("logDate" to date, "steps" to steps))
+                response.isSuccessful
+            }
+            action.actionType.startsWith("UPDATE_WATER") -> {
+                val date = action.actionType.substringAfter(":", LocalDate.now().toString())
                 val waterMl = action.payload.toIntOrNull() ?: return false
-                val response = trainingApi.updateWater(
-                    mapOf(
-                        "logDate" to LocalDate.now().toString(),
-                        "waterMl" to waterMl,
-                    ),
-                )
+                val response = trainingApi.updateWater(mapOf("logDate" to date, "waterMl" to waterMl))
                 response.isSuccessful
             }
             else -> true // unknown action type — discard

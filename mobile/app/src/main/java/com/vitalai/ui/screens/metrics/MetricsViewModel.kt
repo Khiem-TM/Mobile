@@ -78,22 +78,34 @@ class MetricsViewModel @Inject constructor(
 
     fun addMetric(request: UpsertBodyMetricRequest) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            // Không bật isLoading (giữ nội dung hiện tại) -> không nháy spinner.
             bodyMetricsRepository.addMetric(request).fold(
                 onSuccess = { saved ->
+                    // Hiện chỉ số mới NGAY; phần dẫn xuất (summary/chart) làm mới im lặng.
                     _uiState.update {
-                        it.copy(
-                            latest = saved,
-                            isLoading = false,
-                            updateSuccessCount = it.updateSuccessCount + 1
-                        )
+                        it.copy(latest = saved, updateSuccessCount = it.updateSuccessCount + 1)
                     }
-                    loadData()
+                    refreshDerived()
                 },
                 onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message) }
+                    _uiState.update { it.copy(error = e.message) }
                 }
             )
+        }
+    }
+
+    /** Làm mới summary + chart trong nền (KHÔNG bật isLoading -> không giật). */
+    private fun refreshDerived() {
+        val period = _uiState.value.selectedPeriod
+        viewModelScope.launch {
+            val summary = bodyMetricsRepository.getSummary().getOrNull()
+            val periodData = bodyMetricsRepository.getPeriod(period).getOrNull()
+            _uiState.update {
+                it.copy(
+                    summary = summary ?: it.summary,
+                    periodData = periodData ?: it.periodData
+                )
+            }
         }
     }
 

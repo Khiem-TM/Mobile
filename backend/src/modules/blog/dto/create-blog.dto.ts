@@ -39,7 +39,7 @@ export class CreateBlogDto {
   @IsOptional()
   tags?: string[];
 
-  /** Users may set 'draft' to save without publishing or 'approved' to publish immediately. Omit to default to approved. */
+  /** Users may set 'draft'; any non-draft user post is moderated as pending. Admin may still publish as approved. */
   @ApiProperty({ required: false, enum: ['draft', 'approved'] })
   @IsIn(['draft', 'approved'])
   @IsOptional()

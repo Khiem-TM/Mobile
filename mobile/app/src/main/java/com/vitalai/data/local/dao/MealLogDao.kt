@@ -34,4 +34,10 @@ interface MealLogDao {
 
     @Query("DELETE FROM meal_log_items WHERE mealLogId = :mealLogId")
     suspend fun deleteItemsByMealLog(mealLogId: String)
+
+    @Query("DELETE FROM meal_log_items WHERE id = :itemId")
+    suspend fun deleteItemById(itemId: String)
+
+    @Query("SELECT * FROM meal_log_items WHERE id = :itemId")
+    suspend fun getItemById(itemId: String): MealLogItemEntity?
 }
