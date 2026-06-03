@@ -55,7 +55,7 @@ val Slate900 = Color(0xFF1E293B)
 val MacroCarbs = Color(0xFFF59E0B)
 val MacroProtein = Color(0xFFEF4444)
 val MacroFat = Color(0xFF8B5CF6)
-val MacroWater = Color(0xFF38BDF8)
+val MacroWater = Color(0xFF257EA5)
 
 // Domain-specific colors (water, meal badges)
 val WaterBlue = Color(0xFF3B82F6)

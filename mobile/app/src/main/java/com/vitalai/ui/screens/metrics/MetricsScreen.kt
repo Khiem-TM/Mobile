@@ -57,6 +57,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -86,8 +87,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import kotlin.math.pow
 import android.util.Log
+import com.vitalai.ui.theme.ForestGreen
 
-private val MetricGreen = Color(0xFF228C66)
+//private val ForestGreen = Color(0xFF228C66)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +100,7 @@ fun MetricsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showUpdateSheet by remember { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     LaunchedEffect(uiState.updateSuccessCount) {
         if (uiState.updateSuccessCount > 0) {
@@ -108,21 +111,17 @@ fun MetricsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Chỉ số cơ thể", fontWeight = FontWeight.Bold, color = Ink900) },
+                title = { Text("Hồ sơ cơ thể", fontWeight = FontWeight.Bold, color = ForestGreen) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = ForestGreen)
                     }
                 },
-                actions = {
-                    TextButton(onClick = {
-                        viewModel.setUpdateTab(0)
-                        showUpdateSheet = true
-                    }) {
-                        Text("Cập nhật", color = Mint500, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppMutedBackground,
+                    scrolledContainerColor = AppMutedBackground
+                )
             )
         },
         containerColor = AppMutedBackground
@@ -137,10 +136,16 @@ fun MetricsScreen(
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = padding.calculateTopPadding() + 16.dp,
+                    // Đẩy item cuối cùng lên cao hơn thanh ngang xám một chút
+                    bottom = padding.calculateBottomPadding() + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 16.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            ){
                 // 1. Current weight + weight progress
                 item {
                     Row(
@@ -327,7 +332,7 @@ private fun CurrentWeightCard(
                 "Hiện tại",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF228C66),
+                color = ForestGreen,
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(4.dp))
@@ -335,7 +340,7 @@ private fun CurrentWeightCard(
                 currentWeightKg?.let { "%.1f kg".format(it) } ?: "-- kg",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF228C66),
+                color = ForestGreen,
                 textAlign = TextAlign.Center,
                 maxLines = 1
             )
@@ -356,7 +361,7 @@ private fun CurrentWeightCard(
                     modifier = Modifier
                         .fillMaxWidth(amplifiedProgress)
                         .fillMaxHeight()
-                        .background(Color(0xFF228C66))
+                        .background(ForestGreen)
                 )
             }
 
@@ -370,7 +375,7 @@ private fun CurrentWeightCard(
                         append("Mục tiêu ")
                     }
                     withStyle(style = SpanStyle(
-                        color = Color(0xFF228C66),
+                        color = ForestGreen,
                         fontWeight = FontWeight.Bold
                     )) {
                         val valueText = targetWeightKg?.let { "%.1f kg".format(it) } ?: "-- kg"
@@ -386,7 +391,7 @@ private fun CurrentWeightCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF228C66))
+                .background(ForestGreen)
                 .clickable(onClick = onLogWeight)
                 .padding(horizontal = 16.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -426,7 +431,7 @@ private fun BmiBar(bmi: Float) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Chỉ số BMI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = MetricGreen)
+                Text("Chỉ số BMI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ForestGreen)
                 Text(
                     text = "%.1f - %s".format(bmi, bmiLabel(bmi)),
                     fontSize = 12.sp,
@@ -531,7 +536,7 @@ private fun PersonalInfoCard(
                 "Thông tin cá nhân",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MetricGreen
+                color = ForestGreen
             )
 
             PersonalInfoRow(
@@ -566,7 +571,7 @@ private fun PersonalInfoRow(label: String, value: String) {
             value,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
-            color = MetricGreen,
+            color = ForestGreen,
             textAlign = TextAlign.End
         )
     }
@@ -580,7 +585,7 @@ private fun EnergyBasicsCard(latest: BodyMetricDto) {
                 "Năng lượng cơ bản",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MetricGreen
+                color = ForestGreen
             )
             latest.bmr?.let { bmr ->
                 PersonalInfoRow(
@@ -634,9 +639,9 @@ private fun LabeledTextField(
 
 @Composable
 private fun metricTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = MetricGreen,
-    focusedLabelColor = MetricGreen,
-    cursorColor = MetricGreen,
+    focusedBorderColor = ForestGreen,
+    focusedLabelColor = ForestGreen,
+    cursorColor = ForestGreen,
     focusedContainerColor = Color.White,
     unfocusedContainerColor = Color.White,
     disabledContainerColor = Color.White,
@@ -664,7 +669,7 @@ private fun WeightChangeRow(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Tiến độ cân nặng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF228C66))
+            Text("Tiến độ cân nặng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = ForestGreen)
             latestDate?.let { date ->
                 Text(
                     "Cập nhật: ${formatDateDisplay(date)}",
@@ -673,7 +678,7 @@ private fun WeightChangeRow(
                 )
             }
             val arrow = if (weightChange <= 0f) "↓" else "↑"
-            val changeColor = if (weightChange <= 0f) Color(0xFF228C66) else Color(0xFFF87171)
+            val changeColor = if (weightChange <= 0f) ForestGreen else Color(0xFFF87171)
             Text(
                 "$arrow %.1f kg".format(kotlin.math.abs(weightChange)),
                 fontSize = 24.sp,
@@ -704,7 +709,7 @@ private fun WeightProgressEmptyCard(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text("Tiến độ cân nặng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = MetricGreen)
+            Text("Tiến độ cân nặng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = ForestGreen)
             Text("Chưa có dữ liệu", fontSize = 12.sp, color = Ink500)
             Text(
                 "-- kg",
@@ -734,7 +739,7 @@ private fun PeriodChartSection(
 
     VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            SectionHeader(title = "Biểu đồ cân nặng", color = MetricGreen)
+            SectionHeader(title = "Biểu đồ cân nặng", color = ForestGreen)
             Spacer(Modifier.height(10.dp))
 
             // Tab row: Tuần / Tháng / Quý
@@ -757,7 +762,7 @@ private fun PeriodChartSection(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(VitalRadius.Pill))
-                            .background(if (isSelected) Color(0xFF228C66) else Color.Transparent)
+                            .background(if (isSelected) ForestGreen else Color.Transparent)
                             .clickable { onSelectPeriod(key) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -1132,7 +1137,7 @@ private fun WeightLineChart(
 
                 val gridColor  = Ink200.copy(alpha = 0.75f)
                 val dashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()), 0f)
-                val lineColor  = Color(0xFF228C66)
+                val lineColor  = ForestGreen
                 val lineWidth  = 2.dp.toPx()
                 val dotRadius  = 4.dp.toPx()
 
@@ -1267,19 +1272,19 @@ private fun WeightLineChart(
                         lineTo(points.last().x, topPadding + chartH)
                         close()
                     },
-                    color = Color(0xFF228C66).copy(alpha = 0.15f)
+                    color = ForestGreen.copy(alpha = 0.15f)
                 )
                 drawPath(
                     Path().apply {
                         moveTo(points.first().x, points.first().y)
                         points.drop(1).forEach { lineTo(it.x, it.y) }
                     },
-                    color = Color(0xFF228C66),
+                    color = ForestGreen,
                     style = Stroke(width = 2.dp.toPx())
                 )
 
                 points.forEach { pt ->
-                    drawCircle(color = Color(0xFF228C66), radius = 4.dp.toPx(), center = pt)
+                    drawCircle(color = ForestGreen, radius = 4.dp.toPx(), center = pt)
                     drawCircle(color = Color.White, radius = 2.dp.toPx(), center = pt)
                 }
             }
@@ -1316,7 +1321,7 @@ private fun BodyMeasurementsCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick
     ) {
-        SectionHeader(title = "Số đo cơ thể", color = MetricGreen)
+        SectionHeader(title = "Số đo cơ thể", color = ForestGreen)
         Spacer(Modifier.height(12.dp))
 
         if (measurements.isEmpty()) {
@@ -1355,7 +1360,7 @@ private fun ProgressPhotosSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionHeader(title = "Ảnh tiến độ", color = MetricGreen)
+            SectionHeader(title = "Ảnh tiến độ", color = ForestGreen)
             if (isUploading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
@@ -1448,12 +1453,12 @@ private fun ProgressPhotosSection(
             onClick = onAddPhotoClick,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(VitalRadius.Md),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = MetricGreen),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MetricGreen)
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = ForestGreen),
+            border = androidx.compose.foundation.BorderStroke(1.dp, ForestGreen)
         ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
-            Text("Thêm ảnh", fontWeight = FontWeight.SemiBold)
+            Text("Thêm ảnh", fontWeight = FontWeight.SemiBold, color = ForestGreen)
         }
     }
 }
@@ -1511,7 +1516,7 @@ private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel,
     val bmiPreview = calculateBmi(weightVal, heightCm)
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Cập nhật cân nặng", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MetricGreen)
+        Text("Cập nhật cân nặng", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
 
         LabeledTextField(
             label = "Cân nặng",
@@ -1564,7 +1569,7 @@ private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel,
             enabled = weightVal != null,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(VitalRadius.Md),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF228C66))
+            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
         ) {
             Text("Lưu thông tin", fontWeight = FontWeight.SemiBold, color = Color.White)
         }
@@ -1588,7 +1593,7 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Cập nhật thông tin cá nhân", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MetricGreen)
+        Text("Cập nhật thông tin cá nhân", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(modifier = Modifier.weight(1f)) {
@@ -1664,7 +1669,7 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(VitalRadius.Md),
-            colors = ButtonDefaults.buttonColors(containerColor = MetricGreen)
+            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
         ) {
             Text("Lưu thông tin", fontWeight = FontWeight.SemiBold, color = Color.White)
         }
@@ -1701,7 +1706,7 @@ private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewMod
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Số đo nâng cao", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MetricGreen)
+        Text("Số đo nâng cao", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
         Text("Tất cả trường đều tùy chọn", fontSize = 12.sp, color = Ink500)
 
         val fieldDefs = listOf(
@@ -1745,7 +1750,7 @@ private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewMod
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(VitalRadius.Md),
-            colors = ButtonDefaults.buttonColors(containerColor = MetricGreen)
+            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
         ) {
             Text("Lưu số đo", fontWeight = FontWeight.SemiBold, color = Color.White)
         }

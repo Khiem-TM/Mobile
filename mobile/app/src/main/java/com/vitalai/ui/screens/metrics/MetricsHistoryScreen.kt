@@ -19,24 +19,29 @@ import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.ui.theme.*
+import com.vitalai.ui.theme.ForestGreen
+import com.vitalai.ui.theme.AppMutedBackground
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -46,6 +51,8 @@ fun MetricsHistoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     // Load more when near end
     val shouldLoadMore by remember {
@@ -62,77 +69,94 @@ fun MetricsHistoryScreen(
         }
     }
 
-    // Group events by month
-    val grouped = uiState.events.groupBy { it.monthGroup }
+    // Group filtered events by month
+    val grouped = uiState.filteredEvents.groupBy { it.monthGroup }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Lịch sử thay đổi", fontWeight = FontWeight.Bold) },
+                title = { Text("Lịch sử thay đổi", fontWeight = FontWeight.Bold, color = ForestGreen) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = ForestGreen)
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Lọc", tint = Ink700)
+                    IconButton(onClick = { showFilterSheet = true }) {
+                        Icon(
+                            Icons.Default.FilterList,
+                            contentDescription = "Lọc",
+                            tint = if (uiState.activeFilter != null) ForestGreen else ForestGreen.copy(alpha = 0.5f)
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppMutedBackground,
+                    scrolledContainerColor = AppMutedBackground
+                )
             )
         },
         containerColor = AppMutedBackground
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Header stats bar
-            if (!uiState.isLoading && uiState.totalRecords > 0) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(AppSurface)
-                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
+        if (uiState.isLoading) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp)
+            ) {
+                repeat(5) { SkeletonRow() }
+            }
+        } else if (uiState.events.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(uiState.error ?: "Chưa có lịch sử số liệu", color = Ink500, fontSize = 14.sp)
+            }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                contentPadding = PaddingValues(
+                    top = padding.calculateTopPadding(),
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 24.dp
+                )
+            ) {
+                // Stats card as first item
+                item {
                     val changeVal = uiState.weightChange
-                    val changeText = if (changeVal == 0f) "0 kg"
-                    else "%+.1f kg".format(changeVal)
+                    val changeText = if (changeVal == 0f) "0 kg" else "%+.1f kg".format(changeVal)
                     val changeColor = when {
-                        changeVal < 0f -> Color(0xFF34D399)
+                        changeVal < 0f -> ForestGreen
                         changeVal > 0f -> Color(0xFFF87171)
                         else -> Ink500
                     }
-                    SummaryStatItem("Tổng thay đổi", changeText, changeColor)
-                    Box(modifier = Modifier.width(1.dp).height(36.dp).background(AppLine))
-                    SummaryStatItem("Số bản ghi", "${uiState.totalRecords}", Ink900)
-                }
-                HorizontalDivider(color = AppLine, thickness = 1.dp)
-            }
+                    val currentWeight = if (uiState.currentWeightKg > 0f)
+                        "%.1f kg".format(uiState.currentWeightKg) else "--"
 
-            if (uiState.isLoading) {
-                // Skeleton shimmer
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    repeat(5) {
-                        SkeletonRow()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .shadow(4.dp, RoundedCornerShape(VitalRadius.Lg), clip = false)
+                            .clip(RoundedCornerShape(VitalRadius.Lg))
+                            .background(AppSurface)
+                            .padding(vertical = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        StatCell(label = "Cân nặng hiện tại", value = currentWeight, color = ForestGreen)
+                        Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
+                        StatCell(label = "Tổng thay đổi", value = changeText, color = changeColor)
+                        Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
+                        StatCell(label = "Số bản ghi", value = "${uiState.totalRecords}", color = ForestGreen)
                     }
                 }
-            } else if (uiState.events.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(uiState.error ?: "Chưa có lịch sử số liệu", color = Ink500, fontSize = 14.sp)
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(bottom = 24.dp)
-                ) {
-                    if (uiState.photos.isNotEmpty()) {
+
+                if (uiState.photos.isNotEmpty()) {
                         item {
                             Text(
                                 "Ảnh tiến độ",
@@ -172,7 +196,7 @@ fun MetricsHistoryScreen(
                                     month,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Ink700
+                                    color = ForestGreen
                                 )
                             }
                         }
@@ -208,14 +232,90 @@ fun MetricsHistoryScreen(
                     }
                 }
             }
+    }
+
+    if (showFilterSheet) {
+        FilterBottomSheet(
+            activeFilter = uiState.activeFilter,
+            onSelect = { type ->
+                viewModel.setFilter(type)
+                showFilterSheet = false
+            },
+            onDismiss = { showFilterSheet = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterBottomSheet(
+    activeFilter: MetricEventType?,
+    onSelect: (MetricEventType?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val options = listOf(
+        null to "Tất cả",
+        MetricEventType.WEIGHT to "Cân nặng",
+        MetricEventType.MEASUREMENT to "Số đo cơ thể"
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = AppSurface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 8.dp)
+        ) {
+            Text(
+                "Lọc theo loại cập nhật",
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = ForestGreen,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            options.forEach { (type, label) ->
+                val selected = activeFilter == type
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(VitalRadius.Md))
+                        .background(if (selected) ForestGreen.copy(alpha = 0.1f) else Color.Transparent)
+                        .clickable { onSelect(type) }
+                        .padding(horizontal = 12.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        label,
+                        fontSize = 15.sp,
+                        color = if (selected) ForestGreen else Ink700,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                    if (selected) {
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = null,
+                            tint = ForestGreen,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun SummaryStatItem(label: String, value: String, color: Color) {
+private fun StatCell(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = color)
+        Spacer(Modifier.height(2.dp))
         Text(label, fontSize = 11.sp, color = Ink500, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
@@ -304,9 +404,9 @@ private fun TimelineEventCard(
         MetricEventType.BADGE -> Color(0xFFD97706)
     }
     val nodeIcon = when (event.type) {
-        MetricEventType.WEIGHT -> Icons.Default.AccessibilityNew
+        MetricEventType.WEIGHT -> Icons.Default.MonitorWeight
         MetricEventType.PHOTO -> Icons.Default.CameraAlt
-        MetricEventType.MEASUREMENT -> Icons.Default.FilterList
+        MetricEventType.MEASUREMENT -> Icons.Default.AccessibilityNew
         MetricEventType.WORKOUT -> Icons.Default.FitnessCenter
         MetricEventType.BADGE -> Icons.Default.Star
     }
@@ -331,7 +431,7 @@ private fun TimelineEventCard(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(nodeColor.copy(alpha = 0.15f))
+                    .background(nodeColor)
                     .align(Alignment.TopCenter)
                     .padding(top = 0.dp),
                 contentAlignment = Alignment.Center
@@ -339,7 +439,7 @@ private fun TimelineEventCard(
                 Icon(
                     imageVector = nodeIcon,
                     contentDescription = null,
-                    tint = nodeColor,
+                    tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -355,8 +455,7 @@ private fun TimelineEventCard(
                 .combinedClickable(onClick = {}, onDoubleClick = onDoubleClick),
             shape = RoundedCornerShape(VitalRadius.Lg),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-            elevation = CardDefaults.cardElevation(0.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(
@@ -364,7 +463,12 @@ private fun TimelineEventCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(event.title, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
+                    Text(
+                        event.title,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = if (event.type == MetricEventType.MEASUREMENT) MacroWater else ForestGreen
+                    )
                     Text(event.date, fontSize = 11.sp, color = Ink500)
                 }
                 Spacer(Modifier.height(4.dp))
@@ -457,7 +561,7 @@ fun MetricsHistoryScreenPreview() {
                     },
                     actions = {
                         IconButton(onClick = {}) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Lọc", tint = Ink700)
+                            Icon(Icons.Default.FilterList, contentDescription = "Lọc", tint = ForestGreen)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
@@ -487,7 +591,7 @@ fun MetricsHistoryScreenPreview() {
                                     month,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Ink700
+                                    color = ForestGreen
                                 )
                             }
                         }

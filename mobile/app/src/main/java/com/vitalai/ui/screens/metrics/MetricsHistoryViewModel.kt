@@ -43,8 +43,12 @@ data class MetricsHistoryUiState(
     val isLoadingMore: Boolean = false,
     val hasMore: Boolean = false,
     val error: String? = null,
-    val selectedTab: Int = 1
-)
+    val selectedTab: Int = 1,
+    val activeFilter: MetricEventType? = null
+) {
+    val filteredEvents: List<MetricTimelineEvent>
+        get() = if (activeFilter == null) events else events.filter { it.type == activeFilter }
+}
 
 @HiltViewModel
 class MetricsHistoryViewModel @Inject constructor(
@@ -108,6 +112,10 @@ class MetricsHistoryViewModel @Inject constructor(
 
     fun setTab(tab: Int) {
         _uiState.update { it.copy(selectedTab = tab) }
+    }
+
+    fun setFilter(type: MetricEventType?) {
+        _uiState.update { it.copy(activeFilter = type) }
     }
 
     private fun BodyMetricDto.toTimelineEvent(photos: List<ProgressPhotoDto>): MetricTimelineEvent {

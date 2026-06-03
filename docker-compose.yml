@@ -15,7 +15,7 @@ services:
       # DB đã tồn tại từ trước -> chạy thủ công: psql ... -f rag-service/scripts/init_db.sql
       - ./rag-service/scripts/init_db.sql:/docker-entrypoint-initdb.d/10-rag-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d calories_tracker"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d calories_tracker" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,7 +27,7 @@ services:
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -59,7 +59,7 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1" ]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -88,7 +88,7 @@ services:
       # Secret nội bộ — phải khớp RAG_INTERNAL_SECRET bên backend/.env
       NESTJS_INTERNAL_SECRET: ${RAG_INTERNAL_SECRET:-dev-secret-change-in-prod}
     volumes:
-      - rag_hf_cache:/data/hf       # cache model embedding (tải 1 lần)
+      - rag_hf_cache:/data/hf # cache model embedding (tải 1 lần)
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,24 +98,24 @@ services:
   # ───────────────────── Food AI (computer vision) ──────────────────
   # FastAPI service: photo -> YOLOv8-seg + nateraw/food + Depth-Anything-V2
   # -> [{food_title, volume_cm3}]. Backend maps volume->grams->nutrition.
-  food-ai-service:
-    build:
-      context: ./calories_tracker_service
-      dockerfile: Dockerfile
-    container_name: calories_food_ai
-    restart: unless-stopped
-    environment:
-      DEVICE: cpu
-    ports:
-      - "8000:8000"
-    volumes:
-      - food_ai_hf_cache:/data/hf       # cache HF model weights (tải 1 lần)
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s                # model load on CPU is slow
+  # food-ai-service:
+  #   build:
+  #     context: ./calories_tracker_service
+  #     dockerfile: Dockerfile
+  #   container_name: calories_food_ai
+  #   restart: unless-stopped
+  #   environment:
+  #     DEVICE: cpu
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - food_ai_hf_cache:/data/hf # cache HF model weights (tải 1 lần)
+  #   healthcheck:
+  #     test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\"" ]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 120s # model load on CPU is slow
 
   # ───────────────────────── Backend NestJS ─────────────────────────
   # Gateway/Business/Source-of-truth. Đọc secrets từ backend/.env (env_file),
@@ -142,13 +142,13 @@ services:
       KAFKAJS_NO_PARTITIONER_WARNING: "1"
       RAG_SERVICE_URL: http://rag-service:8001
       # Food AI service trong cùng docker network.
-      FOOD_AI_SERVICE_URL: http://food-ai-service:8000
+      # FOOD_AI_SERVICE_URL: http://food-ai-service:8000
       # Service-account Firebase được mount read-only ở /app/secret
       FIREBASE_SERVICE_ACCOUNT_PATH: ./secret/calories-tracker-mobile-firebase-adminsdk-fbsvc-b641a8db8e.json
     ports:
-      - "3006:3005"
+      - "3005:3005"
     volumes:
-      - ./backend/secret:/app/secret:ro      # khóa Firebase (không bake vào image)
+      - ./backend/secret:/app/secret:ro # khóa Firebase (không bake vào image)
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -160,8 +160,8 @@ services:
         condition: service_healthy
       rag-service:
         condition: service_started
-      food-ai-service:
-        condition: service_started
+      # food-ai-service:
+      #   condition: service_started
 
 volumes:
   # Dùng lại volume data đã có từ stack cũ (DACN/Project) để KHÔNG mất dữ liệu
