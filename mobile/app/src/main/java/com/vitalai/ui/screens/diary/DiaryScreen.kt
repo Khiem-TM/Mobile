@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -56,6 +55,7 @@ import com.vitalai.data.remote.model.MealLogSummaryDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.SwipeToDeleteRow
 import com.vitalai.ui.theme.VitalDisplayFontFamily
 import com.vitalai.ui.theme.VitalFontFamily
 import java.time.LocalDate
@@ -455,40 +455,45 @@ private fun MealFoodRow(
     onOpenItem: (String, MealLogItemDto) -> Unit,
     onDeleteItem: (String, String) -> Unit
 ) {
-    Row(
+    SwipeToDeleteRow(
+        onDelete = { onDeleteItem(mealLogId, item.id) },
         modifier = Modifier
             .fillMaxWidth()
-            .border(0.dp, FoodModule.Border)
-            .clickable { onOpenItem(mealLogId, item) }
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .border(0.dp, FoodModule.Border),
+        shape = RoundedCornerShape(0.dp)
     ) {
-        FoodThumb(name = item.foodName.ifBlank { "Món ăn" }, imageUrl = item.imageUrl, size = 36.dp)
-        Column(Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(FoodModule.Cream)
+                .clickable { onOpenItem(mealLogId, item) }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            FoodThumb(name = item.foodName.ifBlank { "Món ăn" }, imageUrl = item.imageUrl, size = 36.dp)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    item.foodName.ifBlank { "Món ăn" },
+                    color = FoodModule.Ink,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontFamily = VitalFontFamily
+                )
+                Text(
+                    "${item.quantity.cleanNumber()} ${item.servingUnit}",
+                    color = FoodModule.Charcoal.copy(alpha = 0.75f),
+                    fontSize = 12.sp,
+                    fontFamily = VitalFontFamily
+                )
+            }
             Text(
-                item.foodName.ifBlank { "Món ăn" },
-                color = FoodModule.Ink,
+                text = "${item.calories.roundToInt()} kcal",
+                color = FoodModule.Forest,
                 fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 fontFamily = VitalFontFamily
             )
-            Text(
-                "${item.quantity.cleanNumber()} ${item.servingUnit}",
-                color = FoodModule.Charcoal.copy(alpha = 0.75f),
-                fontSize = 12.sp,
-                fontFamily = VitalFontFamily
-            )
-        }
-        Text(
-            text = "${item.calories.roundToInt()} kcal",
-            color = FoodModule.Forest,
-            fontSize = 14.sp,
-            fontFamily = VitalFontFamily
-        )
-        IconButton(onClick = { onDeleteItem(mealLogId, item.id) }, modifier = Modifier.size(30.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Xóa món", tint = FoodModule.Charcoal.copy(alpha = 0.55f), modifier = Modifier.size(16.dp))
         }
     }
 }

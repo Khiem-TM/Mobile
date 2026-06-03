@@ -9,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Article
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Visibility
@@ -34,6 +33,7 @@ import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.data.remote.model.CommentDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.SwipeToDeleteRow
 import com.vitalai.ui.components.VitalIconButton
 import com.vitalai.ui.theme.*
 
@@ -271,24 +271,30 @@ private fun BlogContent(
 
 @Composable
 private fun CommentItem(comment: CommentDto, onDelete: () -> Unit) {
-    Row(
+    SwipeToDeleteRow(
+        onDelete = onDelete,
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+        shape = RoundedCornerShape(VitalRadius.Md)
     ) {
-        Box(
-            modifier = Modifier.size(34.dp).clip(CircleShape).background(Mint50),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(AppSurface)
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(comment.authorUser?.displayName?.firstOrNull()?.uppercaseChar()?.toString() ?: "U", color = Mint700, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(comment.authorUser?.displayName ?: "Người dùng", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
-            Text(comment.content, fontSize = 14.sp, color = Ink700, lineHeight = 20.sp)
-            Text(comment.createdAt.take(10), fontSize = 11.sp, color = Ink500)
-        }
-        IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Xóa bình luận", tint = Ink500, modifier = Modifier.size(16.dp))
+            Box(
+                modifier = Modifier.size(34.dp).clip(CircleShape).background(Mint50),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(comment.authorUser?.displayName?.firstOrNull()?.uppercaseChar()?.toString() ?: "U", color = Mint700, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(comment.authorUser?.displayName ?: "Người dùng", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink900)
+                Text(comment.content, fontSize = 14.sp, color = Ink700, lineHeight = 20.sp)
+                Text(comment.createdAt.take(10), fontSize = 11.sp, color = Ink500)
+            }
         }
     }
 }

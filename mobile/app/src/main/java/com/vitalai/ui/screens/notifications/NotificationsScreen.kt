@@ -10,7 +10,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notifications
@@ -31,6 +30,7 @@ import androidx.navigation.NavController
 import com.vitalai.data.remote.model.NotificationDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.SwipeToDeleteRow
 import com.vitalai.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -105,58 +105,61 @@ private fun NotificationItem(notification: NotificationDto, onClick: () -> Unit,
         else -> Icons.Default.Notifications to Ink500
     }
 
-    Row(
+    SwipeToDeleteRow(
+        onDelete = onDelete,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 5.dp)
-            .clip(RoundedCornerShape(VitalRadius.Lg))
-            .clickable(onClick = onClick)
-            .background(if (!notification.isRead) Mint50 else AppSurface)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 5.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(iconColor.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .background(if (!notification.isRead) Mint50 else AppSurface)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(20.dp))
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = notification.title,
-                fontWeight = if (!notification.isRead) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 14.sp,
-                color = Ink900
-            )
-            Text(
-                text = notification.message,
-                fontSize = 12.sp,
-                color = Ink500,
-                maxLines = 2
-            )
-            Text(
-                text = notification.createdAt.take(10),
-                fontSize = 11.sp,
-                color = Ink300
-            )
-        }
-        if (!notification.isRead) {
             Box(
                 modifier = Modifier
-                    .size(8.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
-                    .background(Mint500)
-            )
-        }
-        IconButton(onClick = onDelete, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Xóa thông báo", tint = Ink500, modifier = Modifier.size(18.dp))
+                    .background(iconColor.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon,
+                    contentDescription = null,
+                    tint = iconColor,
+                    modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = notification.title,
+                    fontWeight = if (!notification.isRead) FontWeight.Bold else FontWeight.Normal,
+                    fontSize = 14.sp,
+                    color = Ink900
+                )
+                Text(
+                    text = notification.message,
+                    fontSize = 12.sp,
+                    color = Ink500,
+                    maxLines = 2
+                )
+                Text(
+                    text = notification.createdAt.take(10),
+                    fontSize = 11.sp,
+                    color = Ink300
+                )
+            }
+            if (!notification.isRead) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Mint500)
+                )
+            }
         }
     }
 }

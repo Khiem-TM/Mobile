@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -32,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ExerciseDto
+import com.vitalai.ui.components.SwipeToDeleteRow
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -103,8 +103,8 @@ fun WorkoutBuilderScreenContent(
                 onBack = onBackClick,
                 right = {
                     TrainRoundIconButton(
-                        icon = Icons.Default.Delete,
-                        contentDescription = "Xóa",
+                        icon = Icons.Default.Close,
+                        contentDescription = "Đóng",
                         onClick = onBackClick
                     )
                 }
@@ -272,57 +272,55 @@ private fun SessionExerciseCard(
 ) {
     val exercise = builderExercise.exercise
     var menuOpen by remember { mutableStateOf(false) }
-    TrainCard(tone = TrainTone.Cream, padding = PaddingValues(14.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
-            Box(
-                modifier = Modifier.size(26.dp).clip(CircleShape).background(TrainColors.KeylimeWash),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("${index + 1}", color = TrainColors.Forest, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-            }
-            TrainExerciseThumb(exercise, size = 44.dp, radius = 11.dp)
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text(exercise.name, color = TrainColors.Ink, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    TrainTypeBadge(exercise.exerciseType)
-                }
-                Text(itemLine(builderExercise), color = TrainColors.Charcoal, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${estimateDuration(builderExercise)} phút · ${estimateCalories(builderExercise)} kcal", color = TrainColors.Forest, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            }
-            Box {
-                TrainRoundIconButton(
-                    icon = Icons.Default.MoreHoriz,
-                    contentDescription = "Tùy chọn",
-                    onClick = { menuOpen = true },
-                    background = TrainColors.Cream,
-                    tint = TrainColors.Charcoal,
-                    size = 34.dp
-                )
-                DropdownMenu(
-                    expanded = menuOpen,
-                    onDismissRequest = { menuOpen = false }
+    SwipeToDeleteRow(
+        onDelete = onRemove,
+        actionColor = TrainColors.Cardio,
+        shape = RoundedCornerShape(TrainCardRadius)
+    ) {
+        TrainCard(tone = TrainTone.Cream, padding = PaddingValues(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+                Box(
+                    modifier = Modifier.size(26.dp).clip(CircleShape).background(TrainColors.KeylimeWash),
+                    contentAlignment = Alignment.Center
                 ) {
-                    DropdownMenuItem(
-                        text = { Text("Chỉnh sửa") },
-                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = TrainColors.Forest) },
-                        onClick = { menuOpen = false }
+                    Text("${index + 1}", color = TrainColors.Forest, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+                TrainExerciseThumb(exercise, size = 44.dp, radius = 11.dp)
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(exercise.name, color = TrainColors.Ink, fontSize = 14.5.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        TrainTypeBadge(exercise.exerciseType)
+                    }
+                    Text(itemLine(builderExercise), color = TrainColors.Charcoal, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${estimateDuration(builderExercise)} phút · ${estimateCalories(builderExercise)} kcal", color = TrainColors.Forest, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Box {
+                    TrainRoundIconButton(
+                        icon = Icons.Default.MoreHoriz,
+                        contentDescription = "Tùy chọn",
+                        onClick = { menuOpen = true },
+                        background = TrainColors.Cream,
+                        tint = TrainColors.Charcoal,
+                        size = 34.dp
                     )
-                    DropdownMenuItem(
-                        text = { Text("Xóa bài tập", color = TrainColors.Cardio) },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = TrainColors.Cardio) },
-                        onClick = {
-                            menuOpen = false
-                            onRemove()
-                        }
-                    )
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Chỉnh sửa") },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, tint = TrainColors.Forest) },
+                            onClick = { menuOpen = false }
+                        )
+                    }
                 }
             }
-        }
-        Spacer(Modifier.height(14.dp))
-        when (exercise.exerciseType.uppercase()) {
-            "GYM" -> GymBuilderControls(builderExercise, onUpdateSet, onAddSet)
-            "CARDIO" -> CardioBuilderControls(builderExercise, onUpdateCardio)
-            else -> SportBuilderControls(builderExercise, onUpdateSport)
+            Spacer(Modifier.height(14.dp))
+            when (exercise.exerciseType.uppercase()) {
+                "GYM" -> GymBuilderControls(builderExercise, onUpdateSet, onAddSet)
+                "CARDIO" -> CardioBuilderControls(builderExercise, onUpdateCardio)
+                else -> SportBuilderControls(builderExercise, onUpdateSport)
+            }
         }
     }
 }
