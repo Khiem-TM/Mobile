@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.vitalai.navigation.BottomNavReselectBus
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppSurface
@@ -360,6 +361,8 @@ fun NavBarItem(
                     launchSingleTop = true
                     restoreState = true
                 }
+            } else {
+                item.route::class.qualifiedName?.let(BottomNavReselectBus::emit)
             }
         }
     ) {

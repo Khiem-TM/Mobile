@@ -86,6 +86,7 @@ data class CreateCommentRequest(
 @JsonClass(generateAdapter = true)
 data class CreateBlogRequest(
     @Json(name = "title") val title: String,
+    @Json(name = "thumbnailBase64") val thumbnailBase64: String? = null,
     @Json(name = "thumbnailUrl") val thumbnailUrl: String? = null,
     @Json(name = "tags") val tags: List<String>? = null,
     @Json(name = "status") val status: String? = null,
@@ -97,5 +98,6 @@ data class CreateBlogBlockRequest(
     @Json(name = "order") val order: Int,
     @Json(name = "type") val type: String,
     @Json(name = "text_content") val textContent: String? = null,
+    @Json(name = "image_base64") val imageBase64: String? = null,
     @Json(name = "image_url") val imageUrl: String? = null
 )

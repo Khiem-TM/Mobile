@@ -1,5 +1,11 @@
 package com.vitalai.ui.screens.discover.screens
 
+import android.content.Context
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -16,10 +23,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -34,6 +44,11 @@ import com.vitalai.ui.screens.discover.viewmodels.ContentBlock
 import com.vitalai.ui.screens.discover.viewmodels.ContentBlockType
 import com.vitalai.ui.theme.*
 
+private sealed class BlogImageTarget {
+    data object Cover : BlogImageTarget()
+    data class Block(val blockId: String) : BlogImageTarget()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BlogComposerScreen(
@@ -42,11 +57,37 @@ fun BlogComposerScreen(
     viewModel: BlogComposerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState()
     val isEditing = uiState.editingBlogId != null
+    var titleFieldValue by remember { mutableStateOf(TextFieldValue(uiState.title)) }
+    var imageTarget by remember { mutableStateOf<BlogImageTarget?>(null) }
+    var urlTarget by remember { mutableStateOf<BlogImageTarget?>(null) }
+    var urlInput by remember { mutableStateOf("") }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        val target = imageTarget
+        if (uri != null && target != null) {
+            uri.toBase64DataUri(context)?.let { base64 ->
+                when (target) {
+                    BlogImageTarget.Cover -> viewModel.setCoverImage(base64, uri.toString())
+                    is BlogImageTarget.Block -> viewModel.updateBlockLocalImage(target.blockId, base64, uri.toString())
+                }
+            }
+        }
+        imageTarget = null
+    }
 
     LaunchedEffect(blogId) {
         viewModel.loadBlogForEdit(blogId)
+    }
+
+    LaunchedEffect(uiState.editingBlogId, uiState.isLoadingBlog) {
+        if (!uiState.isLoadingBlog && uiState.editingBlogId != null && uiState.title != titleFieldValue.text) {
+            titleFieldValue = TextFieldValue(uiState.title)
+        }
     }
 
     // Navigate away after publish
@@ -101,9 +142,15 @@ fun BlogComposerScreen(
                 isEditing = isEditing,
                 isSaving = uiState.isSaving,
                 isPublishing = uiState.isPublishing,
-                canPublish = uiState.title.isNotBlank(),
-                onSaveDraft = viewModel::saveDraft,
-                onPublish = viewModel::publishPost
+                canPublish = titleFieldValue.text.isNotBlank(),
+                onSaveDraft = {
+                    viewModel.setTitle(titleFieldValue.text)
+                    viewModel.saveDraft()
+                },
+                onPublish = {
+                    viewModel.setTitle(titleFieldValue.text)
+                    viewModel.publishPost()
+                }
             )
         }
     ) { padding ->
@@ -123,90 +170,35 @@ fun BlogComposerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(bottom = 18.dp)
+            contentPadding = PaddingValues(top = 12.dp, bottom = 18.dp)
         ) {
             item {
-                ComposerStatusStrip(uiState = uiState)
-            }
-
-            item {
-                CoverComposerCard(uiState = uiState, onCoverUrlChange = viewModel::setCoverUrl)
-            }
-
-            item {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    color = AppSurface,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-                    shadowElevation = VitalElevation.Level1
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Thông tin bài viết", fontSize = 13.sp, color = Mint700, fontWeight = FontWeight.Bold)
-                        TextField(
-                            value = uiState.title,
-                            onValueChange = viewModel::setTitle,
-                            placeholder = {
-                                Text("Tiêu đề bài viết...", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Ink300)
-                            },
-                            textStyle = LocalTextStyle.current.copy(
-                                fontSize = 24.sp,
-                                lineHeight = 29.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Ink900
-                            ),
-                            colors = TextFieldDefaults.colors(
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text("Chủ đề", fontSize = 13.sp, color = Ink700, fontWeight = FontWeight.SemiBold)
-                        Spacer(Modifier.height(8.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            items(uiState.tags.size) { i ->
-                                val tag = uiState.tags[i]
-                                ComposerTagChip(tag = tag, onRemove = { viewModel.removeTag(tag) })
-                            }
-                            item {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    OutlinedTextField(
-                                        value = uiState.tagInput,
-                                        onValueChange = viewModel::setTagInput,
-                                        placeholder = { Text("Thêm thẻ", fontSize = 12.sp) },
-                                        modifier = Modifier.width(132.dp),
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(VitalRadius.Pill),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = Mint500,
-                                            unfocusedBorderColor = Color(0xFFD5ECD9),
-                                            focusedContainerColor = Color(0xFFF3FAF5),
-                                            unfocusedContainerColor = Color(0xFFF3FAF5)
-                                        )
-                                    )
-                                    IconButton(
-                                        onClick = { viewModel.addTag(uiState.tagInput) },
-                                        enabled = uiState.tagInput.isNotBlank()
-                                    ) {
-                                        Icon(Icons.Default.AddCircle, contentDescription = "Thêm", tint = if (uiState.tagInput.isNotBlank()) Mint500 else Ink300)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                SectionHeader(
-                    title = "Nội dung",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                ComposerCoverUpload(
+                    uiState = uiState,
+                    onClick = { imageTarget = BlogImageTarget.Cover },
+                    onClear = viewModel::clearCoverImage
                 )
+            }
+
+            item {
+                ComposerTitleField(
+                    value = titleFieldValue,
+                    onValueChange = { titleFieldValue = it },
+                    onCommit = { viewModel.setTitle(titleFieldValue.text) }
+                )
+            }
+
+            item {
+                ComposerTagPicker(
+                    selectedTags = uiState.tags,
+                    availableTags = uiState.availableTags,
+                    onAddTag = viewModel::addTag,
+                    onRemoveTag = viewModel::removeTag
+                )
+            }
+
+            item {
+                ComposerContentHeader(blockCount = uiState.blocks.size)
             }
 
             // Content blocks
@@ -217,6 +209,8 @@ fun BlogComposerScreen(
                     total = uiState.blocks.size,
                     onTextChange = { viewModel.updateBlockText(block.id, it) },
                     onImageChange = { url, caption -> viewModel.updateBlockImage(block.id, url, caption) },
+                    onPickImage = { imageTarget = BlogImageTarget.Block(block.id) },
+                    onClearImage = { viewModel.clearBlockImage(block.id) },
                     onMoveUp = { viewModel.reorderBlock(block.id, -1) },
                     onMoveDown = { viewModel.reorderBlock(block.id, 1) },
                     onDelete = { viewModel.removeBlock(block.id) }
@@ -225,19 +219,26 @@ fun BlogComposerScreen(
 
             // Add block button
             item {
-                Box(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(VitalRadius.Md))
-                        .border(width = 1.5.dp, color = AppLine, shape = RoundedCornerShape(VitalRadius.Md))
-                        .clickable { viewModel.setShowAddBlockSheet(true) }
-                        .padding(vertical = 14.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                        .clickable { viewModel.setShowAddBlockSheet(true) },
+                    shape = RoundedCornerShape(VitalRadius.Pill),
+                    color = AppSurface,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD5ECD9)),
+                    shadowElevation = VitalElevation.Level1
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Add, contentDescription = null, tint = Ink500)
-                        Text("Thêm khối nội dung", color = Ink500, fontWeight = FontWeight.Medium)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 15.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.AddCircle, contentDescription = null, tint = Mint700, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Thêm khối nội dung", color = Mint700, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -275,6 +276,345 @@ fun BlogComposerScreen(
             }
         }
     }
+
+    if (imageTarget != null) {
+        ImageSourceSheet(
+            onDismiss = { imageTarget = null },
+            onUrl = {
+                urlTarget = imageTarget
+                urlInput = when (val target = imageTarget) {
+                    BlogImageTarget.Cover -> uiState.coverUrl
+                    is BlogImageTarget.Block -> uiState.blocks.firstOrNull { it.id == target.blockId }?.imageUrl.orEmpty()
+                    null -> ""
+                }
+                imageTarget = null
+            },
+            onDevice = {
+                imagePickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+        )
+    }
+
+    urlTarget?.let { target ->
+        UrlImageDialog(
+            value = urlInput,
+            onValueChange = { urlInput = it },
+            onDismiss = { urlTarget = null },
+            onConfirm = {
+                when (target) {
+                    BlogImageTarget.Cover -> viewModel.setCoverUrl(urlInput)
+                    is BlogImageTarget.Block -> {
+                        val block = uiState.blocks.firstOrNull { it.id == target.blockId }
+                        viewModel.updateBlockImage(target.blockId, urlInput, block?.caption.orEmpty())
+                    }
+                }
+                urlTarget = null
+            }
+        )
+    }
+}
+
+@Composable
+private fun ComposerCoverUpload(uiState: BlogComposerUiState, onClick: () -> Unit, onClear: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 12.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        color = if (uiState.coverUrl.isBlank()) Color.Transparent else AppSurface,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.5.dp,
+            color = if (uiState.coverUrl.isBlank()) Color(0xFFDDE9E2) else Color(0xFFE0EAE3)
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .background(if (uiState.coverUrl.isBlank()) Color.Transparent else AppSurface),
+            contentAlignment = Alignment.Center
+        ) {
+            val coverPreview = uiState.localCoverUri.ifBlank { uiState.coverUrl }
+            if (coverPreview.isNotBlank()) {
+                AsyncImage(
+                    model = coverPreview,
+                    contentDescription = "Ảnh bìa",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp),
+                    shape = RoundedCornerShape(VitalRadius.Pill),
+                    color = Color.Black.copy(alpha = 0.42f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(5.dp))
+                        Text("Thay ảnh bìa", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                ImageClearButton(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp),
+                    onClick = onClear
+                )
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Color(0xFFE5F8EF)) {
+                        Icon(Icons.Default.Image, contentDescription = null, tint = Color(0xFF19C287), modifier = Modifier.padding(16.dp).size(28.dp))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text("Thêm ảnh bìa", color = Ink700, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    Spacer(Modifier.height(6.dp))
+                    Text("Khuyến nghị 16:9 · tối thiểu 1200×675", color = Ink400, fontSize = 13.sp)
+                }
+            }
+        }
+    }
+
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ImageSourceSheet(
+    onDismiss: () -> Unit,
+    onUrl: () -> Unit,
+    onDevice: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = AppSurface
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) {
+            Text("Thêm ảnh", color = Ink900, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.height(12.dp))
+            ImageSourceOption(
+                icon = Icons.Default.Link,
+                title = "Thêm bằng URL",
+                subtitle = "Dán link ảnh có sẵn từ internet",
+                onClick = onUrl
+            )
+            Spacer(Modifier.height(10.dp))
+            ImageSourceOption(
+                icon = Icons.Default.PhotoLibrary,
+                title = "Thêm ảnh từ thiết bị",
+                subtitle = "Chọn ảnh trong thư viện của bạn",
+                onClick = onDevice
+            )
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun ImageSourceOption(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = Color(0xFFF6FBF7),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0EAE3))
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = Color(0xFFE5F8EF)) {
+                Icon(icon, contentDescription = null, tint = Color(0xFF19C287), modifier = Modifier.padding(10.dp).size(22.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, color = Ink900, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold)
+                Text(subtitle, color = Ink500, fontSize = 12.sp)
+            }
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Ink400)
+        }
+    }
+}
+
+@Composable
+private fun UrlImageDialog(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Dán URL ảnh", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Link, contentDescription = null, tint = Mint700) },
+                placeholder = { Text("https://...") },
+                shape = RoundedCornerShape(VitalRadius.Pill),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Mint500,
+                    unfocusedBorderColor = Color(0xFFD5ECD9),
+                    focusedContainerColor = AppSurface,
+                    unfocusedContainerColor = AppSurface
+                )
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = value.isNotBlank()) {
+                Text("Thêm ảnh", color = Mint700, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy", color = Ink500)
+            }
+        },
+        containerColor = AppSurface
+    )
+}
+
+@Composable
+private fun ImageClearButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(VitalRadius.Pill),
+        color = Color.Black.copy(alpha = 0.46f)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Close, contentDescription = "Xóa ảnh", tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+    }
+}
+
+private fun Uri.toBase64DataUri(context: Context): String? {
+    return try {
+        val mimeType = context.contentResolver.getType(this) ?: "image/jpeg"
+        val bytes = context.contentResolver.openInputStream(this)?.use { it.readBytes() } ?: return null
+        "data:$mimeType;base64,${Base64.encodeToString(bytes, Base64.NO_WRAP)}"
+    } catch (_: Exception) {
+        null
+    }
+}
+
+@Composable
+private fun ComposerTitleField(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    onCommit: () -> Unit
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = {
+            Text(
+                "Tiêu đề bài viết của bạn...",
+                fontSize = 29.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Ink400
+            )
+        },
+        textStyle = LocalTextStyle.current.copy(
+            fontSize = 29.sp,
+            lineHeight = 34.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Ink900
+        ),
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = Color.Transparent,
+            unfocusedContainerColor = Color.Transparent,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent
+        ),
+        minLines = 2,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .onFocusChanged { if (!it.isFocused) onCommit() }
+    )
+}
+
+@Composable
+private fun ComposerTagPicker(
+    selectedTags: List<String>,
+    availableTags: List<String>,
+    onAddTag: (String) -> Unit,
+    onRemoveTag: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(18.dp),
+        color = AppSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0EAE3))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.FilterList, contentDescription = null, tint = Ink500, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                items(selectedTags.size) { i ->
+                    ComposerTagChip(tag = selectedTags[i], onRemove = { onRemoveTag(selectedTags[i]) })
+                }
+                val selectableTags = availableTags.filterNot { available ->
+                    selectedTags.any { selected -> selected.equals(available, ignoreCase = true) }
+                }
+                if (selectableTags.isEmpty()) {
+                    item {
+                        Text(
+                            if (selectedTags.isEmpty()) "Chưa có tag" else "Hết tag",
+                            color = Ink500,
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                } else {
+                    items(selectableTags.size) { i ->
+                        ComposerAvailableTagChip(tag = selectableTags[i], onClick = { onAddTag(selectableTags[i]) })
+                    }
+                }
+            }
+        }
+    }
+
+}
+
+@Composable
+private fun ComposerContentHeader(blockCount: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("NỘI DUNG", color = Ink500, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(Modifier.weight(1f))
+        Text("$blockCount khối", color = Ink400, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
 }
 
 @Composable
@@ -300,13 +640,12 @@ private fun ComposerBottomBar(
         ) {
             Surface(
                 modifier = Modifier
-                    .height(46.dp)
+                    .height(60.dp)
                     .weight(1f)
                     .clip(RoundedCornerShape(VitalRadius.Pill))
                     .clickable(enabled = !isSaving, onClick = onSaveDraft),
                 shape = RoundedCornerShape(VitalRadius.Pill),
-                color = AppSurface,
-                border = androidx.compose.foundation.BorderStroke(1.dp, AppLine)
+                color = Color(0xFFF1F5F2)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp),
@@ -317,12 +656,12 @@ private fun ComposerBottomBar(
                         CircularProgressIndicator(modifier = Modifier.size(17.dp), strokeWidth = 2.dp, color = Mint500)
                     } else {
                         Icon(Icons.Default.BookmarkBorder, contentDescription = null, tint = Ink700, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(7.dp))
+                        Spacer(Modifier.width(8.dp))
                         Text(
                             if (isEditing) "Lưu sửa" else "Lưu nháp",
                             color = Ink700,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             maxLines = 1
                         )
                     }
@@ -331,8 +670,8 @@ private fun ComposerBottomBar(
 
             Surface(
                 modifier = Modifier
-                    .height(46.dp)
-                    .weight(1.05f)
+                    .height(60.dp)
+                    .weight(1.35f)
                     .clip(RoundedCornerShape(VitalRadius.Pill))
                     .clickable(enabled = !isPublishing && canPublish, onClick = onPublish),
                 shape = RoundedCornerShape(VitalRadius.Pill),
@@ -347,12 +686,12 @@ private fun ComposerBottomBar(
                         CircularProgressIndicator(color = Color.White, modifier = Modifier.size(17.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             if (isEditing) "Cập nhật" else "Đăng bài",
                             color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             maxLines = 1
                         )
                     }
@@ -360,6 +699,7 @@ private fun ComposerBottomBar(
             }
         }
     }
+
 }
 
 @Composable
@@ -367,19 +707,19 @@ private fun CoverComposerCard(uiState: BlogComposerUiState, onCoverUrlChange: (S
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         shape = RoundedCornerShape(28.dp),
         color = AppSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0EAE3)),
         shadowElevation = VitalElevation.Level1
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(210.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Brush.linearGradient(listOf(Mint100, Mint500))),
+                    .background(Brush.linearGradient(listOf(Color(0xFFBFE4C7), Color(0xFF257344)))),
                 contentAlignment = Alignment.Center
             ) {
                 if (uiState.coverUrl.isNotBlank()) {
@@ -406,7 +746,7 @@ private fun CoverComposerCard(uiState: BlogComposerUiState, onCoverUrlChange: (S
                         }
                         Spacer(Modifier.height(12.dp))
                         Text("Thêm ảnh bìa nổi bật", color = Ink900, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("Dán URL ảnh để hiển thị như hero blog", color = Ink700, fontSize = 13.sp)
+                        Text("Ảnh này chỉ dùng để xem trước và đăng bài", color = Ink700, fontSize = 13.sp)
                     }
                 }
 
@@ -425,21 +765,6 @@ private fun CoverComposerCard(uiState: BlogComposerUiState, onCoverUrlChange: (S
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                     )
                 }
-
-                if (uiState.title.isNotBlank()) {
-                    Text(
-                        uiState.title,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(16.dp),
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        lineHeight = 26.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
             }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
@@ -448,7 +773,7 @@ private fun CoverComposerCard(uiState: BlogComposerUiState, onCoverUrlChange: (S
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 leadingIcon = { Icon(Icons.Default.Link, contentDescription = null, tint = Mint700) },
-                placeholder = { Text("URL ảnh bìa", fontSize = 13.sp, color = Ink400) },
+                placeholder = { Text("URL ảnh bìa để xem trước", fontSize = 13.sp, color = Ink400) },
                 shape = RoundedCornerShape(VitalRadius.Pill),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Mint500,
@@ -484,6 +809,24 @@ private fun ComposerTagChip(tag: String, onRemove: () -> Unit) {
                 .padding(2.dp),
             tint = Mint700
         )
+    }
+}
+
+@Composable
+private fun ComposerAvailableTagChip(tag: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .height(36.dp)
+            .clip(RoundedCornerShape(VitalRadius.Pill))
+            .background(AppSurface)
+            .border(1.dp, Color(0xFFD5ECD9), RoundedCornerShape(VitalRadius.Pill))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(Icons.Default.Add, contentDescription = null, tint = Mint700, modifier = Modifier.size(15.dp))
+        Text(tag, fontSize = 13.sp, color = Mint700, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
 
@@ -556,100 +899,125 @@ private fun ContentBlockCard(
     total: Int,
     onTextChange: (String) -> Unit,
     onImageChange: (String, String) -> Unit,
+    onPickImage: () -> Unit,
+    onClearImage: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onDelete: () -> Unit
 ) {
+    var blockTextFieldValue by remember(block.id) { mutableStateOf(TextFieldValue(block.text)) }
+
+    LaunchedEffect(blockTextFieldValue.text, blockTextFieldValue.composition) {
+        if (blockTextFieldValue.composition == null && block.text != blockTextFieldValue.text) {
+            onTextChange(blockTextFieldValue.text)
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 7.dp),
-        shape = RoundedCornerShape(22.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0EAE3)),
         elevation = CardDefaults.cardElevation(VitalElevation.Level1)
     ) {
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF6FBF7))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .background(Color(0xFFF2F7F4))
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = if (block.type == ContentBlockType.TEXT) Mint100 else Color(0xFFFFF1D6)) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            if (block.type == ContentBlockType.TEXT) Icons.Default.TextFields else Icons.Default.Image,
-                            contentDescription = null,
-                            tint = if (block.type == ContentBlockType.TEXT) Mint700 else MacroCarbs,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            if (block.type == ContentBlockType.TEXT) "Văn bản" else "Hình ảnh",
-                            fontSize = 12.sp,
-                            color = if (block.type == ContentBlockType.TEXT) Mint700 else MacroCarbs,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
+                Text("...", color = Ink400, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "${if (block.type == ContentBlockType.TEXT) "ĐOẠN VĂN BẢN" else "HÌNH ẢNH"} · #${index + 1}",
+                    color = Ink700,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
                 Spacer(Modifier.weight(1f))
-                if (index > 0) {
-                    IconButton(onClick = onMoveUp, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Lên", tint = Ink500, modifier = Modifier.size(16.dp))
-                    }
-                }
-                if (index < total - 1) {
-                    IconButton(onClick = onMoveDown, modifier = Modifier.size(28.dp)) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Xuống", tint = Ink500, modifier = Modifier.size(16.dp))
-                    }
-                }
-                IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = MacroProtein, modifier = Modifier.size(16.dp))
-                }
+                BlockActionButton(icon = Icons.Default.KeyboardArrowUp, enabled = index > 0, contentDescription = "Lên", onClick = onMoveUp)
+                Spacer(Modifier.width(8.dp))
+                BlockActionButton(icon = Icons.Default.KeyboardArrowDown, enabled = index < total - 1, contentDescription = "Xuống", onClick = onMoveDown)
+                Spacer(Modifier.width(8.dp))
+                BlockActionButton(icon = Icons.Default.Close, tint = MacroProtein, contentDescription = "Xóa", onClick = onDelete)
             }
 
             when (block.type) {
                 ContentBlockType.TEXT -> {
                     TextField(
-                        value = block.text,
-                        onValueChange = onTextChange,
-                        placeholder = { Text("Nhập nội dung...", color = Ink300) },
-                        modifier = Modifier.fillMaxWidth(),
+                        value = blockTextFieldValue,
+                        onValueChange = {
+                            blockTextFieldValue = it
+                        },
+                        placeholder = { Text("Viết nội dung bài viết...", color = Ink300) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 14.dp)
+                            .onFocusChanged {
+                                if (!it.isFocused) onTextChange(blockTextFieldValue.text)
+                            },
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = AppSurface,
                             unfocusedContainerColor = AppSurface,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         ),
-                        minLines = 4
+                        minLines = 5
                     )
                 }
                 ContentBlockType.IMAGE -> {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        if (block.imageUrl.isNotBlank()) {
-                            AsyncImage(
-                                model = block.imageUrl,
-                                contentDescription = "Hình ảnh",
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        val imagePreview = block.localImageUri.ifBlank { block.imageUrl }
+                        if (imagePreview.isNotBlank()) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(160.dp)
-                                    .clip(RoundedCornerShape(VitalRadius.Md)),
-                                contentScale = ContentScale.Crop
-                            )
+                                    .height(266.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable(onClick = onPickImage)
+                            ) {
+                                AsyncImage(
+                                    model = imagePreview,
+                                    contentDescription = "Hình ảnh",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Surface(
+                                    modifier = Modifier
+                                        .align(Alignment.TopStart)
+                                        .padding(10.dp),
+                                    shape = RoundedCornerShape(VitalRadius.Pill),
+                                    color = Color.Black.copy(alpha = 0.42f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                                        Spacer(Modifier.width(5.dp))
+                                        Text("Thay ảnh", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                ImageClearButton(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(10.dp),
+                                    onClick = onClearImage
+                                )
+                            }
                         } else {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(120.dp)
+                                    .height(170.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(Brush.linearGradient(listOf(Mint50, Mint100)))
                                     .border(width = 1.dp, color = Color(0xFFD5ECD9), shape = RoundedCornerShape(18.dp))
-                                    .clickable { /* pick image */ },
+                                    .clickable(onClick = onPickImage),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -658,21 +1026,6 @@ private fun ContentBlockCard(
                                 }
                             }
                         }
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedTextField(
-                            value = block.imageUrl,
-                            onValueChange = { onImageChange(it, block.caption) },
-                            placeholder = { Text("URL hình ảnh...", fontSize = 12.sp) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            shape = RoundedCornerShape(VitalRadius.Pill),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Mint500,
-                                unfocusedBorderColor = Color(0xFFD5ECD9),
-                                focusedContainerColor = Color(0xFFF6FBF7),
-                                unfocusedContainerColor = Color(0xFFF6FBF7)
-                            )
-                        )
                         Spacer(Modifier.height(8.dp))
                         OutlinedTextField(
                             value = block.caption,
@@ -691,6 +1044,34 @@ private fun ContentBlockCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BlockActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    enabled: Boolean = true,
+    tint: Color = Ink700,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(enabled = enabled, onClick = onClick),
+        shape = RoundedCornerShape(10.dp),
+        color = AppSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0EAE3))
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                icon,
+                contentDescription = contentDescription,
+                tint = if (enabled) tint else Ink300,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -759,6 +1140,8 @@ fun BlogComposerScreenPreview() {
                         block = uiState.blocks[0],
                         index = 0, total = 2,
                         onTextChange = {}, onImageChange = { _, _ -> },
+                        onPickImage = {},
+                        onClearImage = {},
                         onMoveUp = {}, onMoveDown = {}, onDelete = {}
                     )
                 }
@@ -767,6 +1150,8 @@ fun BlogComposerScreenPreview() {
                         block = uiState.blocks[1],
                         index = 1, total = 2,
                         onTextChange = {}, onImageChange = { _, _ -> },
+                        onPickImage = {},
+                        onClearImage = {},
                         onMoveUp = {}, onMoveDown = {}, onDelete = {}
                     )
                 }
