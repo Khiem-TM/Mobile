@@ -19,6 +19,7 @@ data class DiscoverUiState(
     val tags: List<String> = emptyList(),
     val selectedTag: String? = null,
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 )
 
@@ -61,6 +62,25 @@ class DiscoverViewModel @Inject constructor(
                 _uiState.update { it.copy(blogs = page.items, isLoading = false) }
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, error = err.message) }
+            }
+        }
+    }
+
+    fun refresh() {
+        val tag = _uiState.value.selectedTag
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true, error = null) }
+            val tagsResult = blogRepository.getTags()
+            val foodsResult = foodRepository.exploreFoods(limit = 10)
+            val blogsResult = blogRepository.getBlogs(tag)
+            _uiState.update { state ->
+                state.copy(
+                    tags = tagsResult.getOrElse { state.tags },
+                    exploreFoods = foodsResult.getOrNull()?.items ?: state.exploreFoods,
+                    blogs = blogsResult.getOrNull()?.items ?: state.blogs,
+                    isRefreshing = false,
+                    error = blogsResult.exceptionOrNull()?.message
+                )
             }
         }
     }

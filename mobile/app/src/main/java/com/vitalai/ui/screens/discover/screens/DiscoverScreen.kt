@@ -7,13 +7,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +38,7 @@ import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.AuthorUserDto
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.data.remote.model.FoodDto
+import com.vitalai.navigation.BottomNavReselectBus
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
@@ -43,7 +49,7 @@ import com.vitalai.ui.screens.discover.components.BlogSearchBar
 import com.vitalai.ui.screens.discover.viewmodels.DiscoverViewModel
 import com.vitalai.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun DiscoverScreen(
     navController: NavController,
@@ -51,25 +57,28 @@ fun DiscoverScreen(
     showBackButton: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var searchQuery by remember { mutableStateOf("") }
-    val tags = remember(uiState.tags, uiState.blogs) {
-        val fallbackTags = listOf("Dinh dưỡng", "Tập luyện", "Sức khỏe", "Giảm cân", "Eat clean")
-        val blogTags = uiState.blogs.flatMap { it.tags.orEmpty() }
-        val mergedTags = (uiState.tags + blogTags + fallbackTags).distinctBy { it.lowercase() }
-        listOf(null to "Tất cả") + mergedTags.map { it to it }
-    }
-    val searchedBlogs = remember(uiState.blogs, searchQuery) {
-        val query = searchQuery.trim()
-        if (query.isBlank()) {
-            uiState.blogs
-        } else {
-            uiState.blogs.filter { blog ->
-                blog.title.contains(query, ignoreCase = true) ||
-                    blog.displayAuthor.contains(query, ignoreCase = true) ||
-                    blog.tags.orEmpty().any { it.contains(query, ignoreCase = true) }
+    val listState = rememberLazyListState()
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.isRefreshing,
+        onRefresh = viewModel::refresh
+    )
+
+    LaunchedEffect(Unit) {
+        BottomNavReselectBus.events.collect { routeName ->
+            if (routeName == Screen.Discover::class.qualifiedName) {
+                listState.animateScrollToItem(0)
+                viewModel.refresh()
             }
         }
     }
+    val tags = remember(uiState.tags, uiState.blogs) {
+        val blogTags = uiState.blogs.flatMap { it.tags.orEmpty() }
+        val mergedTags = (uiState.tags + blogTags)
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+        listOf(null to "Tất cả") + mergedTags.map { it to it }
+    }
+    val searchedBlogs = uiState.blogs
     val latestBlogs = remember(searchedBlogs, uiState.selectedTag) {
         val tag = uiState.selectedTag
         if (tag == null) {
@@ -80,16 +89,25 @@ fun DiscoverScreen(
             }
         }
     }
+    val recommendedBlogs = remember(searchedBlogs) { searchedBlogs.take(5) }
+    val recommendedBlogIds = remember(recommendedBlogs) { recommendedBlogs.map { it.id }.toSet() }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    BlogSearchBar(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { navController.navigate(Screen.BlogSearch) }
+                    ) {
+                        BlogSearchBar(
+                            value = "",
+                            onValueChange = {},
+                            enabled = false,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 },
                 navigationIcon = {
                     if (showBackButton) {
@@ -115,10 +133,11 @@ fun DiscoverScreen(
         },
         containerColor = AppMutedBackground
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .pullRefresh(pullRefreshState)
         ) {
             when {
                 uiState.isLoading -> LoadingState()
@@ -133,7 +152,10 @@ fun DiscoverScreen(
                         Text("Chưa có bài viết nào", color = Ink500)
                     }
                 }
-                else -> LazyColumn(contentPadding = PaddingValues(bottom = 28.dp)) {
+                else -> LazyColumn(
+                    state = listState,
+                    contentPadding = PaddingValues(bottom = 28.dp)
+                ) {
                     item {
                         Text(
                             "Recommended",
@@ -145,10 +167,18 @@ fun DiscoverScreen(
                     }
 
                     item {
-                        FeaturedBlogCard(
-                            blog = searchedBlogs.first(),
-                            onClick = { navController.navigate(Screen.BlogDetail(searchedBlogs.first().id)) }
-                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            items(recommendedBlogs, key = { it.id }) { blog ->
+                                FeaturedBlogCard(
+                                    blog = blog,
+                                    modifier = Modifier.width(316.dp),
+                                    onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
+                                )
+                            }
+                        }
                     }
 
                     item {
@@ -195,10 +225,12 @@ fun DiscoverScreen(
                         )
                     }
                     val visibleLatestBlogs = if (
-                        uiState.selectedTag == null &&
-                        latestBlogs.firstOrNull()?.id == searchedBlogs.firstOrNull()?.id
+                        uiState.selectedTag == null
                     ) {
-                        latestBlogs.drop(1)
+                        latestBlogs
+                            .filterNot { it.id in recommendedBlogIds }
+                            .takeIf { it.isNotEmpty() }
+                            ?: latestBlogs
                     } else {
                         latestBlogs
                     }
@@ -223,6 +255,12 @@ fun DiscoverScreen(
                     }
                 }
             }
+            PullRefreshIndicator(
+                refreshing = uiState.isRefreshing,
+                state = pullRefreshState,
+                modifier = Modifier.align(Alignment.TopCenter),
+                contentColor = Mint500
+            )
         }
     }
 }
@@ -305,11 +343,9 @@ private fun ExploreFoodCard(food: FoodDto, onClick: () -> Unit) {
 }
 
 @Composable
-private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
+private fun FeaturedBlogCard(blog: BlogDto, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+        modifier = modifier
             .height(224.dp)
             .clip(RoundedCornerShape(24.dp))
             .clickable(onClick = onClick)
@@ -366,7 +402,7 @@ private fun FeaturedBlogCard(blog: BlogDto, onClick: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 18.dp)
         ) {
             Text(
-                "${blog.primaryTagLabel()} • ${blog.readMinutes()} min read",
+                "${blog.primaryTagLabel() ?: "Bài viết"} • ${blog.readMinutes()} min read",
                 color = Color.White.copy(alpha = 0.88f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -417,21 +453,23 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
                     .heightIn(min = 112.dp)
                     .weight(1f)
             ) {
-                Surface(
-                    shape = RoundedCornerShape(VitalRadius.Pill),
-                    color = Mint100
-                ) {
-                    Text(
-                        blog.primaryTagLabel(),
-                        color = Mint700,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                blog.primaryTagLabel()?.let { tag ->
+                    Surface(
+                        shape = RoundedCornerShape(VitalRadius.Pill),
+                        color = Mint100
+                    ) {
+                        Text(
+                            tag,
+                            color = Mint700,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
                 }
-                Spacer(Modifier.height(12.dp))
                 Text(
                     blog.title,
                     color = Ink900,
@@ -452,7 +490,7 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
     }
 }
 
-private fun BlogDto.primaryTagLabel(): String = tags?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Nutrition"
+private fun BlogDto.primaryTagLabel(): String? = tags?.firstOrNull()?.takeIf { it.isNotBlank() }
 
 private fun BlogDto.readMinutes(): Int {
     val body = content

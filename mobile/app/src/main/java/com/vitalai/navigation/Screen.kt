@@ -32,6 +32,7 @@ sealed class Screen {
         val avatarUrl: String? = null
     )
     @Serializable object Discover
+    @Serializable object BlogSearch
     @Serializable data class Activity(val date: String = "")
     @Serializable object ExerciseLibrary
     @Serializable data class ExerciseDetail(val id: String = "")

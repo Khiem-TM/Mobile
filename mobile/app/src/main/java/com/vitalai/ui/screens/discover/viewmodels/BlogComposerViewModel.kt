@@ -21,6 +21,8 @@ data class ContentBlock(
     val type: ContentBlockType = ContentBlockType.TEXT,
     val text: String = "",
     val imageUrl: String = "",
+    val imageBase64: String = "",
+    val localImageUri: String = "",
     val caption: String = ""
 )
 
@@ -28,7 +30,10 @@ data class BlogComposerUiState(
     val editingBlogId: String? = null,
     val title: String = "",
     val coverUrl: String = "",
+    val coverBase64: String = "",
+    val localCoverUri: String = "",
     val tags: List<String> = emptyList(),
+    val availableTags: List<String> = emptyList(),
     val blocks: List<ContentBlock> = listOf(ContentBlock()),
     val tagInput: String = "",
     val isSaving: Boolean = false,
@@ -47,6 +52,21 @@ class BlogComposerViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(BlogComposerUiState())
     val uiState = _uiState.asStateFlow()
+
+    init {
+        loadAvailableTags()
+    }
+
+    private fun loadAvailableTags() {
+        viewModelScope.launch {
+            blogRepository.getTags().onSuccess { tags ->
+                val systemTags = listOf("Dinh dưỡng", "Tập luyện", "Sức khỏe", "Giảm cân", "Eat clean")
+                _uiState.update {
+                    it.copy(availableTags = (tags + systemTags).filter { tag -> tag.isNotBlank() }.distinctBy { tag -> tag.lowercase() })
+                }
+            }
+        }
+    }
 
     fun loadBlogForEdit(blogId: String?) {
         if (blogId.isNullOrBlank()) return
@@ -71,12 +91,15 @@ class BlogComposerViewModel @Inject constructor(
     }
 
     fun setTitle(title: String) = _uiState.update { it.copy(title = title) }
-    fun setCoverUrl(url: String) = _uiState.update { it.copy(coverUrl = url) }
+    fun setCoverUrl(url: String) = _uiState.update { it.copy(coverUrl = url, coverBase64 = "", localCoverUri = "") }
+    fun setCoverImage(base64: String, localUri: String) = _uiState.update { it.copy(coverBase64 = base64, localCoverUri = localUri, coverUrl = "") }
+    fun clearCoverImage() = _uiState.update { it.copy(coverUrl = "", coverBase64 = "", localCoverUri = "") }
     fun setTagInput(input: String) = _uiState.update { it.copy(tagInput = input) }
 
     fun addTag(tag: String) {
-        if (tag.isBlank() || tag in _uiState.value.tags) return
-        _uiState.update { it.copy(tags = it.tags + tag, tagInput = "") }
+        val normalizedTag = tag.trim()
+        if (normalizedTag.isBlank() || _uiState.value.tags.any { it.equals(normalizedTag, ignoreCase = true) }) return
+        _uiState.update { it.copy(tags = it.tags + normalizedTag, tagInput = "") }
     }
 
     fun removeTag(tag: String) = _uiState.update { it.copy(tags = it.tags - tag) }
@@ -95,7 +118,25 @@ class BlogComposerViewModel @Inject constructor(
 
     fun updateBlockImage(id: String, imageUrl: String, caption: String) {
         _uiState.update { state ->
-            state.copy(blocks = state.blocks.map { if (it.id == id) it.copy(imageUrl = imageUrl, caption = caption) else it })
+            state.copy(blocks = state.blocks.map {
+                if (it.id == id) it.copy(imageUrl = imageUrl, imageBase64 = "", localImageUri = "", caption = caption) else it
+            })
+        }
+    }
+
+    fun updateBlockLocalImage(id: String, base64: String, localUri: String) {
+        _uiState.update { state ->
+            state.copy(blocks = state.blocks.map {
+                if (it.id == id) it.copy(imageBase64 = base64, localImageUri = localUri, imageUrl = "") else it
+            })
+        }
+    }
+
+    fun clearBlockImage(id: String) {
+        _uiState.update { state ->
+            state.copy(blocks = state.blocks.map {
+                if (it.id == id) it.copy(imageUrl = "", imageBase64 = "", localImageUri = "") else it
+            })
         }
     }
 
@@ -185,12 +226,21 @@ class BlogComposerViewModel @Inject constructor(
                     }
 
                 ContentBlockType.IMAGE -> block.imageUrl.trim()
+                    .takeIf { it.isNotBlank() || block.imageBase64.isNotBlank() }
+                    ?.let {
+                        CreateBlogBlockRequest(
+                            order = index,
+                            type = "image",
+                            imageBase64 = block.imageBase64.takeIf { base64 -> base64.isNotBlank() },
+                            imageUrl = it.takeIf { url -> url.isNotBlank() }
+                        )
+                    } ?: block.imageBase64.trim()
                     .takeIf { it.isNotBlank() }
                     ?.let {
                         CreateBlogBlockRequest(
                             order = index,
                             type = "image",
-                            imageUrl = it
+                            imageBase64 = it
                         )
                     }
             }
@@ -198,6 +248,7 @@ class BlogComposerViewModel @Inject constructor(
 
         return CreateBlogRequest(
             title = title,
+            thumbnailBase64 = state.coverBase64.trim().takeIf { it.isNotBlank() },
             thumbnailUrl = state.coverUrl.trim().takeIf { it.isNotBlank() },
             tags = state.tags.takeIf { it.isNotEmpty() },
             status = status,

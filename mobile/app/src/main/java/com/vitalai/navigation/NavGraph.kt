@@ -43,6 +43,7 @@ import com.vitalai.ui.screens.diary.MealHistoryScreen
 import com.vitalai.ui.screens.diary.SearchFoodScreen
 import com.vitalai.ui.screens.discover.screens.BlogComposerScreen
 import com.vitalai.ui.screens.discover.screens.BlogDetailScreen
+import com.vitalai.ui.screens.discover.screens.BlogSearchScreen
 import com.vitalai.ui.screens.discover.screens.AuthorBlogsScreen
 import com.vitalai.ui.screens.discover.screens.DiscoverScreen
 import com.vitalai.ui.screens.discover.screens.MyBlogsScreen
@@ -264,6 +265,9 @@ fun VitalNavGraph(
         // ── Discover / Blog ───────────────────────────────────
         composable<Screen.Discover> {
             DiscoverScreen(navController)
+        }
+        composable<Screen.BlogSearch> {
+            BlogSearchScreen(navController)
         }
         composable<Screen.BlogDetail> { backStackEntry ->
             val route: Screen.BlogDetail = backStackEntry.toRoute()
