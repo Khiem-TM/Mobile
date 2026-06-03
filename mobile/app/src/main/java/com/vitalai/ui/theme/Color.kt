@@ -4,7 +4,7 @@ import androidx.compose.ui.graphics.Color
 
 // ── Design system palette (Design/DESIGN.md — "Ease Health") ──────────────
 // Forest Green is the single brand/action color; surfaces are cream + green tints.
-val ForestGreen = Color(0xFF0F3E17)
+val ForestGreen = Color(0xFF228C66)
 val CreamCanvas = Color(0xFFFFFEFC)
 val MintGlaze = Color(0xFFB1DBB8)
 val SlateMist = Color(0xFFB6CED5)
@@ -40,6 +40,7 @@ val Ink300 = Color(0xFFBFC8C3)
 val Ink200 = BorderGrey
 val Ink100 = Color(0xFFF2F6F4)
 val Ink50 = Color(0xFFF8FAF9)
+val BottomSheetGrabber = Color(0xFFD1D5DB)
 val AppBackground = CreamCanvas
 val AppMutedBackground = Color(0xFFF4F8F4)
 val AppSurface = CreamCanvas
@@ -55,7 +56,7 @@ val Slate900 = Color(0xFF1E293B)
 val MacroCarbs = Color(0xFFF59E0B)
 val MacroProtein = Color(0xFFEF4444)
 val MacroFat = Color(0xFF8B5CF6)
-val MacroWater = Color(0xFF38BDF8)
+val MacroWater = Color(0xFF257EA5)
 
 // Domain-specific colors (water, meal badges)
 val WaterBlue = Color(0xFF3B82F6)

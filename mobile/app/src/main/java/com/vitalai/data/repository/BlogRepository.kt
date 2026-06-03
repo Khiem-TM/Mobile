@@ -14,9 +14,14 @@ import javax.inject.Singleton
 class BlogRepository @Inject constructor(
     private val blogApi: BlogApi
 ) {
-    suspend fun getBlogs(tag: String? = null, page: Int = 1, limit: Int = 10): Result<BlogPageDto> {
+    suspend fun getBlogs(
+        tag: String? = null,
+        authorId: String? = null,
+        page: Int = 1,
+        limit: Int = 10
+    ): Result<BlogPageDto> {
         return try {
-            val response = blogApi.getBlogs(tag, page, limit)
+            val response = blogApi.getBlogs(tag = tag, authorId = authorId, page = page, limit = limit)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi tải bài viết (${response.code()})"))
@@ -104,6 +109,17 @@ class BlogRepository @Inject constructor(
     suspend fun getMyBlogs(page: Int = 1, limit: Int = 50): Result<BlogPageDto> {
         return try {
             val response = blogApi.getMyBlogs(page, limit)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Không tải được bài viết của tôi (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMyBlogById(id: String): Result<BlogDto> {
+        return try {
+            val response = blogApi.getMyBlogById(id)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Không tải được bài viết của tôi (${response.code()})"))

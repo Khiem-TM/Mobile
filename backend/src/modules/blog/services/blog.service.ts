@@ -87,8 +87,8 @@ export class BlogService {
 
   // ─── Public ────────────────────────────────────────────────────────────────
 
-  async getApprovedBlogs(page = 1, limit = 20, search?: string, tag?: string) {
-    const key = `cache:blogs:list:${page}:${limit}:${search ?? ''}:${tag ?? ''}`;
+  async getApprovedBlogs(page = 1, limit = 20, search?: string, tag?: string, authorId?: string) {
+    const key = `cache:blogs:list:${page}:${limit}:${search ?? ''}:${tag ?? ''}:${authorId ?? ''}`;
     const cached = await this.redisService.getJson<{ items: Blog[]; total: number; page: number; limit: number }>(key);
     if (cached) return cached;
 
@@ -108,6 +108,10 @@ export class BlogService {
 
     if (tag) {
       qb.andWhere(":tag = ANY(string_to_array(blog.tags, ','))", { tag });
+    }
+
+    if (authorId) {
+      qb.andWhere('blog.author_id = :authorId', { authorId });
     }
 
     const [items, total] = await qb
@@ -291,6 +295,17 @@ export class BlogService {
       take: limit,
     });
     return { items, total, page, limit };
+  }
+
+  async getUserBlog(userId: string, blogId: string) {
+    const blog = await this.blogRepo.findOne({
+      where: { id: blogId },
+      relations: ['blocks', 'authorUser'],
+      order: { blocks: { order: 'ASC' } },
+    });
+    if (!blog) throw new NotFoundException('Blog not found');
+    if (blog.author_id !== userId) throw new ForbiddenException('Not your blog');
+    return blog;
   }
 
   async toggleLike(userId: string, blogId: string) {

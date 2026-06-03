@@ -5,11 +5,12 @@
   ],
   "exercise_sources": [
     "wger API for GYM metadata when available",
-    "Compendium MET reference for CARDIO/SPORT values"
+    "Compendium MET reference for CARDIO/SPORT values",
+    "wger API crawled exercises appended from backend/src/database/seeds/seed_exercises.sql; generated rows keep priority for duplicate name + exercise_type"
   ],
   "image_policy": "SVG assets generated locally by this script; no scraped images are used.",
   "counts": {
     "foods": 100,
-    "exercises": 60
+    "exercises": 140
   }
 }

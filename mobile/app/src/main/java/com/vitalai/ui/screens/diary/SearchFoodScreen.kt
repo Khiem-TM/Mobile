@@ -55,6 +55,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.FoodDto
 import com.vitalai.navigation.Screen
+import com.vitalai.ui.theme.BottomSheetGrabber
 import com.vitalai.ui.theme.VitalDisplayFontFamily
 import com.vitalai.ui.theme.VitalFontFamily
 import kotlin.math.roundToInt
@@ -189,7 +190,7 @@ private fun SearchBottomSheet(
                     .width(38.dp)
                     .height(5.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(FoodModule.Border)
+                    .background(BottomSheetGrabber)
                     .align(Alignment.CenterHorizontally)
             )
             Spacer(Modifier.height(14.dp))
