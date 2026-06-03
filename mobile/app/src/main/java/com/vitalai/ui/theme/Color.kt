@@ -4,7 +4,7 @@ import androidx.compose.ui.graphics.Color
 
 // ── Design system palette (Design/DESIGN.md — "Ease Health") ──────────────
 // Forest Green is the single brand/action color; surfaces are cream + green tints.
-val ForestGreen = Color(0xFF0F3E17)
+val ForestGreen = Color(0xFF228C66)
 val CreamCanvas = Color(0xFFFFFEFC)
 val MintGlaze = Color(0xFFB1DBB8)
 val SlateMist = Color(0xFFB6CED5)

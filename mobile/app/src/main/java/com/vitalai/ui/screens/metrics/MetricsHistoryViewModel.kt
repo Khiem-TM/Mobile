@@ -122,16 +122,26 @@ class MetricsHistoryViewModel @Inject constructor(
             else -> MetricEventType.WEIGHT   // BASIC
         }
 
-        val details = listOfNotNull(
-            bmi?.let { "BMI %.1f".format(it) },
-            bodyFatPct?.let { "Mỡ %.1f%%".format(it) },
-            waistCm?.let { "Eo %.1f cm".format(it) },
-            hipCm?.let { "Hông %.1f cm".format(it) },
-            notes
-        ).joinToString(" · ").ifBlank { null }
+        val details = when (level) {
+            MetricEventType.MEASUREMENT -> listOfNotNull(
+                waistCm?.let { "Eo %.1f cm".format(it) },
+                hipCm?.let { "Hông %.1f cm".format(it) },
+                chestCm?.let { "Ngực %.1f cm".format(it) },
+                armCm?.let { "Bắp tay %.1f cm".format(it) },
+                neckCm?.let { "Cổ %.1f cm".format(it) },
+                notes
+            )
+            else -> listOfNotNull(
+                bmi?.let { "BMI %.1f".format(it) },
+                bodyFatPct?.let { "Mỡ %.1f%%".format(it) },
+                waistCm?.let { "Eo %.1f cm".format(it) },
+                hipCm?.let { "Hông %.1f cm".format(it) },
+                notes
+            )
+        }.joinToString(" · ").ifBlank { null }
 
         val title = when (level) {
-            MetricEventType.MEASUREMENT -> "Đo lường nâng cao"
+            MetricEventType.MEASUREMENT -> "Cập nhật số đo cơ thể"
             else -> "Cập nhật cân nặng"
         }
 
@@ -139,7 +149,10 @@ class MetricsHistoryViewModel @Inject constructor(
             id = id,
             type = level,
             title = title,
-            value = "%.1f kg".format(weightKg),
+            value = when (level) {
+                MetricEventType.MEASUREMENT -> bodyFatPct?.let { "%.1f%% mỡ".format(it) } ?: "--% mỡ"
+                else -> "%.1f kg".format(weightKg)
+            },
             note = details,
             photoUrl = photos.firstOrNull()?.photoUrl,
             photoUrls = photos.map { it.photoUrl },

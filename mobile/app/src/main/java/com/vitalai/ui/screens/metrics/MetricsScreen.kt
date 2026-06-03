@@ -188,13 +188,20 @@ fun MetricsScreen(
                 }
 
                 // 3. BMI progress bar
-                uiState.latest?.bmi?.let { bmi ->
+                val profileBmi = calculateBmi(uiState.latest?.weightKg, uiState.healthProfile?.heightCm)
+                profileBmi?.let { bmi ->
                     item { BmiBar(bmi = bmi) }
                 }
 
                 // 4. Personal information
                 item {
-                    PersonalInfoCard(profile = uiState.healthProfile)
+                    PersonalInfoCard(
+                        profile = uiState.healthProfile,
+                        onClick = {
+                            viewModel.setUpdateTab(3)
+                            showUpdateSheet = true
+                        }
+                    )
                 }
 
                 // 5. Energy basics
@@ -209,7 +216,13 @@ fun MetricsScreen(
                 // 6. Body measurements card
                 uiState.latest?.let { latest ->
                     item {
-                        BodyMeasurementsCard(latest = latest)
+                        BodyMeasurementsCard(
+                            latest = latest,
+                            onClick = {
+                                viewModel.setUpdateTab(1)
+                                showUpdateSheet = true
+                            }
+                        )
                     }
                 }
 
@@ -505,8 +518,14 @@ private fun BmiBar(bmi: Float) {
 // ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun PersonalInfoCard(profile: HealthProfileDto?) {
-    VitalCard(modifier = Modifier.fillMaxWidth()) {
+private fun PersonalInfoCard(
+    profile: HealthProfileDto?,
+    onClick: () -> Unit
+) {
+    VitalCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(
                 "Thông tin cá nhân",
@@ -578,6 +597,51 @@ private fun EnergyBasicsCard(latest: BodyMetricDto) {
         }
     }
 }
+
+@Composable
+private fun InputTopLabel(label: String) {
+    Text(
+        label,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = Ink500,
+        modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+    )
+}
+
+@Composable
+private fun LabeledTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    suffix: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Decimal
+) {
+    Column(modifier = modifier) {
+        InputTopLabel(label)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+            singleLine = true,
+            suffix = suffix?.let { { Text(it, color = Ink500, fontSize = 12.sp) } },
+            modifier = Modifier.fillMaxWidth(),
+            colors = metricTextFieldColors()
+        )
+    }
+}
+
+@Composable
+private fun metricTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = MetricGreen,
+    focusedLabelColor = MetricGreen,
+    cursorColor = MetricGreen,
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White,
+    disabledContainerColor = Color.White,
+    errorContainerColor = Color.White
+)
 
 // ─────────────────────────────────────────────────────────────
 // WeightChangeRow
@@ -1235,17 +1299,23 @@ private fun WeightLineChart(
 // ─────────────────────────────────────────────────────────────
 
 @Composable
-private fun BodyMeasurementsCard(latest: BodyMetricDto) {
+private fun BodyMeasurementsCard(
+    latest: BodyMetricDto,
+    onClick: () -> Unit
+) {
     val measurements = buildList {
         latest.bodyFatPct?.let { add("Tỷ lệ mỡ" to "%.1f%%".format(it)) }
         latest.waistCm?.let { add("Vòng eo" to "%.0f cm".format(it)) }
-        latest.hipCm?.let { add("Vòng mông" to "%.0f cm".format(it)) }
+        latest.hipCm?.let { add("Vòng hông" to "%.0f cm".format(it)) }
         latest.chestCm?.let { add("Vòng ngực" to "%.0f cm".format(it)) }
         latest.armCm?.let { add("Bắp tay" to "%.0f cm".format(it)) }
         latest.neckCm?.let { add("Vòng cổ" to "%.0f cm".format(it)) }
     }
 
-    VitalCard(modifier = Modifier.fillMaxWidth()) {
+    VitalCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick
+    ) {
         SectionHeader(title = "Số đo cơ thể", color = MetricGreen)
         Spacer(Modifier.height(12.dp))
 
@@ -1412,27 +1482,6 @@ private fun UpdateBottomSheet(
                 .fillMaxWidth()
                 .navigationBarsPadding()
         ) {
-            // Tab row
-            TabRow(
-                selectedTabIndex = uiState.updateSheetTab,
-                containerColor = AppSurface,
-                contentColor = Mint500
-            ) {
-                listOf("Cơ bản", "Nâng cao", "Ảnh").forEachIndexed { index, label ->
-                    Tab(
-                        selected = uiState.updateSheetTab == index,
-                        onClick = { viewModel.setUpdateTab(index) },
-                        text = {
-                            Text(
-                                label,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (uiState.updateSheetTab == index) Mint600 else Ink500
-                            )
-                        }
-                    )
-                }
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1441,9 +1490,10 @@ private fun UpdateBottomSheet(
                     .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
                 when (uiState.updateSheetTab) {
-                    0 -> BasicUpdateTab(viewModel = viewModel, onDone = onDismiss)
-                    1 -> AdvancedUpdateTab(viewModel = viewModel, onDone = onDismiss)
+                    0 -> BasicUpdateTab(uiState = uiState, viewModel = viewModel, onDone = onDismiss)
+                    1 -> AdvancedUpdateTab(uiState = uiState, viewModel = viewModel, onDone = onDismiss)
                     2 -> PhotoUpdateTab(viewModel = viewModel, photos = uiState.photos, onDone = onDismiss)
+                    3 -> PersonalInfoUpdateTab(uiState = uiState, viewModel = viewModel, onDone = onDismiss)
                 }
             }
         }
@@ -1451,45 +1501,26 @@ private fun UpdateBottomSheet(
 }
 
 @Composable
-private fun BasicUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
-    var weightStr by remember { mutableStateOf("") }
-    var heightStr by remember { mutableStateOf("") }
+private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
+    val latest = uiState.latest
+    var weightStr by remember(latest?.weightKg) {
+        mutableStateOf(latest?.weightKg?.let { "%.1f".format(it) }.orEmpty())
+    }
     val weightVal = weightStr.toFloatOrNull()
-    val heightVal = heightStr.toFloatOrNull()
-    val bmiPreview = if (weightVal != null && heightVal != null && heightVal > 0f) {
-        weightVal / ((heightVal / 100f) * (heightVal / 100f))
-    } else null
+    val heightCm = uiState.healthProfile?.heightCm
+    val bmiPreview = calculateBmi(weightVal, heightCm)
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Cập nhật cơ bản", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+        Text("Cập nhật cân nặng", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MetricGreen)
 
-        OutlinedTextField(
+        LabeledTextField(
+            label = "Cân nặng",
             value = weightStr,
             onValueChange = { weightStr = it },
-            label = { Text("Cân nặng (kg) *") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Mint500,
-                focusedLabelColor = Mint500
-            )
+            suffix = "kg",
+            modifier = Modifier.fillMaxWidth()
         )
 
-        OutlinedTextField(
-            value = heightStr,
-            onValueChange = { heightStr = it },
-            label = { Text("Chiều cao (cm) *") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Mint500,
-                focusedLabelColor = Mint500
-            )
-        )
-
-        // BMI preview
         bmiPreview?.let { bmi ->
             Box(
                 modifier = Modifier
@@ -1524,7 +1555,7 @@ private fun BasicUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
                         UpsertBodyMetricRequest(
                             recordedAt = LocalDate.now().toString(),
                             weightKg = weightVal,
-                            heightCm = heightVal
+                            heightCm = heightCm
                         )
                     )
                     onDone()
@@ -1533,49 +1564,165 @@ private fun BasicUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
             enabled = weightVal != null,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(VitalRadius.Md),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint500)
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF228C66))
         ) {
-            Text("Lưu", fontWeight = FontWeight.SemiBold, color = Color.White)
+            Text("Lưu thông tin", fontWeight = FontWeight.SemiBold, color = Color.White)
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AdvancedUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
-    var bodyFatStr by remember { mutableStateOf("") }
-    var waistStr by remember { mutableStateOf("") }
-    var hipStr by remember { mutableStateOf("") }
-    var chestStr by remember { mutableStateOf("") }
-    var armStr by remember { mutableStateOf("") }
-    var neckStr by remember { mutableStateOf("") }
+private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
+    val profile = uiState.healthProfile
+    var genderExpanded by remember { mutableStateOf(false) }
+    var gender by remember(profile?.gender) { mutableStateOf(normalizeGender(profile?.gender)) }
+    var ageStr by remember(profile?.birthDate) {
+        mutableStateOf(calculateAge(profile?.birthDate)?.toString().orEmpty())
+    }
+    var heightStr by remember(profile?.heightCm) {
+        mutableStateOf(profile?.heightCm?.let { "%.0f".format(it) }.orEmpty())
+    }
+    var initialWeightStr by remember(profile?.initialWeightKg) {
+        mutableStateOf(profile?.initialWeightKg?.let { "%.1f".format(it) }.orEmpty())
+    }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Số đo nâng cao", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Cập nhật thông tin cá nhân", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MetricGreen)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                InputTopLabel("Giới tính")
+                ExposedDropdownMenuBox(
+                    expanded = genderExpanded,
+                    onExpandedChange = { genderExpanded = !genderExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = genderDisplay(gender),
+                        onValueChange = {},
+                        readOnly = true,
+                        singleLine = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        colors = metricTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = genderExpanded,
+                        onDismissRequest = { genderExpanded = false },
+                        modifier = Modifier.background(Color.White)
+                    ) {
+                        listOf("male" to "Nam", "female" to "Nữ", "other" to "Khác").forEach { (value, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    gender = value
+                                    genderExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+            LabeledTextField(
+                label = "Tuổi",
+                value = ageStr,
+                onValueChange = { ageStr = it.filter(Char::isDigit) },
+                modifier = Modifier.weight(1f),
+                keyboardType = KeyboardType.Number
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            LabeledTextField(
+                label = "Chiều cao",
+                value = heightStr,
+                onValueChange = { heightStr = it },
+                suffix = "cm",
+                modifier = Modifier.weight(1f)
+            )
+            LabeledTextField(
+                label = "Cân nặng ban đầu",
+                value = initialWeightStr,
+                onValueChange = { initialWeightStr = it },
+                suffix = "kg",
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Button(
+            onClick = {
+                val updated = (profile ?: HealthProfileDto()).copy(
+                    gender = gender,
+                    birthDate = ageStr.toIntOrNull()?.let { ageToBirthDate(it, profile?.birthDate) } ?: profile?.birthDate,
+                    heightCm = heightStr.toFloatOrNull(),
+                    initialWeightKg = initialWeightStr.toFloatOrNull()
+                )
+                viewModel.updateHealthProfile(updated)
+                onDone()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = ButtonDefaults.buttonColors(containerColor = MetricGreen)
+        ) {
+            Text("Lưu thông tin", fontWeight = FontWeight.SemiBold, color = Color.White)
+        }
+    }
+}
+
+private data class AdvancedField(
+    val label: String,
+    val value: String,
+    val suffix: String,
+    val onChange: (String) -> Unit
+)
+
+@Composable
+private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
+    val latest = uiState.latest
+    var bodyFatStr by remember(latest?.bodyFatPct) {
+        mutableStateOf(latest?.bodyFatPct?.let { "%.1f".format(it) }.orEmpty())
+    }
+    var waistStr by remember(latest?.waistCm) {
+        mutableStateOf(latest?.waistCm?.let { "%.0f".format(it) }.orEmpty())
+    }
+    var hipStr by remember(latest?.hipCm) {
+        mutableStateOf(latest?.hipCm?.let { "%.0f".format(it) }.orEmpty())
+    }
+    var chestStr by remember(latest?.chestCm) {
+        mutableStateOf(latest?.chestCm?.let { "%.0f".format(it) }.orEmpty())
+    }
+    var armStr by remember(latest?.armCm) {
+        mutableStateOf(latest?.armCm?.let { "%.0f".format(it) }.orEmpty())
+    }
+    var neckStr by remember(latest?.neckCm) {
+        mutableStateOf(latest?.neckCm?.let { "%.0f".format(it) }.orEmpty())
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text("Số đo nâng cao", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MetricGreen)
         Text("Tất cả trường đều tùy chọn", fontSize = 12.sp, color = Ink500)
 
         val fieldDefs = listOf(
-            Triple("% Mỡ cơ thể", bodyFatStr) { v: String -> bodyFatStr = v },
-            Triple("Vòng eo (cm)", waistStr) { v: String -> waistStr = v },
-            Triple("Vòng mông (cm)", hipStr) { v: String -> hipStr = v },
-            Triple("Vòng ngực (cm)", chestStr) { v: String -> chestStr = v },
-            Triple("Bắp tay (cm)", armStr) { v: String -> armStr = v },
-            Triple("Vòng cổ (cm)", neckStr) { v: String -> neckStr = v }
+            AdvancedField("% Mỡ cơ thể", bodyFatStr, "%") { v: String -> bodyFatStr = v },
+            AdvancedField("Vòng eo", waistStr, "cm") { v: String -> waistStr = v },
+            AdvancedField("Vòng hông", hipStr, "cm") { v: String -> hipStr = v },
+            AdvancedField("Vòng ngực", chestStr, "cm") { v: String -> chestStr = v },
+            AdvancedField("Bắp tay", armStr, "cm") { v: String -> armStr = v },
+            AdvancedField("Vòng cổ", neckStr, "cm") { v: String -> neckStr = v }
         )
 
         fieldDefs.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { (label, value, onChange) ->
-                    OutlinedTextField(
-                        value = value,
-                        onValueChange = onChange,
-                        label = { Text(label, fontSize = 12.sp) },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
+                row.forEach { field ->
+                    LabeledTextField(
+                        label = field.label,
+                        value = field.value,
+                        onValueChange = field.onChange,
+                        suffix = field.suffix,
                         modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Mint500,
-                            focusedLabelColor = Mint500
-                        )
+                        keyboardType = KeyboardType.Decimal
                     )
                 }
             }
@@ -1598,7 +1745,7 @@ private fun AdvancedUpdateTab(viewModel: MetricsViewModel, onDone: () -> Unit) {
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(VitalRadius.Md),
-            colors = ButtonDefaults.buttonColors(containerColor = Mint500)
+            colors = ButtonDefaults.buttonColors(containerColor = MetricGreen)
         ) {
             Text("Lưu số đo", fontWeight = FontWeight.SemiBold, color = Color.White)
         }
@@ -1759,11 +1906,41 @@ private fun formatGender(gender: String?): String = when (gender?.lowercase(Loca
     else -> gender
 }
 
+private fun normalizeGender(gender: String?): String = when (gender?.lowercase(Locale.US)) {
+    "male", "nam" -> "male"
+    "female", "nu", "nữ" -> "female"
+    "other", "khac", "khác" -> "other"
+    else -> "male"
+}
+
+private fun genderDisplay(gender: String): String = when (gender) {
+    "male" -> "Nam"
+    "female" -> "Nữ"
+    "other" -> "Khác"
+    else -> formatGender(gender)
+}
+
 private fun calculateAge(birthDate: String?): Int? {
     val date = birthDate?.takeIf { it.isNotBlank() } ?: return null
     return runCatching {
         Period.between(LocalDate.parse(date.take(10)), LocalDate.now()).years
     }.getOrNull()?.takeIf { it >= 0 }
+}
+
+private fun ageToBirthDate(age: Int, currentBirthDate: String?): String {
+    val today = LocalDate.now()
+    val currentMonthDay = runCatching { LocalDate.parse(currentBirthDate?.take(10)).let { it.monthValue to it.dayOfMonth } }.getOrNull()
+    val month = currentMonthDay?.first ?: today.monthValue
+    val day = currentMonthDay?.second ?: today.dayOfMonth
+    val candidate = runCatching { LocalDate.of(today.year - age, month, day) }
+        .getOrElse { LocalDate.of(today.year - age, month, 1) }
+    return candidate.toString()
+}
+
+private fun calculateBmi(weightKg: Float?, heightCm: Float?): Float? {
+    if (weightKg == null || heightCm == null || heightCm <= 0f) return null
+    val heightM = heightCm / 100f
+    return weightKg / (heightM * heightM)
 }
 
 private fun calculateWeightGoalProgress(
