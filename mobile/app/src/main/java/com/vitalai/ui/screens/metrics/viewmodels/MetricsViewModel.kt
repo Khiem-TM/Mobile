@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.metrics
+package com.vitalai.ui.screens.metrics.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

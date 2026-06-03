@@ -48,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.vitalai.ui.theme.Mint500
+import com.vitalai.util.ClassificationResult
 import java.util.concurrent.Executors
 
 @Composable

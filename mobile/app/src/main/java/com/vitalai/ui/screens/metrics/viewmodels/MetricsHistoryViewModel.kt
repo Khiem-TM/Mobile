@@ -1,8 +1,9 @@
-package com.vitalai.ui.screens.metrics
+package com.vitalai.ui.screens.metrics.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.vitalai.data.remote.model.BodyMetricDto
+import com.vitalai.data.mapper.metricDateOrNull
+import com.vitalai.data.mapper.toTimelineEvent
 import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.repository.BodyMetricsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,8 +12,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 import javax.inject.Inject
 
 enum class MetricEventType { WEIGHT, PHOTO, MEASUREMENT, WORKOUT, BADGE }
@@ -118,59 +117,4 @@ class MetricsHistoryViewModel @Inject constructor(
         _uiState.update { it.copy(activeFilter = type) }
     }
 
-    private fun BodyMetricDto.toTimelineEvent(photos: List<ProgressPhotoDto>): MetricTimelineEvent {
-        val parsedDate = metricDateOrNull()
-        val displayDate = parsedDate?.format(DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale("vi"))) ?: date
-        val month = parsedDate?.format(DateTimeFormatter.ofPattern("'Tháng' M/yyyy", Locale("vi"))) ?: "Số liệu"
-
-        // Determine data level: ADVANCED if any body composition field is present
-        val level = when {
-            bodyFatPct != null || waistCm != null || hipCm != null || armCm != null ->
-                MetricEventType.MEASUREMENT  // ADVANCED
-            else -> MetricEventType.WEIGHT   // BASIC
-        }
-
-        val details = when (level) {
-            MetricEventType.MEASUREMENT -> listOfNotNull(
-                waistCm?.let { "Eo %.1f cm".format(it) },
-                hipCm?.let { "Hông %.1f cm".format(it) },
-                chestCm?.let { "Ngực %.1f cm".format(it) },
-                armCm?.let { "Bắp tay %.1f cm".format(it) },
-                neckCm?.let { "Cổ %.1f cm".format(it) },
-                notes
-            )
-            else -> listOfNotNull(
-                bmi?.let { "BMI %.1f".format(it) },
-                bodyFatPct?.let { "Mỡ %.1f%%".format(it) },
-                waistCm?.let { "Eo %.1f cm".format(it) },
-                hipCm?.let { "Hông %.1f cm".format(it) },
-                notes
-            )
-        }.joinToString(" · ").ifBlank { null }
-
-        val title = when (level) {
-            MetricEventType.MEASUREMENT -> "Cập nhật số đo cơ thể"
-            else -> "Cập nhật cân nặng"
-        }
-
-        return MetricTimelineEvent(
-            id = id,
-            type = level,
-            title = title,
-            value = when (level) {
-                MetricEventType.MEASUREMENT -> bodyFatPct?.let { "%.1f%% mỡ".format(it) } ?: "--% mỡ"
-                else -> "%.1f kg".format(weightKg)
-            },
-            note = details,
-            photoUrl = photos.firstOrNull()?.photoUrl,
-            photoUrls = photos.map { it.photoUrl },
-            date = displayDate,
-            monthGroup = month,
-            rawMetric = this
-        )
-    }
-
-    private fun BodyMetricDto.metricDateOrNull(): LocalDate? {
-        return runCatching { LocalDate.parse(date.take(10)) }.getOrNull()
-    }
 }

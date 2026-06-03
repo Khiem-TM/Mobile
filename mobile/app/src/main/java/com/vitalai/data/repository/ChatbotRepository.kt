@@ -1,6 +1,6 @@
 package com.vitalai.data.repository
 
-import com.vitalai.data.remote.ChatSseParser
+import com.vitalai.core.network.ChatSseParser
 import com.vitalai.data.remote.ChatbotApi
 import com.vitalai.data.remote.model.ChatMessageDto
 import com.vitalai.data.remote.model.ChatSessionDto

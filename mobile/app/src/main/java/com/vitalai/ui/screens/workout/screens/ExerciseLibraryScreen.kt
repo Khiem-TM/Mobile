@@ -430,6 +430,7 @@ private fun FilterSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = TrainColors.Cream,
+        windowInsets = WindowInsets(0),
         dragHandle = {
             Box(
                 Modifier

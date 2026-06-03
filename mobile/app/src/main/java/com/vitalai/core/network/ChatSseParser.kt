@@ -1,4 +1,4 @@
-package com.vitalai.data.remote
+package com.vitalai.core.network
 
 import com.squareup.moshi.Moshi
 import com.vitalai.data.remote.model.ChatStreamDeltaDto

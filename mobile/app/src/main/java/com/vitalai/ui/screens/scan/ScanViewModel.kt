@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.vitalai.util.ClassificationResult
+import com.vitalai.util.FoodClassifierHelper
 import javax.inject.Inject
 
 data class ScanUiState(

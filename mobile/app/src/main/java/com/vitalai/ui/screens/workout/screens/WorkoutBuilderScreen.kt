@@ -452,6 +452,7 @@ private fun ExercisePickerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = TrainColors.Cream,
+        windowInsets = WindowInsets(0),
         dragHandle = {
             Box(Modifier.padding(top = 10.dp).size(width = 40.dp, height = 5.dp).clip(CircleShape).background(TrainColors.Border))
         }

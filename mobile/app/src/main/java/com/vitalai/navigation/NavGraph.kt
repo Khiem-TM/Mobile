@@ -47,8 +47,8 @@ import com.vitalai.ui.screens.discover.screens.AuthorBlogsScreen
 import com.vitalai.ui.screens.discover.screens.DiscoverScreen
 import com.vitalai.ui.screens.discover.screens.MyBlogsScreen
 import com.vitalai.ui.screens.home.HomeScreen
-import com.vitalai.ui.screens.metrics.MetricsHistoryScreen
-import com.vitalai.ui.screens.metrics.MetricsScreen
+import com.vitalai.ui.screens.metrics.screens.MetricsHistoryScreen
+import com.vitalai.ui.screens.metrics.screens.MetricsScreen
 import com.vitalai.ui.screens.goals.GoalsScreen
 import com.vitalai.ui.screens.notifications.NotificationsScreen
 import com.vitalai.ui.screens.onboarding.OnboardingScreen

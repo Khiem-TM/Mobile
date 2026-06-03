@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.metrics
+package com.vitalai.ui.screens.metrics.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -37,6 +37,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.vitalai.ui.screens.metrics.viewmodels.MetricEventType
+import com.vitalai.ui.screens.metrics.viewmodels.MetricTimelineEvent
+import com.vitalai.ui.screens.metrics.viewmodels.MetricsHistoryViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.ui.theme.*
@@ -263,7 +266,8 @@ private fun FilterBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = AppSurface
+        containerColor = AppSurface,
+        windowInsets = WindowInsets(0)
     ) {
         Column(
             modifier = Modifier

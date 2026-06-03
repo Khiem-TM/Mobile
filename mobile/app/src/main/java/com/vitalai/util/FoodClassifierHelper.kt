@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.scan
+package com.vitalai.util
 
 import android.content.Context
 import android.graphics.Bitmap

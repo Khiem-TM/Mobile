@@ -249,9 +249,10 @@ fun BlogComposerScreen(
         ModalBottomSheet(
             onDismissRequest = { viewModel.setShowAddBlockSheet(false) },
             sheetState = sheetState,
-            containerColor = AppSurface
+            containerColor = AppSurface,
+            windowInsets = WindowInsets(0)
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Column(modifier = Modifier.navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Text("Chọn loại khối", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
                 Spacer(Modifier.height(16.dp))
                 Row(
