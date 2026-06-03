@@ -29,6 +29,14 @@ interface BodyMetricsApi {
     @GET("body-metrics/period/{period}")
     suspend fun getPeriod(@Path("period") period: String): Response<ApiResponse<List<BodyMetricDto>>>
 
+    @GET("body-metrics/history")
+    suspend fun getHistory(
+        @Query("fromDate") fromDate: String,
+        @Query("toDate") toDate: String,
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
+    ): Response<ApiResponse<List<BodyMetricDto>>>
+
     @POST("body-metrics")
     suspend fun addMetric(@Body metric: UpsertBodyMetricRequest): Response<ApiResponse<BodyMetricDto>>
 

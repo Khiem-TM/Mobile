@@ -47,6 +47,7 @@ import com.vitalai.data.remote.model.AddExerciseRequest
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.theme.BottomSheetGrabber
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -717,10 +718,10 @@ private fun AddToSessionSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = TrainColors.Cream,
+        containerColor = Color.White,
         windowInsets = WindowInsets(0),
         dragHandle = {
-            Box(Modifier.padding(top = 10.dp).size(width = 40.dp, height = 5.dp).clip(CircleShape).background(TrainColors.Border))
+            Box(Modifier.padding(top = 10.dp).size(width = 40.dp, height = 5.dp).clip(CircleShape).background(BottomSheetGrabber))
         }
     ) {
         Column(

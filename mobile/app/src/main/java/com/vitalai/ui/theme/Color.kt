@@ -40,6 +40,7 @@ val Ink300 = Color(0xFFBFC8C3)
 val Ink200 = BorderGrey
 val Ink100 = Color(0xFFF2F6F4)
 val Ink50 = Color(0xFFF8FAF9)
+val BottomSheetGrabber = Color(0xFFD1D5DB)
 val AppBackground = CreamCanvas
 val AppMutedBackground = Color(0xFFF4F8F4)
 val AppSurface = CreamCanvas
