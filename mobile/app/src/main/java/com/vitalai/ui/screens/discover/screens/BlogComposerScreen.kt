@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -64,6 +66,7 @@ fun BlogComposerScreen(
     var imageTarget by remember { mutableStateOf<BlogImageTarget?>(null) }
     var urlTarget by remember { mutableStateOf<BlogImageTarget?>(null) }
     var urlInput by remember { mutableStateOf("") }
+    var showPreview by remember { mutableStateOf(false) }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -115,7 +118,10 @@ fun BlogComposerScreen(
                         modifier = Modifier
                             .padding(end = 12.dp)
                             .clip(RoundedCornerShape(VitalRadius.Pill))
-                            .clickable(onClick = { }),
+                            .clickable(onClick = {
+                                viewModel.setTitle(titleFieldValue.text)
+                                showPreview = true
+                            }),
                         shape = RoundedCornerShape(VitalRadius.Pill),
                         color = Color(0xFFE7F5EA)
                     ) {
@@ -243,6 +249,13 @@ fun BlogComposerScreen(
                 }
             }
         }
+    }
+
+    if (showPreview) {
+        BlogComposerPreviewDialog(
+            uiState = uiState.copy(title = titleFieldValue.text),
+            onDismiss = { showPreview = false }
+        )
     }
 
     // Add block bottom sheet
@@ -381,6 +394,187 @@ private fun ComposerCoverUpload(uiState: BlogComposerUiState, onClick: () -> Uni
         }
     }
 
+}
+
+@Composable
+private fun BlogComposerPreviewDialog(
+    uiState: BlogComposerUiState,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = AppMutedBackground
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(VitalRadius.Pill))
+                            .clickable(onClick = onDismiss),
+                        shape = RoundedCornerShape(VitalRadius.Pill),
+                        color = Color(0xFFF1F5F2)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Close, contentDescription = "Đóng xem trước", tint = Ink900)
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Xem trước", color = Ink900, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                        Text("Bản nháp chưa được đăng", color = Ink500, fontSize = 12.sp)
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(VitalRadius.Pill),
+                        color = Color(0xFFE7F5EA)
+                    ) {
+                        Text(
+                            "Preview",
+                            color = Mint700,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                        )
+                    }
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 32.dp)
+                ) {
+                    val coverPreview = uiState.localCoverUri.ifBlank { uiState.coverUrl }
+                    if (coverPreview.isNotBlank()) {
+                        item {
+                            AsyncImage(
+                                model = coverPreview,
+                                contentDescription = "Ảnh bìa bài viết",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f)
+                                    .clip(RoundedCornerShape(24.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            Spacer(Modifier.height(20.dp))
+                        }
+                    }
+
+                    item {
+                        if (uiState.tags.isNotEmpty()) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(uiState.tags.size) { index ->
+                                    Surface(
+                                        shape = RoundedCornerShape(VitalRadius.Pill),
+                                        color = Color(0xFFD4F6E5)
+                                    ) {
+                                        Text(
+                                            "#${uiState.tags[index]}",
+                                            color = Mint700,
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.height(14.dp))
+                        }
+
+                        Text(
+                            uiState.title.ifBlank { "Tiêu đề bài viết của bạn..." },
+                            color = if (uiState.title.isBlank()) Ink400 else Ink900,
+                            fontSize = 30.sp,
+                            lineHeight = 36.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text("Bạn · Bản nháp", color = Ink500, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(18.dp))
+                    }
+
+                    val previewBlocks = uiState.blocks.filter { block ->
+                        when (block.type) {
+                            ContentBlockType.TEXT -> block.text.isNotBlank()
+                            ContentBlockType.IMAGE -> block.localImageUri.isNotBlank() || block.imageUrl.isNotBlank()
+                        }
+                    }
+
+                    if (previewBlocks.isEmpty()) {
+                        item {
+                            EmptyPreviewContent()
+                        }
+                    } else {
+                        itemsIndexed(previewBlocks) { _, block ->
+                            when (block.type) {
+                                ContentBlockType.TEXT -> PreviewTextBlock(block.text)
+                                ContentBlockType.IMAGE -> PreviewImageBlock(block)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyPreviewContent() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        color = AppSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0EAE3))
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(Icons.Default.EditNote, contentDescription = null, tint = Mint700, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.height(10.dp))
+            Text("Chưa có nội dung để xem trước", color = Ink700, fontWeight = FontWeight.Bold)
+            Text("Thêm đoạn văn bản hoặc hình ảnh để bài viết đầy đủ hơn.", color = Ink500, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun PreviewTextBlock(text: String) {
+    Text(
+        text,
+        color = Ink800,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        modifier = Modifier.padding(bottom = 18.dp)
+    )
+}
+
+@Composable
+private fun PreviewImageBlock(block: ContentBlock) {
+    val imagePreview = block.localImageUri.ifBlank { block.imageUrl }
+    Column(modifier = Modifier.padding(bottom = 20.dp)) {
+        AsyncImage(
+            model = imagePreview,
+            contentDescription = block.caption.ifBlank { "Hình ảnh bài viết" },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+                .clip(RoundedCornerShape(20.dp)),
+            contentScale = ContentScale.Crop
+        )
+        if (block.caption.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Text(block.caption, color = Ink700, fontSize = 14.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

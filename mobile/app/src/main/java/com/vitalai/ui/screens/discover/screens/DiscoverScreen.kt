@@ -1,5 +1,6 @@
 package com.vitalai.ui.screens.discover.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
@@ -49,7 +52,7 @@ import com.vitalai.ui.screens.discover.components.BlogSearchBar
 import com.vitalai.ui.screens.discover.viewmodels.DiscoverViewModel
 import com.vitalai.ui.theme.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun DiscoverScreen(
     navController: NavController,
@@ -91,6 +94,7 @@ fun DiscoverScreen(
     }
     val recommendedBlogs = remember(searchedBlogs) { searchedBlogs.take(5) }
     val recommendedBlogIds = remember(recommendedBlogs) { recommendedBlogs.map { it.id }.toSet() }
+    val recommendedPagerState = rememberPagerState(pageCount = { recommendedBlogs.size.coerceAtLeast(1) })
 
     Scaffold(
         topBar = {
@@ -167,17 +171,25 @@ fun DiscoverScreen(
                     }
 
                     item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            items(recommendedBlogs, key = { it.id }) { blog ->
+                        Column {
+                            HorizontalPager(
+                                state = recommendedPagerState,
+                                contentPadding = PaddingValues(horizontal = 20.dp),
+                                pageSpacing = 14.dp,
+                                modifier = Modifier.fillMaxWidth()
+                            ) { page ->
+                                val blog = recommendedBlogs[page]
                                 FeaturedBlogCard(
                                     blog = blog,
-                                    modifier = Modifier.width(316.dp),
+                                    modifier = Modifier.fillMaxWidth(),
                                     onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
                                 )
                             }
+                            RecommendPagerDots(
+                                count = recommendedBlogs.size,
+                                selectedIndex = recommendedPagerState.currentPage,
+                                modifier = Modifier.padding(top = 10.dp)
+                            )
                         }
                     }
 
@@ -299,6 +311,27 @@ private fun BlogTagChip(label: String, selected: Boolean, onClick: () -> Unit) {
             fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
             maxLines = 1
         )
+    }
+}
+
+@Composable
+private fun RecommendPagerDots(count: Int, selectedIndex: Int, modifier: Modifier = Modifier) {
+    if (count <= 1) return
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(count) { index ->
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 3.dp)
+                    .width(if (index == selectedIndex) 18.dp else 7.dp)
+                    .height(7.dp)
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
+                    .background(if (index == selectedIndex) Mint600 else Mint100)
+            )
+        }
     }
 }
 

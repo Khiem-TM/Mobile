@@ -22,7 +22,9 @@ data class MyBlogsUiState(
 
     val statusCounts: Map<String, Int> get() = mapOf(
         "approved" to allBlogs.count { it.status == "approved" },
-        "draft" to allBlogs.count { it.status == "draft" }
+        "pending" to allBlogs.count { it.status == "pending" },
+        "draft" to allBlogs.count { it.status == "draft" },
+        "rejected" to allBlogs.count { it.status == "rejected" }
     )
 
     val totalViews: Int get() = allBlogs.sumOf { it.viewCount }
