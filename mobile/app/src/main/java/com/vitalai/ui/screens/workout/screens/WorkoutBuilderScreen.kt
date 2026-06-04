@@ -35,11 +35,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ExerciseDto
+import com.vitalai.ui.theme.BottomSheetGrabber
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
-
+import androidx.compose.ui.graphics.Color
 @Composable
 fun WorkoutBuilderScreen(
     navController: NavController,
@@ -451,10 +452,10 @@ private fun ExercisePickerSheet(
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = TrainColors.Cream,
+        containerColor = Color.White,
         windowInsets = WindowInsets(0),
         dragHandle = {
-            Box(Modifier.padding(top = 10.dp).size(width = 40.dp, height = 5.dp).clip(CircleShape).background(TrainColors.Border))
+            Box(Modifier.padding(top = 10.dp).size(width = 40.dp, height = 5.dp).clip(CircleShape).background(BottomSheetGrabber))
         }
     ) {
         Column(

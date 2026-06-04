@@ -53,6 +53,22 @@ class BodyMetricsRepository @Inject constructor(
         }
     }
 
+    suspend fun getHistory(
+        fromDate: String,
+        toDate: String,
+        page: Int,
+        limit: Int
+    ): Result<List<BodyMetricDto>> {
+        return try {
+            val response = bodyMetricsApi.getHistory(fromDate, toDate, page, limit)
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Lỗi tải lịch sử (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun addMetric(metric: UpsertBodyMetricRequest): Result<BodyMetricDto> {
         return try {
             val response = bodyMetricsApi.addMetric(metric)

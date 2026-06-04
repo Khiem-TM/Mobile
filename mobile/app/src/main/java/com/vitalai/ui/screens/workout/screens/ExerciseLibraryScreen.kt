@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +35,7 @@ import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.theme.BottomSheetGrabber
 
 private val exerciseTypes = listOf(
     null to "Tất cả",
@@ -429,7 +431,7 @@ private fun FilterSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = TrainColors.Cream,
+        containerColor = Color.White,
         windowInsets = WindowInsets(0),
         dragHandle = {
             Box(
@@ -437,7 +439,7 @@ private fun FilterSheet(
                     .padding(top = 10.dp)
                     .size(width = 40.dp, height = 5.dp)
                     .clip(CircleShape)
-                    .background(TrainColors.Border)
+                    .background(BottomSheetGrabber)
             )
         }
     ) {

@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vitalai.data.mapper.metricDateOrNull
 import com.vitalai.data.mapper.toTimelineEvent
+import com.vitalai.data.remote.model.BodyMetricsSummaryDto
 import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.repository.BodyMetricsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -26,23 +28,17 @@ data class MetricTimelineEvent(
     val photoUrls: List<String> = emptyList(),
     val date: String,
     val monthGroup: String,
-    // Raw metric fields for detail dialog (null for PHOTO events)
     val rawMetric: com.vitalai.data.remote.model.BodyMetricDto? = null
 )
 
 data class MetricsHistoryUiState(
     val events: List<MetricTimelineEvent> = emptyList(),
     val photos: List<ProgressPhotoDto> = emptyList(),
-    val currentWeightKg: Float = 0f,
-    val delta90Days: Float = 0f,
-    val totalEvents: Int = 0,
-    val weightChange: Float = 0f,
-    val totalRecords: Int = 0,
+    val summary: BodyMetricsSummaryDto? = null,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val hasMore: Boolean = false,
     val error: String? = null,
-    val selectedTab: Int = 1,
     val activeFilter: MetricEventType? = null
 ) {
     val filteredEvents: List<MetricTimelineEvent>
@@ -54,38 +50,44 @@ class MetricsHistoryViewModel @Inject constructor(
     private val bodyMetricsRepository: BodyMetricsRepository
 ) : ViewModel() {
 
+    private companion object {
+        const val PAGE_SIZE = 20
+    }
+
     private val _uiState = MutableStateFlow(MetricsHistoryUiState())
     val uiState = _uiState.asStateFlow()
+
+    private var fromDate: String = ""
+    private var toDate: String = ""
+    private var currentPage: Int = 1
 
     init { loadInitial() }
 
     private fun loadInitial() {
         _uiState.update { it.copy(isLoading = true) }
         viewModelScope.launch {
-            val photosResult = bodyMetricsRepository.getPhotos(10)
-            bodyMetricsRepository.getPeriod("3months").fold(
-                onSuccess = { period ->
-                    val photos = photosResult.getOrElse { emptyList() }
+            val photosDeferred = async { bodyMetricsRepository.getPhotos(10) }
+            val summaryDeferred = async { bodyMetricsRepository.getSummary() }
+
+            val summary = summaryDeferred.await().getOrNull()
+            fromDate = summary?.startDate?.take(10) ?: LocalDate.now().toString()
+            toDate = summary?.latestDate?.take(10) ?: LocalDate.now().toString()
+            currentPage = 1
+
+            bodyMetricsRepository.getHistory(fromDate, toDate, page = 1, limit = PAGE_SIZE).fold(
+                onSuccess = { items ->
+                    val photos = photosDeferred.await().getOrElse { emptyList() }
                     val photosByMetric = photos.groupBy { it.bodyMetricId }
-                    val sorted = period.data
-                        .distinctBy { it.date.take(10) }
-                        .sortedBy { it.metricDateOrNull() ?: LocalDate.MIN }
-                    val latest = sorted.lastOrNull()
-                    val first = sorted.firstOrNull()
-                    val weightChange = if (latest != null && first != null) latest.weightKg - first.weightKg else 0f
+                    val events = items
+                        .sortedByDescending { it.metricDateOrNull() ?: LocalDate.MIN }
+                        .map { it.toTimelineEvent(photosByMetric[it.id].orEmpty()) }
                     _uiState.update {
                         it.copy(
-                            events = sorted.asReversed().map { metric ->
-                                metric.toTimelineEvent(photosByMetric[metric.id].orEmpty())
-                            },
+                            events = events,
                             photos = photos,
-                            currentWeightKg = latest?.weightKg ?: 0f,
-                            delta90Days = weightChange,
-                            weightChange = weightChange,
-                            totalRecords = sorted.size,
+                            summary = summary,
                             isLoading = false,
-                            totalEvents = sorted.size,
-                            hasMore = false,
+                            hasMore = items.size == PAGE_SIZE,
                             error = null
                         )
                     }
@@ -94,8 +96,8 @@ class MetricsHistoryViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             events = emptyList(),
+                            summary = summary,
                             isLoading = false,
-                            totalEvents = 0,
                             hasMore = false,
                             error = e.message ?: "Không tải được lịch sử số liệu"
                         )
@@ -106,15 +108,34 @@ class MetricsHistoryViewModel @Inject constructor(
     }
 
     fun loadMore() {
-        _uiState.update { it.copy(isLoadingMore = false, hasMore = false) }
-    }
-
-    fun setTab(tab: Int) {
-        _uiState.update { it.copy(selectedTab = tab) }
+        val state = _uiState.value
+        if (state.isLoadingMore || !state.hasMore) return
+        _uiState.update { it.copy(isLoadingMore = true) }
+        viewModelScope.launch {
+            currentPage++
+            val photosByMetric = _uiState.value.photos.groupBy { it.bodyMetricId }
+            bodyMetricsRepository.getHistory(fromDate, toDate, page = currentPage, limit = PAGE_SIZE).fold(
+                onSuccess = { items ->
+                    val newEvents = items
+                        .sortedByDescending { it.metricDateOrNull() ?: LocalDate.MIN }
+                        .map { it.toTimelineEvent(photosByMetric[it.id].orEmpty()) }
+                    _uiState.update {
+                        it.copy(
+                            events = it.events + newEvents,
+                            isLoadingMore = false,
+                            hasMore = items.size == PAGE_SIZE
+                        )
+                    }
+                },
+                onFailure = {
+                    currentPage--
+                    _uiState.update { it.copy(isLoadingMore = false) }
+                }
+            )
+        }
     }
 
     fun setFilter(type: MetricEventType?) {
         _uiState.update { it.copy(activeFilter = type) }
     }
-
 }
