@@ -67,6 +67,8 @@ fun BlogComposerScreen(
     var urlTarget by remember { mutableStateOf<BlogImageTarget?>(null) }
     var urlInput by remember { mutableStateOf("") }
     var showPreview by remember { mutableStateOf(false) }
+    var showCancelDialog by remember { mutableStateOf(false) }
+    val canPreview = titleFieldValue.text.isNotBlank() && uiState.hasPreviewContent()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -109,7 +111,7 @@ fun BlogComposerScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = { showCancelDialog = true }) {
                         Icon(Icons.Default.Close, contentDescription = "Đóng")
                     }
                 },
@@ -118,22 +120,27 @@ fun BlogComposerScreen(
                         modifier = Modifier
                             .padding(end = 12.dp)
                             .clip(RoundedCornerShape(VitalRadius.Pill))
-                            .clickable(onClick = {
+                            .clickable(enabled = canPreview, onClick = {
                                 viewModel.setTitle(titleFieldValue.text)
                                 showPreview = true
                             }),
                         shape = RoundedCornerShape(VitalRadius.Pill),
-                        color = Color(0xFFE7F5EA)
+                        color = if (canPreview) Color(0xFFE7F5EA) else AppSurface2
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(Icons.Default.Visibility, contentDescription = null, tint = Mint700, modifier = Modifier.size(16.dp))
+                            Icon(
+                                Icons.Default.Visibility,
+                                contentDescription = null,
+                                tint = if (canPreview) Mint700 else Ink400,
+                                modifier = Modifier.size(16.dp)
+                            )
                             Text(
                                 "Xem trước",
-                                color = Mint700,
+                                color = if (canPreview) Mint700 else Ink400,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -249,6 +256,16 @@ fun BlogComposerScreen(
                 }
             }
         }
+    }
+
+    if (showCancelDialog) {
+        CancelComposerDialog(
+            onDismiss = { showCancelDialog = false },
+            onConfirm = {
+                showCancelDialog = false
+                navController.popBackStack()
+            }
+        )
     }
 
     if (showPreview) {
@@ -394,6 +411,47 @@ private fun ComposerCoverUpload(uiState: BlogComposerUiState, onClick: () -> Uni
         }
     }
 
+}
+
+private fun BlogComposerUiState.hasPreviewContent(): Boolean {
+    return blocks.any { block ->
+        when (block.type) {
+            ContentBlockType.TEXT -> block.text.isNotBlank()
+            ContentBlockType.IMAGE -> block.localImageUri.isNotBlank() || block.imageUrl.isNotBlank()
+        }
+    }
+}
+
+@Composable
+private fun CancelComposerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Hủy viết bài?", color = Ink900, fontWeight = FontWeight.ExtraBold)
+        },
+        text = {
+            Text(
+                "Nội dung chưa lưu có thể bị mất. Bạn có chắc muốn hủy không?",
+                color = Ink700,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Hủy bài", color = MacroProtein, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Tiếp tục viết", color = Mint700, fontWeight = FontWeight.Bold)
+            }
+        },
+        containerColor = AppSurface
+    )
 }
 
 @Composable

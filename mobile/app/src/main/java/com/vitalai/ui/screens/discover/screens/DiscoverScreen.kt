@@ -162,7 +162,7 @@ fun DiscoverScreen(
                 ) {
                     item {
                         Text(
-                            "Recommended",
+                            "Đề xuất",
                             modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
