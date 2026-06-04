@@ -1,4 +1,4 @@
-package com.vitalai.data.local.entity
+package com.vitalai.data.local.room.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

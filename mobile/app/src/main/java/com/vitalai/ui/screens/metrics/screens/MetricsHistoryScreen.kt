@@ -60,12 +60,7 @@ fun MetricsHistoryScreen(
     }
 
     val grouped = uiState.filteredEvents.groupBy { it.monthGroup }
-    val measurementMetrics = uiState.filteredEvents
-        .filter { it.type == MetricEventType.MEASUREMENT && it.rawMetric != null }
-        .mapNotNull { it.rawMetric }
-    val weightMetrics = uiState.filteredEvents
-        .filter { it.type == MetricEventType.WEIGHT && it.rawMetric != null }
-        .mapNotNull { it.rawMetric }
+    val allMetrics = uiState.filteredEvents.mapNotNull { it.rawMetric }
 
     Scaffold(
         topBar = {
@@ -124,14 +119,20 @@ fun MetricsHistoryScreen(
                 item {
                     val summary = uiState.summary
                     val changeVal = summary?.weightChange ?: 0f
-                    val changeText = if (changeVal == 0f) "0 kg" else "%+.1f kg".format(changeVal)
+                    val changeText = when {
+                        changeVal == 0f -> "0 kg"
+                        changeVal < 0f -> "↓${String.format(java.util.Locale.US, "%.1f", kotlin.math.abs(changeVal))} kg"
+                        else -> "↑${String.format(java.util.Locale.US, "%.1f", changeVal)} kg"
+                    }
                     val changeColor = when {
                         changeVal < 0f -> ForestGreen
                         changeVal > 0f -> Color(0xFFF87171)
                         else -> Ink500
                     }
-                    val currentWeight = if ((summary?.currentWeight ?: 0f) > 0f)
-                        "%.1f kg".format(summary!!.currentWeight) else "--"
+                    val currentWeight = if ((summary?.currentWeight ?: 0f) > 0f) {
+                        val w = summary!!.currentWeight
+                        if (w % 1f == 0f) "${w.toInt()} kg" else String.format(java.util.Locale.US, "%.1f kg", w)
+                    } else "--"
 
                     Row(
                         modifier = Modifier
@@ -187,7 +188,7 @@ fun MetricsHistoryScreen(
                                 .background(AppMutedBackground)
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                         ) {
-                            Text(month, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = ForestGreen)
+                            Text(month, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MacroWater)
                         }
                     }
 
@@ -200,21 +201,11 @@ fun MetricsHistoryScreen(
                             onDoubleClick = { showDetail = true }
                         )
                         if (showDetail && event.rawMetric != null) {
-                            val previousMetric = when (event.type) {
-                                MetricEventType.MEASUREMENT -> {
-                                    val idx = measurementMetrics.indexOfFirst { it.id == event.rawMetric.id }
-                                    measurementMetrics.getOrNull(idx + 1)
-                                }
-                                MetricEventType.WEIGHT -> {
-                                    val idx = weightMetrics.indexOfFirst { it.id == event.rawMetric.id }
-                                    weightMetrics.getOrNull(idx + 1)
-                                }
-                                else -> null
-                            }
+                            val idx = allMetrics.indexOfFirst { it.id == event.rawMetric.id }
+                            val previousMetric = allMetrics.getOrNull(idx + 1)
                             MetricDetailDialog(
                                 metric = event.rawMetric,
                                 photoUrls = event.photoUrls,
-                                isMeasurementCard = event.type == MetricEventType.MEASUREMENT,
                                 previousMetric = previousMetric,
                                 onDismiss = { showDetail = false }
                             )
@@ -258,8 +249,7 @@ private fun FilterBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val options = listOf(
         null to "Tất cả",
-        MetricEventType.WEIGHT to "Cân nặng",
-        MetricEventType.MEASUREMENT to "Số đo cơ thể"
+        MetricEventType.MEASUREMENT to "Cập nhật chỉ số"
     )
 
     ModalBottomSheet(
@@ -267,7 +257,7 @@ private fun FilterBottomSheet(
         sheetState = sheetState,
         containerColor = Color.White,
         dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) },
-        windowInsets = WindowInsets(0)
+        contentWindowInsets = { WindowInsets(0) }
     ) {
         Column(
             modifier = Modifier

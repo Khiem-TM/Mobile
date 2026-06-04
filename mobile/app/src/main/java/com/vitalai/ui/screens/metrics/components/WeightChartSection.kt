@@ -127,7 +127,7 @@ internal fun PeriodChartSection(
                         ) {
                             Column {
                                 Text(
-                                    "%.1f kg".format(metric!!.weightKg),
+                                    String.format(Locale.US, "%.1f kg", metric!!.weightKg),
                                     color = Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -147,11 +147,11 @@ internal fun PeriodChartSection(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("TB: ${"%.1f".format(periodData.avgWeight)} kg", fontSize = 12.sp, color = Ink500)
+                            Text("TB: ${String.format(Locale.US, "%.1f", periodData.avgWeight)} kg", fontSize = 12.sp, color = Ink500)
                             if (selectedPeriod == "week" && weekRangeText.isNotEmpty()) {
                                 Text(weekRangeText, fontSize = 11.sp, color = Ink400)
                             }
-                            Text("↓%.1f / ↑%.1f kg".format(periodData.minWeight, periodData.maxWeight), fontSize = 12.sp, color = Ink500)
+                            Text(String.format(Locale.US, "↓%.1f / ↑%.1f kg", periodData.minWeight, periodData.maxWeight), fontSize = 12.sp, color = Ink500)
                         }
                     }
                 }
@@ -269,7 +269,7 @@ private fun WeightLineChart(
         val nextMap = remember(pointsByDate, nextStart) { buildMap(nextStart) }
 
         val minStartDay = remember(pointsByDate) { pointsByDate.first().first.with(DayOfWeek.MONDAY) }
-        val maxStartDay = remember(pointsByDate) { pointsByDate.last().first.with(DayOfWeek.MONDAY) }
+        val maxStartDay = remember { LocalDate.now().with(DayOfWeek.MONDAY) }
         val minStartDayState = rememberUpdatedState(minStartDay)
         val maxStartDayState = rememberUpdatedState(maxStartDay)
 

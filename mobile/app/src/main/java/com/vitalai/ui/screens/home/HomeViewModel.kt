@@ -20,6 +20,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -55,6 +56,11 @@ class HomeViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            userRepository.observeCurrentUser().collect { user ->
+                if (user != null) _uiState.update { it.copy(user = user) }
+            }
+        }
         loadData()
     }
 
@@ -80,7 +86,7 @@ class HomeViewModel @Inject constructor(
                     selectedLocalDate.toString()
                 )
             }
-            val weightTrendDeferred = async { bodyMetricsRepository.getPeriod("3months") }
+            val weightTrendDeferred = async { runCatching { bodyMetricsRepository.observePeriod("3months").first() } }
 
             val dashboardResult = dashboardDeferred.await()
             val dashboard = dashboardResult.getOrNull()

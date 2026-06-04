@@ -2,8 +2,8 @@ package com.vitalai.data.repository
 
 import android.content.Context
 import com.vitalai.core.sync.SyncScheduler
-import com.vitalai.data.local.dao.PendingSyncActionDao
-import com.vitalai.data.local.entity.PendingSyncActionEntity
+import com.vitalai.data.local.room.dao.PendingSyncActionDao
+import com.vitalai.data.local.room.entity.PendingSyncActionEntity
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.remote.model.AddExerciseRequest

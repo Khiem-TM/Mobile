@@ -26,9 +26,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.vitalai.ui.screens.metrics.formatCompact
 import com.vitalai.ui.screens.metrics.viewmodels.MetricEventType
 import com.vitalai.ui.screens.metrics.viewmodels.MetricTimelineEvent
 import com.vitalai.ui.theme.*
+import kotlin.math.abs
 
 @Composable
 internal fun StatCell(label: String, value: String, color: Color) {
@@ -123,7 +125,27 @@ internal fun TimelineEventCard(
                     Text(event.date, fontSize = 11.sp, color = Ink500)
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(event.value, fontSize = 14.sp, color = nodeColor, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        "${event.value} kg",
+                        fontSize = 14.sp,
+                        color = nodeColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                    InlineDelta(event.weightDelta)
+                    Text("·", fontSize = 14.sp, color = Ink300)
+                    val bodyFatPct = event.rawMetric?.bodyFatPct
+                    Text(
+                        if (bodyFatPct != null) "${bodyFatPct.formatCompact()}% mỡ" else "--% mỡ",
+                        fontSize = 14.sp,
+                        color = nodeColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (bodyFatPct != null) InlineDelta(event.bodyFatDelta)
+                }
                 event.note?.let {
                     Spacer(Modifier.height(4.dp))
                     Text(it, fontSize = 11.sp, color = Ink500)
@@ -143,6 +165,18 @@ internal fun TimelineEventCard(
             }
         }
     }
+}
+
+@Composable
+private fun InlineDelta(delta: Float?) {
+    if (delta == null || abs(delta) < 0.05f) return
+    val isUp = delta > 0f
+    Text(
+        "(${if (isUp) "↑" else "↓"}${abs(delta).formatCompact()})",
+        fontSize = 12.sp,
+        color = if (isUp) Color(0xFFF87171) else ForestGreen,
+        fontWeight = FontWeight.SemiBold
+    )
 }
 
 @Composable

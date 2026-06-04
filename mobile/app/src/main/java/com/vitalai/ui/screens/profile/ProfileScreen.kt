@@ -373,7 +373,7 @@ fun ProfileScreen(
                 border = BorderStroke(1.dp, AppLine)
             ) {
                 Column {
-                    ProfileMenuItem(icon = Icons.Default.BarChart, label = "Chỉ số cơ thể") {
+                    ProfileMenuItem(icon = Icons.Default.BarChart, label = "Hồ sơ cơ thể") {
                         navController.navigate(Screen.Metrics)
                     }
                     ProfileMenuItem(icon = Icons.Default.FitnessCenter, label = "Luyện tập") {

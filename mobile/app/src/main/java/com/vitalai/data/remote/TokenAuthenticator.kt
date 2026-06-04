@@ -1,6 +1,6 @@
 package com.vitalai.data.remote
 
-import com.vitalai.data.local.TokenManager
+import com.vitalai.data.local.datastore.TokenManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import okhttp3.Authenticator

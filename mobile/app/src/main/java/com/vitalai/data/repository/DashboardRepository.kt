@@ -1,6 +1,6 @@
 package com.vitalai.data.repository
 
-import com.vitalai.data.local.dao.PendingSyncActionDao
+import com.vitalai.data.local.room.dao.PendingSyncActionDao
 import com.vitalai.data.remote.DashboardApi
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.DashboardDto

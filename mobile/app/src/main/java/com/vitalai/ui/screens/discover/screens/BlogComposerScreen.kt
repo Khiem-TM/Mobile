@@ -252,7 +252,7 @@ fun BlogComposerScreen(
             sheetState = sheetState,
             containerColor = Color.White,
             dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) },
-            windowInsets = WindowInsets(0)
+            contentWindowInsets = { WindowInsets(0) }
         ) {
             Column(modifier = Modifier.navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
                 Text("Chọn loại khối", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)

@@ -38,6 +38,7 @@ import com.vitalai.ui.components.VitalCard
 import com.vitalai.ui.screens.metrics.bmiColor
 import com.vitalai.ui.screens.metrics.bmiLabel
 import com.vitalai.ui.screens.metrics.calculateAge
+import com.vitalai.ui.screens.metrics.formatCompact
 import com.vitalai.ui.screens.metrics.formatDateDisplay
 import com.vitalai.ui.screens.metrics.formatGender
 import com.vitalai.ui.screens.metrics.formatPhotoType
@@ -90,7 +91,7 @@ internal fun CurrentWeightCard(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                currentWeightKg?.let { "%.1f kg".format(it) } ?: "-- kg",
+                currentWeightKg?.let { "${it.formatCompact()} kg" } ?: "-- kg",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = ForestGreen,
@@ -122,7 +123,7 @@ internal fun CurrentWeightCard(
                         append("Mục tiêu ")
                     }
                     withStyle(style = SpanStyle(color = ForestGreen, fontWeight = FontWeight.Bold)) {
-                        append(targetWeightKg?.let { "%.1f kg".format(it) } ?: "-- kg")
+                        append(targetWeightKg?.let { "${it.formatCompact()} kg" } ?: "-- kg")
                     }
                 },
                 fontSize = 12.sp,
@@ -166,7 +167,7 @@ internal fun BmiBar(bmi: Float) {
             ) {
                 Text("Chỉ số BMI", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ForestGreen)
                 Text(
-                    text = "%.1f - %s".format(bmi, bmiLabel(bmi)),
+                    text = "${bmi.formatCompact()} - ${bmiLabel(bmi)}",
                     fontSize = 12.sp,
                     color = bmiColor(bmi),
                     fontWeight = FontWeight.SemiBold,
@@ -237,7 +238,7 @@ internal fun PersonalInfoCard(profile: HealthProfileDto?, onClick: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Thông tin cá nhân", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ForestGreen)
             PersonalInfoRow("Giới tính", formatGender(profile?.gender))
-            PersonalInfoRow("Cân nặng ban đầu", profile?.initialWeightKg?.let { "%.1f kg".format(it) } ?: "--")
+            PersonalInfoRow("Cân nặng ban đầu", profile?.initialWeightKg?.let { "${it.formatCompact()} kg" } ?: "--")
             PersonalInfoRow("Chiều cao", profile?.heightCm?.let { "%.0f cm".format(it) } ?: "--")
             PersonalInfoRow("Tuổi", calculateAge(profile?.birthDate)?.let { "$it tuổi" } ?: "--")
         }
@@ -285,13 +286,13 @@ internal fun WeightChangeRow(
             val arrow = if (weightChange <= 0f) "↓" else "↑"
             val changeColor = if (weightChange <= 0f) ForestGreen else Color(0xFFF87171)
             Text(
-                "$arrow %.1f kg".format(kotlin.math.abs(weightChange)),
+                "$arrow ${kotlin.math.abs(weightChange).formatCompact()} kg",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = changeColor,
                 maxLines = 1
             )
-            Text("%.1f → %.1f kg".format(startWeight, currentWeight), fontSize = 12.sp, color = Ink500, maxLines = 1)
+            Text("${startWeight.formatCompact()} → ${currentWeight.formatCompact()} kg", fontSize = 12.sp, color = Ink500, maxLines = 1)
         }
     }
 }
@@ -310,7 +311,7 @@ internal fun WeightProgressEmptyCard(modifier: Modifier = Modifier, onClick: () 
 @Composable
 internal fun BodyMeasurementsCard(latest: BodyMetricDto, onClick: () -> Unit) {
     val measurements = buildList {
-        latest.bodyFatPct?.let { add("Tỷ lệ mỡ" to "%.1f%%".format(it)) }
+        latest.bodyFatPct?.let { add("Tỷ lệ mỡ" to "${it.formatCompact()}%") }
         latest.waistCm?.let { add("Vòng eo" to "%.0f cm".format(it)) }
         latest.hipCm?.let { add("Vòng hông" to "%.0f cm".format(it)) }
         latest.chestCm?.let { add("Vòng ngực" to "%.0f cm".format(it)) }

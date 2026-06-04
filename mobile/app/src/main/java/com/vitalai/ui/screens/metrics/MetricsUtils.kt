@@ -7,6 +7,11 @@ import java.time.Period
 import java.time.ZoneId
 import java.util.Locale
 
+fun Float.formatCompact(): String =
+    if (this % 1f == 0f) "%.0f".format(this) else String.format(Locale.US, "%.1f", this)
+
+fun String.parseFloatInput(): Float? = replace(',', '.').toFloatOrNull()
+
 fun bmiColor(bmi: Float): Color = when {
     bmi < 18.5f -> Color(0xFF60A5FA)
     bmi < 25f -> Color(0xFF34D399)

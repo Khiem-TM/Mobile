@@ -37,6 +37,8 @@ import com.vitalai.ui.screens.metrics.calculateAge
 import com.vitalai.ui.screens.metrics.calculateBmi
 import com.vitalai.ui.screens.metrics.bmiColor
 import com.vitalai.ui.screens.metrics.bmiLabel
+import com.vitalai.ui.screens.metrics.formatCompact
+import com.vitalai.ui.screens.metrics.parseFloatInput
 import com.vitalai.ui.screens.metrics.genderDisplay
 import com.vitalai.ui.screens.metrics.normalizeGender
 import com.vitalai.ui.screens.metrics.viewmodels.MetricsUiState
@@ -58,7 +60,7 @@ internal fun UpdateBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = Color.White,
-        windowInsets = WindowInsets(0),
+        contentWindowInsets = { WindowInsets(0) },
         dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) }
     ) {
         Column(
@@ -88,9 +90,9 @@ internal fun UpdateBottomSheet(
 private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
     val latest = uiState.latest
     var weightStr by remember(latest?.weightKg) {
-        mutableStateOf(latest?.weightKg?.let { "%.1f".format(it) }.orEmpty())
+        mutableStateOf(latest?.weightKg?.let { it.formatCompact() }.orEmpty())
     }
-    val weightVal = weightStr.toFloatOrNull()
+    val weightVal = weightStr.parseFloatInput()
     val heightCm = uiState.healthProfile?.heightCm
     val bmiPreview = calculateBmi(weightVal, heightCm)
 
@@ -116,7 +118,7 @@ private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel,
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("BMI dự kiến: ", fontSize = 14.sp, color = Ink700)
                     Text(
-                        "%.1f".format(bmi),
+                        bmi.formatCompact(),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = bmiColor(bmi)
@@ -167,7 +169,7 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
         mutableStateOf(profile?.heightCm?.let { "%.0f".format(it) }.orEmpty())
     }
     var initialWeightStr by remember(profile?.initialWeightKg) {
-        mutableStateOf(profile?.initialWeightKg?.let { "%.1f".format(it) }.orEmpty())
+        mutableStateOf(profile?.initialWeightKg?.let { it.formatCompact() }.orEmpty())
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -239,8 +241,8 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
                 val updated = (profile ?: HealthProfileDto()).copy(
                     gender = gender,
                     birthDate = ageStr.toIntOrNull()?.let { ageToBirthDate(it, profile?.birthDate) } ?: profile?.birthDate,
-                    heightCm = heightStr.toFloatOrNull(),
-                    initialWeightKg = initialWeightStr.toFloatOrNull()
+                    heightCm = heightStr.parseFloatInput(),
+                    initialWeightKg = initialWeightStr.parseFloatInput()
                 )
                 viewModel.updateHealthProfile(updated)
                 onDone()
@@ -265,7 +267,7 @@ private data class AdvancedField(
 private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
     val latest = uiState.latest
     var bodyFatStr by remember(latest?.bodyFatPct) {
-        mutableStateOf(latest?.bodyFatPct?.let { "%.1f".format(it) }.orEmpty())
+        mutableStateOf(latest?.bodyFatPct?.let { it.formatCompact() }.orEmpty())
     }
     var waistStr by remember(latest?.waistCm) {
         mutableStateOf(latest?.waistCm?.let { "%.0f".format(it) }.orEmpty())
@@ -316,12 +318,12 @@ private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewMod
                 viewModel.addMetric(
                     UpsertBodyMetricRequest(
                         recordedAt = LocalDate.now().toString(),
-                        bodyFatPct = bodyFatStr.toFloatOrNull(),
-                        waistCm = waistStr.toFloatOrNull(),
-                        hipCm = hipStr.toFloatOrNull(),
-                        chestCm = chestStr.toFloatOrNull(),
-                        neckCm = neckStr.toFloatOrNull(),
-                        armCm = armStr.toFloatOrNull()
+                        bodyFatPct = bodyFatStr.parseFloatInput(),
+                        waistCm = waistStr.parseFloatInput(),
+                        hipCm = hipStr.parseFloatInput(),
+                        chestCm = chestStr.parseFloatInput(),
+                        neckCm = neckStr.parseFloatInput(),
+                        armCm = armStr.parseFloatInput()
                     )
                 )
                 onDone()

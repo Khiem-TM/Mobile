@@ -2,6 +2,7 @@ package com.vitalai.ui.screens.metrics.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.vitalai.data.mapper.toDto
 import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.data.remote.model.BodyMetricsPeriodDto
 import com.vitalai.data.remote.model.BodyMetricsSummaryDto
@@ -14,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -28,7 +30,7 @@ data class MetricsUiState(
     val error: String? = null,
     val updateSuccessCount: Int = 0,
     val photos: List<ProgressPhotoDto> = emptyList(),
-    val updateSheetTab: Int = 0,  // 0=Basic, 1=Advanced, 2=Photo
+    val updateSheetTab: Int = 0,
     val isUploadingPhoto: Boolean = false
 )
 
@@ -41,25 +43,46 @@ class MetricsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MetricsUiState())
     val uiState = _uiState.asStateFlow()
 
+    private val _selectedPeriod = MutableStateFlow("week")
+
     init {
+        observeRoomFlows()
         loadData()
     }
 
+    private fun observeRoomFlows() {
+        viewModelScope.launch {
+            bodyMetricsRepository.observeLatest().collect { entity ->
+                _uiState.update { it.copy(latest = entity?.toDto()) }
+            }
+        }
+        viewModelScope.launch {
+            bodyMetricsRepository.observeSummary().collect { summary ->
+                _uiState.update { it.copy(summary = summary) }
+            }
+        }
+        viewModelScope.launch {
+            _selectedPeriod.flatMapLatest { period ->
+                bodyMetricsRepository.observePeriod(period)
+            }.collect { periodData ->
+                _uiState.update { it.copy(periodData = periodData) }
+            }
+        }
+        viewModelScope.launch {
+            userRepository.observeHealthProfile().collect { profile ->
+                _uiState.update { it.copy(healthProfile = profile) }
+            }
+        }
+    }
+
     fun loadData() {
-        val period = _uiState.value.selectedPeriod
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val latestDeferred = async { bodyMetricsRepository.getLatest() }
-            val summaryDeferred = async { bodyMetricsRepository.getSummary() }
-            val periodDeferred = async { bodyMetricsRepository.getPeriod(period) }
-            val healthProfileDeferred = async { userRepository.getHealthProfile() }
             val photosDeferred = async { bodyMetricsRepository.getPhotos(10) }
+            bodyMetricsRepository.refreshFromNetwork()
+            userRepository.refreshHealthProfile()
             _uiState.update {
                 it.copy(
-                    latest = latestDeferred.await().getOrNull(),
-                    summary = summaryDeferred.await().getOrNull(),
-                    periodData = periodDeferred.await().getOrNull(),
-                    healthProfile = healthProfileDeferred.await().getOrNull(),
                     photos = photosDeferred.await().getOrElse { emptyList() },
                     isLoading = false
                 )
@@ -68,44 +91,21 @@ class MetricsViewModel @Inject constructor(
     }
 
     fun selectPeriod(period: String) {
+        _selectedPeriod.value = period
         _uiState.update { it.copy(selectedPeriod = period) }
-        viewModelScope.launch {
-            bodyMetricsRepository.getPeriod(period).onSuccess { data ->
-                _uiState.update { it.copy(periodData = data) }
-            }
-        }
     }
 
     fun addMetric(request: UpsertBodyMetricRequest) {
         viewModelScope.launch {
-            // Không bật isLoading (giữ nội dung hiện tại) -> không nháy spinner.
             bodyMetricsRepository.addMetric(request).fold(
-                onSuccess = { saved ->
-                    // Hiện chỉ số mới NGAY; phần dẫn xuất (summary/chart) làm mới im lặng.
-                    _uiState.update {
-                        it.copy(latest = saved, updateSuccessCount = it.updateSuccessCount + 1)
-                    }
-                    refreshDerived()
+                onSuccess = {
+                    // latest/summary/period auto-update via Room flows
+                    _uiState.update { it.copy(updateSuccessCount = it.updateSuccessCount + 1) }
                 },
                 onFailure = { e ->
                     _uiState.update { it.copy(error = e.message) }
                 }
             )
-        }
-    }
-
-    /** Làm mới summary + chart trong nền (KHÔNG bật isLoading -> không giật). */
-    private fun refreshDerived() {
-        val period = _uiState.value.selectedPeriod
-        viewModelScope.launch {
-            val summary = bodyMetricsRepository.getSummary().getOrNull()
-            val periodData = bodyMetricsRepository.getPeriod(period).getOrNull()
-            _uiState.update {
-                it.copy(
-                    summary = summary ?: it.summary,
-                    periodData = periodData ?: it.periodData
-                )
-            }
         }
     }
 

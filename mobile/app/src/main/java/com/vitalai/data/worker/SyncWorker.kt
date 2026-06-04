@@ -5,12 +5,16 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.squareup.moshi.Moshi
-import com.vitalai.data.local.dao.PendingSyncActionDao
-import com.vitalai.data.local.entity.PendingSyncActionEntity
+import com.vitalai.data.local.room.dao.BodyMetricDao
+import com.vitalai.data.local.room.dao.PendingSyncActionDao
+import com.vitalai.data.local.room.entity.PendingSyncActionEntity
+import com.vitalai.data.mapper.toEntity
+import com.vitalai.data.remote.BodyMetricsApi
 import com.vitalai.data.remote.MealLogApi
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.model.AddMealItemRequest
 import com.vitalai.data.remote.model.UpdateMealLogItemRequest
+import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.LocalDate
@@ -22,6 +26,8 @@ class SyncWorker @AssistedInject constructor(
     private val pendingSyncActionDao: PendingSyncActionDao,
     private val mealLogApi: MealLogApi,
     private val trainingApi: TrainingApi,
+    private val bodyMetricsApi: BodyMetricsApi,
+    private val bodyMetricDao: BodyMetricDao,
     private val moshi: Moshi,
 ) : CoroutineWorker(context, params) {
 
@@ -83,6 +89,19 @@ class SyncWorker @AssistedInject constructor(
                 val waterMl = action.payload.toIntOrNull() ?: return false
                 val response = trainingApi.updateWater(mapOf("logDate" to date, "waterMl" to waterMl))
                 response.isSuccessful
+            }
+            action.actionType.startsWith("ADD_BODY_METRIC:") -> {
+                val tempId = action.actionType.removePrefix("ADD_BODY_METRIC:")
+                val request = moshi.adapter(UpsertBodyMetricRequest::class.java).fromJson(action.payload)
+                    ?: return true // malformed → discard
+                val res = bodyMetricsApi.addMetric(request)
+                if (res.isSuccessful) {
+                    val dto = res.body()?.data
+                    if (dto != null) {
+                        bodyMetricDao.replaceEntity(tempId, dto.toEntity(isPendingSync = false))
+                    }
+                    true
+                } else false
             }
             else -> true // unknown action type — discard
         }

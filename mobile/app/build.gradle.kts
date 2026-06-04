@@ -75,7 +75,7 @@ android {
 }
 
 dependencies {
-    val composeBom = "2024.02.00" // Updated BOM
+    val composeBom = "2024.09.03"
     implementation(platform("androidx.compose:compose-bom:$composeBom"))
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
