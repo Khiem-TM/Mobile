@@ -305,9 +305,25 @@ class TrainingRepository @Inject constructor(
     suspend fun getActivityLogRange(fromDate: String, toDate: String): Result<List<ActivityLogDto>> {
         return try {
             val response = trainingApi.getActivityLogRange(fromDate, toDate)
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
-            else Result.success(emptyList())
+            val body = response.body()?.data ?: emptyList()
+
+            val start = java.time.LocalDate.parse(fromDate)
+            val end = java.time.LocalDate.parse(toDate)
+            val allDates = generateSequence(start) { d -> d.plusDays(1).takeIf { !it.isAfter(end) } }.map { it.toString() }.toList()
+
+            val logsByDate = body.associateBy { it.logDate }.toMutableMap()
+            allDates.forEach { date ->
+                val existing = logsByDate[date] ?: ActivityLogDto(logDate = date)
+                val pendingW = pendingWater(date)
+                val pendingS = pendingSteps(date)
+                if (pendingW != null || pendingS != null || logsByDate.containsKey(date)) {
+                    logsByDate[date] = existing.copy(
+                        waterMl = pendingW ?: existing.waterMl,
+                        steps = pendingS ?: existing.steps
+                    )
+                }
+            }
+            Result.success(logsByDate.values.toList())
         } catch (e: Exception) {
             Result.failure(e)
         }

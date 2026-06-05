@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.home
+package com.vitalai.ui.screens.home.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -141,7 +141,18 @@ class HomeViewModel @Inject constructor(
         val current = _uiState.value.dashboard?.waterMl ?: 0
         val newVal = (current + deltaMl).coerceAtLeast(0)
         val date = _uiState.value.selectedDate
-        _uiState.update { st -> st.copy(dashboard = st.dashboard?.copy(waterMl = newVal)) }
+        _uiState.update { st ->
+            val newDashboard = st.dashboard?.copy(waterMl = newVal)
+            var found = false
+            val newRecentLogs = st.recentActivityLogs.map {
+                if (it.logDate == date) {
+                    found = true
+                    it.copy(waterMl = newVal)
+                } else it
+            }.toMutableList()
+            if (!found) newRecentLogs.add(ActivityLogDto(logDate = date, waterMl = newVal))
+            st.copy(dashboard = newDashboard, recentActivityLogs = newRecentLogs)
+        }
         viewModelScope.launch { trainingRepository.enqueueWater(newVal, date) }
     }
 
@@ -149,7 +160,18 @@ class HomeViewModel @Inject constructor(
     fun setSteps(steps: Int) {
         val newVal = steps.coerceAtLeast(0)
         val date = _uiState.value.selectedDate
-        _uiState.update { st -> st.copy(dashboard = st.dashboard?.copy(steps = newVal)) }
+        _uiState.update { st ->
+            val newDashboard = st.dashboard?.copy(steps = newVal)
+            var found = false
+            val newRecentLogs = st.recentActivityLogs.map {
+                if (it.logDate == date) {
+                    found = true
+                    it.copy(steps = newVal)
+                } else it
+            }.toMutableList()
+            if (!found) newRecentLogs.add(ActivityLogDto(logDate = date, steps = newVal))
+            st.copy(dashboard = newDashboard, recentActivityLogs = newRecentLogs)
+        }
         viewModelScope.launch { trainingRepository.enqueueSteps(newVal, date) }
     }
 
@@ -165,3 +187,4 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { mealLogRepository.deleteItem(mealLogId, itemId) }
     }
 }
+

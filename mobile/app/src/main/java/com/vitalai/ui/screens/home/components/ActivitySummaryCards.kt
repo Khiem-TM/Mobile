@@ -1,0 +1,282 @@
+package com.vitalai.ui.screens.home.components
+
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.outlined.LocalDrink
+import androidx.compose.material.icons.outlined.FlashOn
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.vitalai.data.remote.model.BodyMetricDto
+import com.vitalai.navigation.Screen
+import com.vitalai.ui.components.ArcGauge
+import com.vitalai.ui.components.ErrorState
+import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.theme.AppLine
+import com.vitalai.ui.theme.AppSurface
+import com.vitalai.ui.theme.AppSurface2
+import com.vitalai.ui.theme.AmberContainer
+import com.vitalai.ui.theme.AmberOnContainer
+import com.vitalai.ui.theme.AmberTint
+import com.vitalai.ui.theme.Ink400
+import com.vitalai.ui.theme.Ink500
+import com.vitalai.ui.theme.Ink700
+import com.vitalai.ui.theme.Ink900
+import com.vitalai.ui.theme.MacroCarbs
+import com.vitalai.ui.theme.MacroFat
+import com.vitalai.ui.theme.MacroProtein
+import com.vitalai.ui.theme.MealTimeBg
+import com.vitalai.ui.theme.MealTimeText
+import com.vitalai.ui.theme.Mint100
+import com.vitalai.ui.theme.Mint500
+import com.vitalai.ui.theme.WaterBlue
+import com.vitalai.ui.theme.WaterBlueTint
+import com.vitalai.ui.theme.VitalRadius
+import kotlinx.coroutines.delay
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import com.vitalai.ui.screens.home.viewmodels.HomeUiState
+import com.vitalai.ui.screens.home.viewmodels.HomeViewModel
+
+@Composable
+fun DailyActivitySummaryCard(
+    uiState: HomeUiState,
+    onOpenActivityLog: () -> Unit
+) {
+    val d = uiState.dashboard
+    val waterMl = d?.waterMl ?: 0
+    val waterGoalMl = (d?.waterGoalMl ?: 2500).coerceAtLeast(1)
+    val waterProgress = (waterMl.toFloat() / waterGoalMl).coerceIn(0f, 1f)
+    val burnedKcal = d?.caloriesBurned?.toInt() ?: 0
+    val steps = d?.steps ?: 0
+    val stepGoal = (d?.stepGoal ?: 10000).coerceAtLeast(1)
+    val stepsProgress = (steps.toFloat() / stepGoal).coerceIn(0f, 1f)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .clickable(onClick = onOpenActivityLog),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text("Hoạt động hôm nay", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Chạm để cập nhật nhật ký", color = Ink500, fontSize = 12.sp)
+                }
+                Box(modifier = Modifier.size(38.dp).clip(CircleShape).background(Mint100), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.DirectionsRun, contentDescription = null, tint = Mint500, modifier = Modifier.size(21.dp))
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                ActivityMiniMetric("Calories", "$burnedKcal", "kcal", MacroCarbs, AmberTint, Modifier.weight(1f))
+                ActivityMiniMetric("Bước chân", "%,d".format(steps), "/%,d".format(stepGoal), Mint500, Mint100, Modifier.weight(1f))
+                ActivityMiniMetric("Nước", "${waterMl}ml", "/${waterGoalMl}ml", WaterBlue, WaterBlueTint, Modifier.weight(1f))
+            }
+            DualProgressRow("Bước chân", stepsProgress, Mint500, "Nước", waterProgress, WaterBlue)
+        }
+    }
+}
+
+@Composable
+fun ActivityMiniMetric(
+    label: String,
+    value: String,
+    sub: String,
+    color: Color,
+    bg: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(VitalRadius.Md))
+            .background(bg.copy(alpha = 0.7f))
+            .padding(10.dp)
+    ) {
+        Text(label, color = Ink500, fontSize = 10.5.sp, maxLines = 1)
+        Text(value, color = Ink900, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(sub, color = color, fontSize = 10.5.sp, maxLines = 1)
+    }
+}
+
+@Composable
+fun DualProgressRow(
+    firstLabel: String,
+    firstProgress: Float,
+    firstColor: Color,
+    secondLabel: String,
+    secondProgress: Float,
+    secondColor: Color
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        listOf(firstLabel to (firstProgress to firstColor), secondLabel to (secondProgress to secondColor)).forEach { (label, pair) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(label, color = Ink500, fontSize = 11.sp, modifier = Modifier.width(64.dp))
+                Box(modifier = Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(100)).background(AppSurface2)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(pair.first)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(100))
+                            .background(pair.second)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivityWeekSummaryCard(
+    uiState: HomeUiState,
+    onDateClick: (String) -> Unit
+) {
+    val selected = remember(uiState.selectedDate) {
+        runCatching { java.time.LocalDate.parse(uiState.selectedDate) }.getOrDefault(java.time.LocalDate.now())
+    }
+    val days = remember(selected) { (6 downTo 0).map { selected.minusDays(it.toLong()) } }
+    val waterGoal = (uiState.dashboard?.waterGoalMl ?: 2500).coerceAtLeast(1)
+    val stepGoal = (uiState.dashboard?.stepGoal ?: 10000).coerceAtLeast(1)
+    val logsByDate = remember(uiState.recentActivityLogs) {
+        uiState.recentActivityLogs.associateBy { it.logDate }
+    }
+    val labels = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 10.dp),
+        shape = RoundedCornerShape(VitalRadius.Lg),
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        border = BorderStroke(1.dp, AppLine)
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+            Text("7 ngày gần đây", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                days.forEach { day ->
+                    Text(
+                        labels[day.dayOfWeek.value - 1],
+                        color = if (day == selected) Ink900 else Ink500,
+                        fontSize = 12.sp,
+                        fontWeight = if (day == selected) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.width(34.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            ActivityGoalRow(
+                days = days,
+                logsByDate = logsByDate,
+                color = WaterBlueTint,
+                activeColor = WaterBlue,
+                onDateClick = onDateClick
+            ) { log -> (log?.waterMl ?: 0) >= waterGoal }
+            Spacer(Modifier.height(7.dp))
+            ActivityGoalRow(
+                days = days,
+                logsByDate = logsByDate,
+                color = Mint100,
+                activeColor = Mint500,
+                onDateClick = onDateClick
+            ) { log -> (log?.steps ?: 0) >= stepGoal }
+            Spacer(Modifier.height(14.dp))
+            HorizontalDivider(color = AppLine)
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                LegendDot(WaterBlueTint, "Nước")
+                LegendDot(Mint100, "Bước chân")
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivityGoalRow(
+    days: List<java.time.LocalDate>,
+    logsByDate: Map<String, com.vitalai.data.remote.model.ActivityLogDto>,
+    color: Color,
+    activeColor: Color,
+    onDateClick: (String) -> Unit,
+    achieved: (com.vitalai.data.remote.model.ActivityLogDto?) -> Boolean
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        days.forEach { day ->
+            val date = day.toString()
+            val ok = achieved(logsByDate[date])
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(if (ok) color else Mint100.copy(alpha = 0.45f))
+                    .clickable { onDateClick(date) },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(if (ok) "✓" else "−", color = if (ok) Ink900 else Ink400, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (ok) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 6.dp)
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(activeColor)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        Box(Modifier.size(13.dp).clip(CircleShape).background(color))
+        Text(label, color = Ink700, fontSize = 12.sp)
+    }
+}
