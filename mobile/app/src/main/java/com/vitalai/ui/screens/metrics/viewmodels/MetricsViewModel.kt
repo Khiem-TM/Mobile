@@ -50,7 +50,7 @@ class MetricsViewModel @Inject constructor(
 
     private val _selectedPeriod = MutableStateFlow("week")
     private val _loadedFrom = MutableStateFlow(
-        LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(1)
+        LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(2)
     )
 
     init {
@@ -174,7 +174,7 @@ class MetricsViewModel @Inject constructor(
 
     fun expandWeekRange(newStartDay: LocalDate) {
         if (newStartDay < _loadedFrom.value) {
-            _loadedFrom.value = newStartDay.minusWeeks(1)
+            _loadedFrom.value = newStartDay.minusWeeks(2)
         }
     }
 

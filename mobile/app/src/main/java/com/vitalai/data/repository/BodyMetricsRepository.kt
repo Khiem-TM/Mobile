@@ -96,7 +96,10 @@ class BodyMetricsRepository @Inject constructor(
                 val toUpsert = items.filter { serverItem ->
                     !pendingDates.contains(serverItem.date.take(10))
                 }
-                bodyMetricDao.upsertAll(toUpsert.map { it.toEntity() })
+                bodyMetricDao.syncFromServer(
+                    toUpsert = toUpsert.map { it.toEntity() },
+                    serverDates = items.map { it.date.take(10) }
+                )
             }
         } catch (_: IOException) {
             // offline — keep Room cache

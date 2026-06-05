@@ -17,17 +17,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import android.graphics.BlurMaskFilter
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -152,6 +148,10 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(modifier = Modifier.weight(1f)) {
+                val genderInteractionSource = remember { MutableInteractionSource() }
+                val genderFocused by genderInteractionSource.collectIsFocusedAsState()
+                val genderBorderColor = if (genderFocused) Color(0xFF9E9E9E) else Color(0xFFDDDDDD)
+
                 InputTopLabel("Giới tính")
                 ExposedDropdownMenuBox(
                     expanded = genderExpanded,
@@ -163,10 +163,11 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
                         readOnly = true,
                         singleLine = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                        interactionSource = genderInteractionSource,
                         modifier = Modifier
                             .menuAnchor()
                             .fillMaxWidth()
-                            .inputFieldShadow(),
+                            .border(2.dp, genderBorderColor, RoundedCornerShape(8.dp)),
                         shape = RoundedCornerShape(8.dp),
                         colors = metricTextFieldColors()
                     )
@@ -242,7 +243,7 @@ private data class AdvancedField(
 
 @Composable
 private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
-    val latest = uiState.latest
+    val latest = uiState.latestMeasurements ?: uiState.latest
     var bodyFatStr by remember(latest?.bodyFatPct) {
         mutableStateOf(latest?.bodyFatPct?.let { it.formatCompact() }.orEmpty())
     }
@@ -451,6 +452,10 @@ private fun LabeledTextField(
     suffix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Decimal
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val borderColor = if (isFocused) Color(0xFF9E9E9E) else Color(0xFFDDDDDD)
+
     Column(modifier = modifier) {
         InputTopLabel(label)
         OutlinedTextField(
@@ -459,9 +464,10 @@ private fun LabeledTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             singleLine = true,
             suffix = suffix?.let { { Text(it, color = Ink500, fontSize = 12.sp) } },
+            interactionSource = interactionSource,
             modifier = Modifier
                 .fillMaxWidth()
-                .inputFieldShadow(),
+                .border(2.dp, borderColor, RoundedCornerShape(8.dp)),
             shape = RoundedCornerShape(8.dp),
             colors = metricTextFieldColors()
         )
@@ -478,23 +484,8 @@ private fun metricTextFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = Color.White,
     unfocusedContainerColor = Color.White,
     disabledContainerColor = Color.White,
-    errorContainerColor = Color.White
+    errorContainerColor = Color.White,
+    focusedTrailingIconColor = Color(0xFF9E9E9E),
+    unfocusedTrailingIconColor = Color(0xFFDDDDDD)
 )
 
-private fun Modifier.inputFieldShadow(cornerRadius: Dp = 8.dp): Modifier = this
-    .padding(all = 2.dp)
-    .drawBehind {
-        drawIntoCanvas { canvas ->
-            val paint = Paint()
-            paint.asFrameworkPaint().apply {
-                isAntiAlias = true
-                color = android.graphics.Color.argb(30, 0, 0, 0)
-                maskFilter = BlurMaskFilter(6.dp.toPx(), BlurMaskFilter.Blur.NORMAL)
-            }
-            canvas.drawRoundRect(
-                0f, 0f, size.width, size.height,
-                cornerRadius.toPx(), cornerRadius.toPx(),
-                paint
-            )
-        }
-    }

@@ -49,4 +49,13 @@ interface BodyMetricDao {
         deleteById(oldId)
         upsert(newEntity)
     }
+
+    @Query("DELETE FROM body_metrics WHERE isPendingSync = 0 AND SUBSTR(measuredAt, 1, 10) NOT IN (:serverDates)")
+    suspend fun deleteSyncedExcluding(serverDates: List<String>)
+
+    @Transaction
+    suspend fun syncFromServer(toUpsert: List<BodyMetricEntity>, serverDates: List<String>) {
+        upsertAll(toUpsert)
+        deleteSyncedExcluding(serverDates)
+    }
 }
