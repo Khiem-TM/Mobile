@@ -51,7 +51,9 @@ import kotlinx.coroutines.launch
 internal fun PeriodChartSection(
     selectedPeriod: String,
     periodData: BodyMetricsPeriodDto?,
-    onSelectPeriod: (String) -> Unit
+    onSelectPeriod: (String) -> Unit,
+    earliestDate: LocalDate? = null,
+    onExpandWeekRange: ((LocalDate) -> Unit)? = null
 ) {
     var weekRangeText   by remember { mutableStateOf("") }
     var selectedMetric  by remember { mutableStateOf<BodyMetricDto?>(null) }
@@ -176,6 +178,8 @@ internal fun PeriodChartSection(
                         .height(160.dp)
                         .onSizeChanged { chartWidthPx = it.width.toFloat() },
                     period = selectedPeriod,
+                    earliestDate = earliestDate,
+                    onExpandWeekRange = onExpandWeekRange,
                     onWeekRangeChange = { weekRangeText = it },
                     onDaySelected = { i, m ->
                         selectedDayIdx = i
@@ -206,6 +210,8 @@ private fun WeightLineChart(
     data: List<BodyMetricDto>,
     modifier: Modifier = Modifier,
     period: String = "week",
+    earliestDate: LocalDate? = null,
+    onExpandWeekRange: ((LocalDate) -> Unit)? = null,
     onWeekRangeChange: ((String) -> Unit)? = null,
     onDaySelected: ((Int?, BodyMetricDto?) -> Unit)? = null
 ) {
@@ -268,7 +274,10 @@ private fun WeightLineChart(
         val curMap  = remember(pointsByDate, startDay)  { buildMap(startDay) }
         val nextMap = remember(pointsByDate, nextStart) { buildMap(nextStart) }
 
-        val minStartDay = remember(pointsByDate) { pointsByDate.first().first.with(DayOfWeek.MONDAY) }
+        val minStartDay = remember(pointsByDate, earliestDate) {
+            earliestDate?.with(DayOfWeek.MONDAY)
+                ?: pointsByDate.first().first.with(DayOfWeek.MONDAY)
+        }
         val maxStartDay = remember { LocalDate.now().with(DayOfWeek.MONDAY) }
         val minStartDayState = rememberUpdatedState(minStartDay)
         val maxStartDayState = rememberUpdatedState(maxStartDay)
@@ -290,10 +299,13 @@ private fun WeightLineChart(
         val onWeekRangeChangeState = rememberUpdatedState(onWeekRangeChange)
         val startDayState          = rememberUpdatedState(startDay)
 
+        val onExpandWeekRangeState = rememberUpdatedState(onExpandWeekRange)
+
         var selectedDayIdx by remember { mutableStateOf<Int?>(null) }
         LaunchedEffect(dayOffset) {
             selectedDayIdx = null
             onDaySelectedState.value?.invoke(null, null)
+            onExpandWeekRangeState.value?.invoke(startDay)
         }
 
         val weekRangeText = remember(startDay) {

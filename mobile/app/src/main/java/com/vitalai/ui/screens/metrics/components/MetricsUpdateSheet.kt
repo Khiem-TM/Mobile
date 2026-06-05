@@ -20,8 +20,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import android.graphics.BlurMaskFilter
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -34,9 +40,6 @@ import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import com.vitalai.ui.screens.metrics.ageToBirthDate
 import com.vitalai.ui.screens.metrics.calculateAge
-import com.vitalai.ui.screens.metrics.calculateBmi
-import com.vitalai.ui.screens.metrics.bmiColor
-import com.vitalai.ui.screens.metrics.bmiLabel
 import com.vitalai.ui.screens.metrics.formatCompact
 import com.vitalai.ui.screens.metrics.parseFloatInput
 import com.vitalai.ui.screens.metrics.genderDisplay
@@ -94,7 +97,6 @@ private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel,
     }
     val weightVal = weightStr.parseFloatInput()
     val heightCm = uiState.healthProfile?.heightCm
-    val bmiPreview = calculateBmi(weightVal, heightCm)
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Cập nhật cân nặng", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
@@ -106,33 +108,6 @@ private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel,
             suffix = "kg",
             modifier = Modifier.fillMaxWidth()
         )
-
-        bmiPreview?.let { bmi ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(VitalRadius.Md))
-                    .background(bmiColor(bmi).copy(alpha = 0.10f))
-                    .padding(12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("BMI dự kiến: ", fontSize = 14.sp, color = Ink700)
-                    Text(
-                        bmi.formatCompact(),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = bmiColor(bmi)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        bmiLabel(bmi),
-                        fontSize = 13.sp,
-                        color = bmiColor(bmi),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
 
         Button(
             onClick = {
@@ -190,7 +165,9 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
                         modifier = Modifier
                             .menuAnchor()
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .inputFieldShadow(),
+                        shape = RoundedCornerShape(8.dp),
                         colors = metricTextFieldColors()
                     )
                     ExposedDropdownMenu(
@@ -286,8 +263,7 @@ private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewMod
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Số đo nâng cao", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
-        Text("Tất cả trường đều tùy chọn", fontSize = 12.sp, color = Ink500)
+        Text("Cập nhật số đo cơ thể", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
 
         val fieldDefs = listOf(
             AdvancedField("% Mỡ cơ thể", bodyFatStr, "%") { v: String -> bodyFatStr = v },
@@ -483,7 +459,10 @@ private fun LabeledTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             singleLine = true,
             suffix = suffix?.let { { Text(it, color = Ink500, fontSize = 12.sp) } },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .inputFieldShadow(),
+            shape = RoundedCornerShape(8.dp),
             colors = metricTextFieldColors()
         )
     }
@@ -491,7 +470,9 @@ private fun LabeledTextField(
 
 @Composable
 private fun metricTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = ForestGreen,
+    focusedBorderColor = Color.Transparent,
+    unfocusedBorderColor = Color.Transparent,
+    disabledBorderColor = Color.Transparent,
     focusedLabelColor = ForestGreen,
     cursorColor = ForestGreen,
     focusedContainerColor = Color.White,
@@ -499,3 +480,21 @@ private fun metricTextFieldColors() = OutlinedTextFieldDefaults.colors(
     disabledContainerColor = Color.White,
     errorContainerColor = Color.White
 )
+
+private fun Modifier.inputFieldShadow(cornerRadius: Dp = 8.dp): Modifier = this
+    .padding(all = 2.dp)
+    .drawBehind {
+        drawIntoCanvas { canvas ->
+            val paint = Paint()
+            paint.asFrameworkPaint().apply {
+                isAntiAlias = true
+                color = android.graphics.Color.argb(30, 0, 0, 0)
+                maskFilter = BlurMaskFilter(6.dp.toPx(), BlurMaskFilter.Blur.NORMAL)
+            }
+            canvas.drawRoundRect(
+                0f, 0f, size.width, size.height,
+                cornerRadius.toPx(), cornerRadius.toPx(),
+                paint
+            )
+        }
+    }

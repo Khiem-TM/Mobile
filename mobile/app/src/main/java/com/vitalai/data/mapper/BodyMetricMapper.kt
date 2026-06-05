@@ -83,5 +83,5 @@ fun String.toDateRange(): Pair<String, String> {
         "3months" -> today.minusDays(89)
         else -> today.minusDays(6)
     }
-    return Pair(from.toString(), today.toString())
+    return Pair(from.toString(), today.plusDays(1).toString())
 }

@@ -35,17 +35,17 @@ data class MetricTimelineEvent(
 
 data class MetricsHistoryUiState(
     val events: List<MetricTimelineEvent> = emptyList(),
+    val filteredEvents: List<MetricTimelineEvent> = emptyList(),
+    val availableYears: List<Int> = emptyList(),
     val photos: List<ProgressPhotoDto> = emptyList(),
     val summary: BodyMetricsSummaryDto? = null,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val hasMore: Boolean = false,
     val error: String? = null,
-    val activeFilter: MetricEventType? = null
-) {
-    val filteredEvents: List<MetricTimelineEvent>
-        get() = if (activeFilter == null) events else events.filter { it.type == activeFilter }
-}
+    val selectedYear: Int? = null,
+    val selectedMonth: Int? = null
+)
 
 @HiltViewModel
 class MetricsHistoryViewModel @Inject constructor(
@@ -68,6 +68,17 @@ class MetricsHistoryViewModel @Inject constructor(
         }
     }
 
+    private fun applyFilter(
+        events: List<MetricTimelineEvent>,
+        year: Int?,
+        month: Int?
+    ): List<MetricTimelineEvent> {
+        var result = events
+        if (year != null) result = result.filter { it.rawMetric?.metricDateOrNull()?.year == year }
+        if (month != null) result = result.filter { it.rawMetric?.metricDateOrNull()?.monthValue == month }
+        return result
+    }
+
     private fun observeHistoryFromRoom() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -84,9 +95,14 @@ class MetricsHistoryViewModel @Inject constructor(
                             previousMetric = sorted.getOrNull(index + 1)
                         )
                     }
+                    val availableYears = events
+                        .mapNotNull { it.rawMetric?.metricDateOrNull()?.year }
+                        .distinct().sorted().reversed()
                     _uiState.update {
                         it.copy(
                             events = events,
+                            filteredEvents = applyFilter(events, it.selectedYear, it.selectedMonth),
+                            availableYears = availableYears,
                             summary = summary,
                             isLoading = false,
                             hasMore = false,
@@ -100,7 +116,13 @@ class MetricsHistoryViewModel @Inject constructor(
     // Room loads all records at once — hasMore is always false, so this is never triggered from UI
     fun loadMore() = Unit
 
-    fun setFilter(type: MetricEventType?) {
-        _uiState.update { it.copy(activeFilter = type) }
+    fun setDateFilter(year: Int?, month: Int?) {
+        _uiState.update {
+            it.copy(
+                selectedYear = year,
+                selectedMonth = month,
+                filteredEvents = applyFilter(it.events, year, month)
+            )
+        }
     }
 }

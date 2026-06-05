@@ -1,6 +1,7 @@
 package com.vitalai.data.repository
 
 import com.squareup.moshi.Moshi
+import com.vitalai.core.sync.SyncScheduler
 import com.vitalai.data.local.room.dao.BodyMetricDao
 import com.vitalai.data.local.room.dao.PendingSyncActionDao
 import com.vitalai.data.local.room.entity.BodyMetricEntity
@@ -34,11 +35,24 @@ class BodyMetricsRepository @Inject constructor(
     private val bodyMetricsApi: BodyMetricsApi,
     private val bodyMetricDao: BodyMetricDao,
     private val pendingSyncActionDao: PendingSyncActionDao,
-    private val moshi: Moshi
+    private val moshi: Moshi,
+    private val syncScheduler: SyncScheduler,
 ) {
     // ── Room observation (single source of truth) ─────────────────────────────
 
     fun observeLatest(): Flow<BodyMetricEntity?> = bodyMetricDao.observeLatest()
+
+    fun observeLatestWithMeasurements(): Flow<BodyMetricEntity?> =
+        bodyMetricDao.observeLatestWithMeasurements()
+
+    fun observeEarliestDate(): Flow<LocalDate?> =
+        bodyMetricDao.observeEarliestDate().map { raw ->
+            raw?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        }
+
+    fun observeWeekRange(from: LocalDate, to: LocalDate): Flow<BodyMetricsPeriodDto> =
+        bodyMetricDao.observeByDateRange(from.toString(), to.toString())
+            .map { entities -> entities.map { it.toDto() }.toPeriodDto() }
 
     fun observePeriod(period: String): Flow<BodyMetricsPeriodDto> {
         val (from, to) = period.toDateRange()
@@ -76,7 +90,13 @@ class BodyMetricsRepository @Inject constructor(
             )
             val items = response.body()?.data
             if (response.isSuccessful && items != null) {
-                bodyMetricDao.upsertAll(items.map { it.toEntity() })
+                val pendingDates = bodyMetricDao.getAllPendingMetrics()
+                    .map { it.measuredAt.take(10) }
+                    .toSet()
+                val toUpsert = items.filter { serverItem ->
+                    !pendingDates.contains(serverItem.date.take(10))
+                }
+                bodyMetricDao.upsertAll(toUpsert.map { it.toEntity() })
             }
         } catch (_: IOException) {
             // offline — keep Room cache
@@ -88,6 +108,15 @@ class BodyMetricsRepository @Inject constructor(
     // ── Write operations (optimistic + sync queue) ────────────────────────────
 
     suspend fun addMetric(request: UpsertBodyMetricRequest): Result<BodyMetricDto> {
+        val targetDate = request.recordedAt?.take(10) ?: LocalDate.now().toString()
+        val existing = bodyMetricDao.getByDatePrefix(targetDate)
+        if (existing != null) {
+            if (existing.isPendingSync) {
+                pendingSyncActionDao.deleteByActionType("ADD_BODY_METRIC:${existing.id}")
+            }
+            bodyMetricDao.deleteById(existing.id)
+        }
+
         val tempId = "tmp_${UUID.randomUUID()}"
         bodyMetricDao.upsert(request.toEntity(id = tempId, isPendingSync = true))
 
@@ -95,6 +124,7 @@ class BodyMetricsRepository @Inject constructor(
         pendingSyncActionDao.insert(
             PendingSyncActionEntity(actionType = "ADD_BODY_METRIC:$tempId", payload = payload)
         )
+        syncScheduler.requestSync()
 
         return try {
             val res = bodyMetricsApi.addMetric(request)

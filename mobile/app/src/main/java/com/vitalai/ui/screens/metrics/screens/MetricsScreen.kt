@@ -117,7 +117,9 @@ fun MetricsScreen(
                     PeriodChartSection(
                         selectedPeriod = uiState.selectedPeriod,
                         periodData = uiState.periodData,
-                        onSelectPeriod = viewModel::selectPeriod
+                        onSelectPeriod = viewModel::selectPeriod,
+                        earliestDate = uiState.earliestDate,
+                        onExpandWeekRange = viewModel::expandWeekRange
                     )
                 }
 
@@ -146,10 +148,10 @@ fun MetricsScreen(
                 }
 
                 // 6. Body measurements card
-                uiState.latest?.let { latest ->
+                uiState.latestMeasurements?.let { measurements ->
                     item {
                         BodyMeasurementsCard(
-                            latest = latest,
+                            latest = measurements,
                             onClick = {
                                 viewModel.setUpdateTab(1)
                                 showUpdateSheet = true

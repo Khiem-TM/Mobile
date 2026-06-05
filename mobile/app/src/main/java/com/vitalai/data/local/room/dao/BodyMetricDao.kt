@@ -17,11 +17,23 @@ interface BodyMetricDao {
     @Query("SELECT * FROM body_metrics ORDER BY measuredAt DESC LIMIT 1")
     fun observeLatest(): Flow<BodyMetricEntity?>
 
-    @Query("SELECT * FROM body_metrics WHERE measuredAt >= :from AND measuredAt <= :to ORDER BY measuredAt ASC")
+    @Query("SELECT * FROM body_metrics WHERE bodyFatPct IS NOT NULL OR waistCm IS NOT NULL OR hipCm IS NOT NULL OR chestCm IS NOT NULL OR armCm IS NOT NULL OR neckCm IS NOT NULL ORDER BY measuredAt DESC LIMIT 1")
+    fun observeLatestWithMeasurements(): Flow<BodyMetricEntity?>
+
+    @Query("SELECT * FROM body_metrics WHERE measuredAt >= :from AND measuredAt < :to ORDER BY measuredAt ASC")
     fun observeByDateRange(from: String, to: String): Flow<List<BodyMetricEntity>>
 
     @Query("SELECT * FROM body_metrics ORDER BY measuredAt DESC LIMIT 1")
     suspend fun getLatest(): BodyMetricEntity?
+
+    @Query("SELECT MIN(measuredAt) FROM body_metrics")
+    fun observeEarliestDate(): Flow<String?>
+
+    @Query("SELECT * FROM body_metrics WHERE measuredAt LIKE :datePrefix || '%' LIMIT 1")
+    suspend fun getByDatePrefix(datePrefix: String): BodyMetricEntity?
+
+    @Query("SELECT * FROM body_metrics WHERE isPendingSync = 1")
+    suspend fun getAllPendingMetrics(): List<BodyMetricEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: BodyMetricEntity)
