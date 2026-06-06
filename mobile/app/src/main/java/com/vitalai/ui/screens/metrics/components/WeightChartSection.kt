@@ -51,7 +51,9 @@ import kotlinx.coroutines.launch
 internal fun PeriodChartSection(
     selectedPeriod: String,
     periodData: BodyMetricsPeriodDto?,
-    onSelectPeriod: (String) -> Unit
+    onSelectPeriod: (String) -> Unit,
+    earliestDate: LocalDate? = null,
+    onExpandWeekRange: ((LocalDate) -> Unit)? = null
 ) {
     var weekRangeText   by remember { mutableStateOf("") }
     var selectedMetric  by remember { mutableStateOf<BodyMetricDto?>(null) }
@@ -127,7 +129,7 @@ internal fun PeriodChartSection(
                         ) {
                             Column {
                                 Text(
-                                    "%.1f kg".format(metric!!.weightKg),
+                                    String.format(Locale.US, "%.1f kg", metric!!.weightKg),
                                     color = Color.White,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
@@ -147,11 +149,11 @@ internal fun PeriodChartSection(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("TB: ${"%.1f".format(periodData.avgWeight)} kg", fontSize = 12.sp, color = Ink500)
+                            Text("TB: ${String.format(Locale.US, "%.1f", periodData.avgWeight)} kg", fontSize = 12.sp, color = Ink500)
                             if (selectedPeriod == "week" && weekRangeText.isNotEmpty()) {
                                 Text(weekRangeText, fontSize = 11.sp, color = Ink400)
                             }
-                            Text("↓%.1f / ↑%.1f kg".format(periodData.minWeight, periodData.maxWeight), fontSize = 12.sp, color = Ink500)
+                            Text(String.format(Locale.US, "↓%.1f / ↑%.1f kg", periodData.minWeight, periodData.maxWeight), fontSize = 12.sp, color = Ink500)
                         }
                     }
                 }
@@ -176,6 +178,8 @@ internal fun PeriodChartSection(
                         .height(160.dp)
                         .onSizeChanged { chartWidthPx = it.width.toFloat() },
                     period = selectedPeriod,
+                    earliestDate = earliestDate,
+                    onExpandWeekRange = onExpandWeekRange,
                     onWeekRangeChange = { weekRangeText = it },
                     onDaySelected = { i, m ->
                         selectedDayIdx = i
@@ -206,6 +210,8 @@ private fun WeightLineChart(
     data: List<BodyMetricDto>,
     modifier: Modifier = Modifier,
     period: String = "week",
+    earliestDate: LocalDate? = null,
+    onExpandWeekRange: ((LocalDate) -> Unit)? = null,
     onWeekRangeChange: ((String) -> Unit)? = null,
     onDaySelected: ((Int?, BodyMetricDto?) -> Unit)? = null
 ) {
@@ -246,8 +252,10 @@ private fun WeightLineChart(
 
         val baseMonday = remember(pointsByDate) { pointsByDate.last().first.with(DayOfWeek.MONDAY) }
         val startDay   = remember(baseMonday, dayOffset) { baseMonday.plusDays(dayOffset.toLong()) }
-        val prevStart  = remember(startDay) { startDay.minusDays(7) }
-        val nextStart  = remember(startDay) { startDay.plusDays(7) }
+        val prevStart     = remember(startDay) { startDay.minusDays(7) }
+        val nextStart     = remember(startDay) { startDay.plusDays(7) }
+        val prevPrevStart = remember(prevStart) { prevStart.minusDays(7) }
+        val nextNextStart = remember(nextStart) { nextStart.plusDays(7) }
 
         val dayLabels = remember(startDay) {
             val vn = mapOf(
@@ -259,17 +267,25 @@ private fun WeightLineChart(
             (0..6).map { d -> vn[startDay.plusDays(d.toLong()).dayOfWeek] ?: "" }
         }
 
-        fun buildMap(ref: LocalDate): Map<Int, BodyMetricDto> = pointsByDate
-            .groupBy { (date, _) -> java.time.temporal.ChronoUnit.DAYS.between(ref, date).toInt() }
-            .filterKeys { it in 0..6 }
-            .mapValues { (_, list) -> list.maxByOrNull { it.first }!!.second }
+        val dateMap = remember(pointsByDate) {
+            pointsByDate.associate { (date, metric) -> date to metric }
+        }
 
-        val prevMap = remember(pointsByDate, prevStart) { buildMap(prevStart) }
-        val curMap  = remember(pointsByDate, startDay)  { buildMap(startDay) }
-        val nextMap = remember(pointsByDate, nextStart) { buildMap(nextStart) }
+        fun buildMap(ref: LocalDate): Map<Int, BodyMetricDto> =
+            (0..6).mapNotNull { d -> dateMap[ref.plusDays(d.toLong())]?.let { d to it } }.toMap()
 
-        val minStartDay = remember(pointsByDate) { pointsByDate.first().first.with(DayOfWeek.MONDAY) }
-        val maxStartDay = remember(pointsByDate) { pointsByDate.last().first.with(DayOfWeek.MONDAY) }
+        val prevPrevMap = remember(dateMap, prevPrevStart) { buildMap(prevPrevStart) }
+        val prevMap     = remember(dateMap, prevStart)     { buildMap(prevStart) }
+        val curMap      = remember(dateMap, startDay)      { buildMap(startDay) }
+        val nextMap     = remember(dateMap, nextStart)     { buildMap(nextStart) }
+        val nextNextMap = remember(dateMap, nextNextStart) { buildMap(nextNextStart) }
+        val pageStarts  = listOf(prevPrevStart, prevStart, startDay, nextStart, nextNextStart)
+
+        val minStartDay = remember(pointsByDate, earliestDate) {
+            earliestDate?.with(DayOfWeek.MONDAY)
+                ?: pointsByDate.first().first.with(DayOfWeek.MONDAY)
+        }
+        val maxStartDay = remember { LocalDate.now().with(DayOfWeek.MONDAY) }
         val minStartDayState = rememberUpdatedState(minStartDay)
         val maxStartDayState = rememberUpdatedState(maxStartDay)
 
@@ -290,10 +306,13 @@ private fun WeightLineChart(
         val onWeekRangeChangeState = rememberUpdatedState(onWeekRangeChange)
         val startDayState          = rememberUpdatedState(startDay)
 
+        val onExpandWeekRangeState = rememberUpdatedState(onExpandWeekRange)
+
         var selectedDayIdx by remember { mutableStateOf<Int?>(null) }
         LaunchedEffect(dayOffset) {
             selectedDayIdx = null
             onDaySelectedState.value?.invoke(null, null)
+            onExpandWeekRangeState.value?.invoke(startDay)
         }
 
         val weekRangeText = remember(startDay) {
@@ -454,18 +473,28 @@ private fun WeightLineChart(
                     drawText(mLabel, topLeft = Offset(w - rightPadding + 5.dp.toPx(), y - mLabel.size.height / 2f))
                 }
 
-                val pageOffsets = listOf(dragXValue - pageW, dragXValue, dragXValue + pageW)
-                val pageMaps    = listOf(prevMap, curMap, nextMap)
+                val pageOffsets = listOf(
+                    dragXValue - 2 * pageW,
+                    dragXValue - pageW,
+                    dragXValue,
+                    dragXValue + pageW,
+                    dragXValue + 2 * pageW
+                )
+                val pageMaps = listOf(prevPrevMap, prevMap, curMap, nextMap, nextNextMap)
 
-                val pagePts = pageOffsets.zip(pageMaps).map { (tx, dayMap) ->
-                    (0..6).mapNotNull { d ->
-                        dayMap[d]?.let { m -> Offset(tx + leftPadding + (d + 0.5f) * columnWidth, yForWeight(m.weightKg)) }
+                val pagePtsWithDates: List<List<Pair<LocalDate, Offset>>> =
+                    pageOffsets.indices.map { i ->
+                        val tx     = pageOffsets[i]
+                        val dayMap = pageMaps[i]
+                        val ref    = pageStarts[i]
+                        (0..6).mapNotNull { d ->
+                            dayMap[d]?.let { m ->
+                                ref.plusDays(d.toLong()) to
+                                    Offset(tx + leftPadding + (d + 0.5f) * columnWidth, yForWeight(m.weightKg))
+                            }
+                        }
                     }
-                }
-                val prevLastPt  = pagePts[0].lastOrNull()
-                val curFirstPt  = pagePts[1].firstOrNull()
-                val curLastPt   = pagePts[1].lastOrNull()
-                val nextFirstPt = pagePts[2].firstOrNull()
+                val pagePts = pagePtsWithDates.map { list -> list.map { it.second } }
 
                 clipRect(leftPadding, 0f, w - rightPadding, h) {
 
@@ -498,14 +527,24 @@ private fun WeightLineChart(
                             color = lineColor.copy(alpha = 0.15f)
                         )
                     }
-                    if (prevLastPt != null && curFirstPt != null) drawPath(
-                        Path().apply { moveTo(prevLastPt.x, chartBottom); lineTo(prevLastPt.x, prevLastPt.y); lineTo(curFirstPt.x, curFirstPt.y); lineTo(curFirstPt.x, chartBottom); close() },
-                        color = lineColor.copy(alpha = 0.15f)
-                    )
-                    if (curLastPt != null && nextFirstPt != null) drawPath(
-                        Path().apply { moveTo(curLastPt.x, chartBottom); lineTo(curLastPt.x, curLastPt.y); lineTo(nextFirstPt.x, nextFirstPt.y); lineTo(nextFirstPt.x, chartBottom); close() },
-                        color = lineColor.copy(alpha = 0.15f)
-                    )
+                    for (i in 0 until pagePtsWithDates.size - 1) {
+                        val (fromDate, fromPt) = pagePtsWithDates[i].lastOrNull() ?: continue
+                        val (toDate, toPt) = ((i + 1) until pagePtsWithDates.size)
+                            .firstNotNullOfOrNull { pagePtsWithDates[it].firstOrNull() } ?: continue
+                        val weekGap = java.time.temporal.ChronoUnit.DAYS.between(
+                            fromDate.with(DayOfWeek.MONDAY),
+                            toDate.with(DayOfWeek.MONDAY)
+                        )
+                        if (weekGap > 7) continue
+                        drawPath(
+                            Path().apply {
+                                moveTo(fromPt.x, chartBottom); lineTo(fromPt.x, fromPt.y)
+                                lineTo(toPt.x, toPt.y); lineTo(toPt.x, chartBottom); close()
+                            },
+                            color = lineColor.copy(alpha = 0.15f)
+                        )
+                        drawLine(lineColor, fromPt, toPt, strokeWidth = lineWidth)
+                    }
 
                     pagePts.forEach { pts ->
                         if (pts.size >= 2) drawPath(
@@ -513,10 +552,6 @@ private fun WeightLineChart(
                             color = lineColor, style = Stroke(width = lineWidth)
                         )
                     }
-                    if (prevLastPt != null && curFirstPt != null)
-                        drawLine(lineColor, prevLastPt, curFirstPt, strokeWidth = lineWidth)
-                    if (curLastPt != null && nextFirstPt != null)
-                        drawLine(lineColor, curLastPt, nextFirstPt, strokeWidth = lineWidth)
 
                     pagePts.forEach { pts ->
                         pts.forEach { pt ->

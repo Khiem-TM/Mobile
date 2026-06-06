@@ -1,8 +1,10 @@
 package com.vitalai.data.repository
 
-import com.vitalai.data.local.dao.PendingSyncActionDao
+import com.vitalai.data.local.room.dao.PendingSyncActionDao
 import com.vitalai.data.remote.DashboardApi
 import com.vitalai.data.remote.TrainingApi
+import com.vitalai.data.remote.UpdateStepsRequest
+import com.vitalai.data.remote.UpdateWaterRequest
 import com.vitalai.data.remote.model.DashboardDto
 import com.vitalai.data.remote.model.DashboardMonthlyDto
 import com.vitalai.data.remote.model.DashboardWeeklyDto
@@ -122,7 +124,7 @@ class DashboardRepository @Inject constructor(
     suspend fun addWater(ml: Int, date: String? = null): Result<DashboardDto> {
         return try {
             val targetDate = date ?: LocalDate.now().toString()
-            val response = trainingApi.updateWater(mapOf("logDate" to targetDate, "waterMl" to ml))
+            val response = trainingApi.updateWater(UpdateWaterRequest(targetDate, ml))
             if (response.isSuccessful) getDashboard(targetDate)
             else Result.failure(Exception("Lỗi cập nhật nước (${response.code()})"))
         } catch (e: Exception) {
@@ -133,7 +135,7 @@ class DashboardRepository @Inject constructor(
     suspend fun addSteps(steps: Int, date: String? = null): Result<DashboardDto> {
         return try {
             val targetDate = date ?: LocalDate.now().toString()
-            val response = trainingApi.updateSteps(mapOf("logDate" to targetDate, "steps" to steps))
+            val response = trainingApi.updateSteps(UpdateStepsRequest(targetDate, steps))
             if (response.isSuccessful) getDashboard(targetDate)
             else Result.failure(Exception("Lỗi cập nhật bước chân (${response.code()})"))
         } catch (e: Exception) {

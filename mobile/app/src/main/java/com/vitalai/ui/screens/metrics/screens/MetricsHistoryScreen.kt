@@ -9,15 +9,18 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.filled.FilterAltOff
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -30,7 +33,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.ui.screens.metrics.components.*
-import com.vitalai.ui.screens.metrics.viewmodels.MetricEventType
 import com.vitalai.ui.screens.metrics.viewmodels.MetricsHistoryViewModel
 import com.vitalai.ui.theme.*
 
@@ -59,13 +61,9 @@ fun MetricsHistoryScreen(
         }
     }
 
-    val grouped = uiState.filteredEvents.groupBy { it.monthGroup }
-    val measurementMetrics = uiState.filteredEvents
-        .filter { it.type == MetricEventType.MEASUREMENT && it.rawMetric != null }
-        .mapNotNull { it.rawMetric }
-    val weightMetrics = uiState.filteredEvents
-        .filter { it.type == MetricEventType.WEIGHT && it.rawMetric != null }
-        .mapNotNull { it.rawMetric }
+    val filteredEvents = uiState.filteredEvents
+    val grouped = remember(filteredEvents) { filteredEvents.groupBy { it.monthGroup } }
+    val allMetrics = remember(filteredEvents) { filteredEvents.mapNotNull { it.rawMetric } }
 
     Scaffold(
         topBar = {
@@ -77,11 +75,31 @@ fun MetricsHistoryScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showFilterSheet = true }) {
+                    val filterLabel = when {
+                        uiState.selectedYear != null && uiState.selectedMonth != null ->
+                            "Tháng ${uiState.selectedMonth}/${uiState.selectedYear}"
+                        uiState.selectedYear != null -> "${uiState.selectedYear}"
+                        uiState.selectedMonth != null -> "Tháng ${uiState.selectedMonth}"
+                        else -> null
+                    }
+                    val isFiltering = filterLabel != null
+                    if (filterLabel != null) {
+                        Text(
+                            text = filterLabel,
+                            color = ForestGreen,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                    }
+                    IconButton(onClick = {
+                        if (isFiltering) viewModel.setDateFilter(null, null)
+                        else showFilterSheet = true
+                    }) {
                         Icon(
-                            Icons.Default.FilterList,
-                            contentDescription = "Lọc",
-                            tint = if (uiState.activeFilter != null) ForestGreen else ForestGreen.copy(alpha = 0.5f)
+                            if (isFiltering) Icons.Default.FilterAltOff else Icons.Default.FilterAlt,
+                            contentDescription = if (isFiltering) "Tắt lọc" else "Lọc",
+                            tint = ForestGreen
                         )
                     }
                 },
@@ -124,14 +142,20 @@ fun MetricsHistoryScreen(
                 item {
                     val summary = uiState.summary
                     val changeVal = summary?.weightChange ?: 0f
-                    val changeText = if (changeVal == 0f) "0 kg" else "%+.1f kg".format(changeVal)
+                    val changeText = when {
+                        changeVal == 0f -> "0 kg"
+                        changeVal < 0f -> "↓${String.format(java.util.Locale.US, "%.1f", kotlin.math.abs(changeVal))} kg"
+                        else -> "↑${String.format(java.util.Locale.US, "%.1f", changeVal)} kg"
+                    }
                     val changeColor = when {
                         changeVal < 0f -> ForestGreen
                         changeVal > 0f -> Color(0xFFF87171)
                         else -> Ink500
                     }
-                    val currentWeight = if ((summary?.currentWeight ?: 0f) > 0f)
-                        "%.1f kg".format(summary!!.currentWeight) else "--"
+                    val currentWeight = if ((summary?.currentWeight ?: 0f) > 0f) {
+                        val w = summary!!.currentWeight
+                        if (w % 1f == 0f) "${w.toInt()} kg" else String.format(java.util.Locale.US, "%.1f kg", w)
+                    } else "--"
 
                     Row(
                         modifier = Modifier
@@ -147,7 +171,7 @@ fun MetricsHistoryScreen(
                         Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
                         StatCell(label = "Tổng thay đổi", value = changeText, color = changeColor)
                         Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
-                        StatCell(label = "Số bản ghi", value = "${summary?.totalRecords ?: 0}", color = ForestGreen)
+                        StatCell(label = "Số bản ghi", value = "${filteredEvents.size}", color = ForestGreen)
                     }
                 }
 
@@ -187,7 +211,7 @@ fun MetricsHistoryScreen(
                                 .background(AppMutedBackground)
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                         ) {
-                            Text(month, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = ForestGreen)
+                            Text(month, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = MacroWater)
                         }
                     }
 
@@ -200,21 +224,11 @@ fun MetricsHistoryScreen(
                             onDoubleClick = { showDetail = true }
                         )
                         if (showDetail && event.rawMetric != null) {
-                            val previousMetric = when (event.type) {
-                                MetricEventType.MEASUREMENT -> {
-                                    val idx = measurementMetrics.indexOfFirst { it.id == event.rawMetric.id }
-                                    measurementMetrics.getOrNull(idx + 1)
-                                }
-                                MetricEventType.WEIGHT -> {
-                                    val idx = weightMetrics.indexOfFirst { it.id == event.rawMetric.id }
-                                    weightMetrics.getOrNull(idx + 1)
-                                }
-                                else -> null
-                            }
+                            val idx = allMetrics.indexOfFirst { it.id == event.rawMetric.id }
+                            val previousMetric = allMetrics.getOrNull(idx + 1)
                             MetricDetailDialog(
                                 metric = event.rawMetric,
                                 photoUrls = event.photoUrls,
-                                isMeasurementCard = event.type == MetricEventType.MEASUREMENT,
                                 previousMetric = previousMetric,
                                 onDismiss = { showDetail = false }
                             )
@@ -238,11 +252,10 @@ fun MetricsHistoryScreen(
 
     if (showFilterSheet) {
         FilterBottomSheet(
-            activeFilter = uiState.activeFilter,
-            onSelect = { type ->
-                viewModel.setFilter(type)
-                showFilterSheet = false
-            },
+            selectedYear = uiState.selectedYear,
+            selectedMonth = uiState.selectedMonth,
+            availableYears = uiState.availableYears,
+            onApply = { y, m -> viewModel.setDateFilter(y, m) },
             onDismiss = { showFilterSheet = false }
         )
     }
@@ -251,23 +264,32 @@ fun MetricsHistoryScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterBottomSheet(
-    activeFilter: MetricEventType?,
-    onSelect: (MetricEventType?) -> Unit,
+    selectedYear: Int?,
+    selectedMonth: Int?,
+    availableYears: List<Int>,
+    onApply: (Int?, Int?) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val options = listOf(
-        null to "Tất cả",
-        MetricEventType.WEIGHT to "Cân nặng",
-        MetricEventType.MEASUREMENT to "Số đo cơ thể"
-    )
+
+    var currentYear by remember { mutableStateOf(selectedYear) }
+    var currentMonth by remember { mutableStateOf(selectedMonth) }
+
+    val yearItems = listOf("Tất cả") + availableYears.map { it.toString() }
+    val monthItems = listOf("Tất cả") + (1..12).map { "Tháng $it" }
+
+    val yearIndex = if (selectedYear == null) 0
+        else (availableYears.indexOf(selectedYear) + 1).coerceAtLeast(0)
+    val monthIndex = selectedMonth ?: 0
+
+    val hasFilter = currentYear != null || currentMonth != null
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = Color.White,
         dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) },
-        windowInsets = WindowInsets(0)
+        contentWindowInsets = { WindowInsets(0) }
     ) {
         Column(
             modifier = Modifier
@@ -275,34 +297,62 @@ private fun FilterBottomSheet(
                 .navigationBarsPadding()
                 .padding(start = 20.dp, end = 20.dp, bottom = 8.dp)
         ) {
-            Text(
-                "Lọc theo loại cập nhật",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp,
-                color = ForestGreen,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-            options.forEach { (type, label) ->
-                val selected = activeFilter == type
-                Row(
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 0.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Lọc bản ghi",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = ForestGreen
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(30.dp)
+                        .alpha(if (hasFilter) 1f else 0f)
+                        .background(Color(0xFFF87171), CircleShape)
+                        .clickable(enabled = hasFilter) { onApply(null, null); onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Remove,
+                        contentDescription = "Bỏ lọc",
+                        tint = Color.White,
+                        modifier = Modifier.size(25.dp)
+                    )
+                }
+            }
+            Box(modifier = Modifier.fillMaxWidth().height(44.dp * 3)) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(VitalRadius.Md))
-                        .background(if (selected) ForestGreen.copy(alpha = 0.1f) else Color.Transparent)
-                        .clickable { onSelect(type) }
-                        .padding(horizontal = 12.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        label,
-                        fontSize = 15.sp,
-                        color = if (selected) ForestGreen else Ink700,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        .align(Alignment.Center)
+                        .height(44.dp)
+                        .background(Color(0xFFF0F0F0), RoundedCornerShape(12.dp))
+                )
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    ScrollPicker(
+                        items = yearItems,
+                        selectedIndex = yearIndex,
+                        onSelectionChanged = { idx ->
+                            currentYear = if (idx == 0) null else availableYears.getOrNull(idx - 1)
+                            onApply(currentYear, currentMonth)
+                        },
+                        modifier = Modifier.weight(1f)
                     )
-                    if (selected) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(18.dp))
-                    }
+                    ScrollPicker(
+                        items = monthItems,
+                        selectedIndex = monthIndex,
+                        onSelectionChanged = { idx ->
+                            currentMonth = if (idx == 0) null else idx
+                            onApply(currentYear, currentMonth)
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
             Spacer(Modifier.height(8.dp))

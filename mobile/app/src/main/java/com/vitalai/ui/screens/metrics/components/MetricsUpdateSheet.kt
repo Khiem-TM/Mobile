@@ -17,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,9 +36,8 @@ import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.remote.model.UpsertBodyMetricRequest
 import com.vitalai.ui.screens.metrics.ageToBirthDate
 import com.vitalai.ui.screens.metrics.calculateAge
-import com.vitalai.ui.screens.metrics.calculateBmi
-import com.vitalai.ui.screens.metrics.bmiColor
-import com.vitalai.ui.screens.metrics.bmiLabel
+import com.vitalai.ui.screens.metrics.formatCompact
+import com.vitalai.ui.screens.metrics.parseFloatInput
 import com.vitalai.ui.screens.metrics.genderDisplay
 import com.vitalai.ui.screens.metrics.normalizeGender
 import com.vitalai.ui.screens.metrics.viewmodels.MetricsUiState
@@ -58,7 +59,7 @@ internal fun UpdateBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = Color.White,
-        windowInsets = WindowInsets(0),
+        contentWindowInsets = { WindowInsets(0) },
         dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) }
     ) {
         Column(
@@ -88,11 +89,10 @@ internal fun UpdateBottomSheet(
 private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
     val latest = uiState.latest
     var weightStr by remember(latest?.weightKg) {
-        mutableStateOf(latest?.weightKg?.let { "%.1f".format(it) }.orEmpty())
+        mutableStateOf(latest?.weightKg?.let { it.formatCompact() }.orEmpty())
     }
-    val weightVal = weightStr.toFloatOrNull()
+    val weightVal = weightStr.parseFloatInput()
     val heightCm = uiState.healthProfile?.heightCm
-    val bmiPreview = calculateBmi(weightVal, heightCm)
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Cập nhật cân nặng", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
@@ -104,33 +104,6 @@ private fun BasicUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel,
             suffix = "kg",
             modifier = Modifier.fillMaxWidth()
         )
-
-        bmiPreview?.let { bmi ->
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(VitalRadius.Md))
-                    .background(bmiColor(bmi).copy(alpha = 0.10f))
-                    .padding(12.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("BMI dự kiến: ", fontSize = 14.sp, color = Ink700)
-                    Text(
-                        "%.1f".format(bmi),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = bmiColor(bmi)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        bmiLabel(bmi),
-                        fontSize = 13.sp,
-                        color = bmiColor(bmi),
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
-        }
 
         Button(
             onClick = {
@@ -167,7 +140,7 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
         mutableStateOf(profile?.heightCm?.let { "%.0f".format(it) }.orEmpty())
     }
     var initialWeightStr by remember(profile?.initialWeightKg) {
-        mutableStateOf(profile?.initialWeightKg?.let { "%.1f".format(it) }.orEmpty())
+        mutableStateOf(profile?.initialWeightKg?.let { it.formatCompact() }.orEmpty())
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -175,6 +148,10 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(modifier = Modifier.weight(1f)) {
+                val genderInteractionSource = remember { MutableInteractionSource() }
+                val genderFocused by genderInteractionSource.collectIsFocusedAsState()
+                val genderBorderColor = if (genderFocused) Color(0xFF9E9E9E) else Color(0xFFDDDDDD)
+
                 InputTopLabel("Giới tính")
                 ExposedDropdownMenuBox(
                     expanded = genderExpanded,
@@ -186,9 +163,12 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
                         readOnly = true,
                         singleLine = true,
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = genderExpanded) },
+                        interactionSource = genderInteractionSource,
                         modifier = Modifier
                             .menuAnchor()
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .border(2.dp, genderBorderColor, RoundedCornerShape(8.dp)),
+                        shape = RoundedCornerShape(8.dp),
                         colors = metricTextFieldColors()
                     )
                     ExposedDropdownMenu(
@@ -239,8 +219,8 @@ private fun PersonalInfoUpdateTab(uiState: MetricsUiState, viewModel: MetricsVie
                 val updated = (profile ?: HealthProfileDto()).copy(
                     gender = gender,
                     birthDate = ageStr.toIntOrNull()?.let { ageToBirthDate(it, profile?.birthDate) } ?: profile?.birthDate,
-                    heightCm = heightStr.toFloatOrNull(),
-                    initialWeightKg = initialWeightStr.toFloatOrNull()
+                    heightCm = heightStr.parseFloatInput(),
+                    initialWeightKg = initialWeightStr.parseFloatInput()
                 )
                 viewModel.updateHealthProfile(updated)
                 onDone()
@@ -263,9 +243,9 @@ private data class AdvancedField(
 
 @Composable
 private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewModel, onDone: () -> Unit) {
-    val latest = uiState.latest
+    val latest = uiState.latestMeasurements ?: uiState.latest
     var bodyFatStr by remember(latest?.bodyFatPct) {
-        mutableStateOf(latest?.bodyFatPct?.let { "%.1f".format(it) }.orEmpty())
+        mutableStateOf(latest?.bodyFatPct?.let { it.formatCompact() }.orEmpty())
     }
     var waistStr by remember(latest?.waistCm) {
         mutableStateOf(latest?.waistCm?.let { "%.0f".format(it) }.orEmpty())
@@ -284,8 +264,7 @@ private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewMod
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Số đo nâng cao", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
-        Text("Tất cả trường đều tùy chọn", fontSize = 12.sp, color = Ink500)
+        Text("Cập nhật số đo cơ thể", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = ForestGreen)
 
         val fieldDefs = listOf(
             AdvancedField("% Mỡ cơ thể", bodyFatStr, "%") { v: String -> bodyFatStr = v },
@@ -316,12 +295,12 @@ private fun AdvancedUpdateTab(uiState: MetricsUiState, viewModel: MetricsViewMod
                 viewModel.addMetric(
                     UpsertBodyMetricRequest(
                         recordedAt = LocalDate.now().toString(),
-                        bodyFatPct = bodyFatStr.toFloatOrNull(),
-                        waistCm = waistStr.toFloatOrNull(),
-                        hipCm = hipStr.toFloatOrNull(),
-                        chestCm = chestStr.toFloatOrNull(),
-                        neckCm = neckStr.toFloatOrNull(),
-                        armCm = armStr.toFloatOrNull()
+                        bodyFatPct = bodyFatStr.parseFloatInput(),
+                        waistCm = waistStr.parseFloatInput(),
+                        hipCm = hipStr.parseFloatInput(),
+                        chestCm = chestStr.parseFloatInput(),
+                        neckCm = neckStr.parseFloatInput(),
+                        armCm = armStr.parseFloatInput()
                     )
                 )
                 onDone()
@@ -473,6 +452,10 @@ private fun LabeledTextField(
     suffix: String? = null,
     keyboardType: KeyboardType = KeyboardType.Decimal
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val borderColor = if (isFocused) Color(0xFF9E9E9E) else Color(0xFFDDDDDD)
+
     Column(modifier = modifier) {
         InputTopLabel(label)
         OutlinedTextField(
@@ -481,7 +464,11 @@ private fun LabeledTextField(
             keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
             singleLine = true,
             suffix = suffix?.let { { Text(it, color = Ink500, fontSize = 12.sp) } },
-            modifier = Modifier.fillMaxWidth(),
+            interactionSource = interactionSource,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, borderColor, RoundedCornerShape(8.dp)),
+            shape = RoundedCornerShape(8.dp),
             colors = metricTextFieldColors()
         )
     }
@@ -489,11 +476,16 @@ private fun LabeledTextField(
 
 @Composable
 private fun metricTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = ForestGreen,
+    focusedBorderColor = Color.Transparent,
+    unfocusedBorderColor = Color.Transparent,
+    disabledBorderColor = Color.Transparent,
     focusedLabelColor = ForestGreen,
     cursorColor = ForestGreen,
     focusedContainerColor = Color.White,
     unfocusedContainerColor = Color.White,
     disabledContainerColor = Color.White,
-    errorContainerColor = Color.White
+    errorContainerColor = Color.White,
+    focusedTrailingIconColor = Color(0xFF9E9E9E),
+    unfocusedTrailingIconColor = Color(0xFFDDDDDD)
 )
+

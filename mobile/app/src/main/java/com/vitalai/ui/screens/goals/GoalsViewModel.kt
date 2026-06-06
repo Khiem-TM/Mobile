@@ -56,6 +56,9 @@ class GoalsViewModel @Inject constructor(
                     }
                 }
             }
+            // Refresh from network silently — GoalsViewModel intentionally does NOT
+            // auto-apply updates to avoid overwriting form fields the user is editing
+            userRepository.refreshHealthProfile()
         }
     }
 

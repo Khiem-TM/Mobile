@@ -1,8 +1,8 @@
-package com.vitalai.data.local.dao
+package com.vitalai.data.local.room.dao
 
 import androidx.room.*
-import com.vitalai.data.local.entity.MealLogEntity
-import com.vitalai.data.local.entity.MealLogItemEntity
+import com.vitalai.data.local.room.entity.MealLogEntity
+import com.vitalai.data.local.room.entity.MealLogItemEntity
 import kotlinx.coroutines.flow.Flow
 
 data class MealLogWithItems(

@@ -38,25 +38,32 @@ class ProfileViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
+        observeRoomFlows()
         loadData()
+    }
+
+    private fun observeRoomFlows() {
+        viewModelScope.launch {
+            userRepository.observeCurrentUser().collect { user ->
+                _uiState.update { it.copy(user = user) }
+            }
+        }
+        viewModelScope.launch {
+            userRepository.observeHealthProfile().collect { profile ->
+                _uiState.update { it.copy(healthProfile = profile) }
+            }
+        }
     }
 
     private fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val userDeferred = async { userRepository.getCurrentUser() }
-            val healthDeferred = async { userRepository.getHealthProfile() }
             val streaksDeferred = async { dashboardRepository.getStreaks() }
-
-            val user = userDeferred.await().getOrNull()
-            val health = healthDeferred.await().getOrNull()
-            val streaks = streaksDeferred.await().getOrNull()
-
+            userRepository.refreshCurrentUser()
+            userRepository.refreshHealthProfile()
             _uiState.update {
                 it.copy(
-                    user = user,
-                    healthProfile = health,
-                    streaks = streaks,
+                    streaks = streaksDeferred.await().getOrNull(),
                     isLoading = false
                 )
             }
@@ -99,14 +106,9 @@ class ProfileViewModel @Inject constructor(
                 userId = currentUser.id,
                 displayName = changedName,
                 avatarUrl = changedAvatarUrl
-            ).onSuccess { updatedUser ->
-                _uiState.update {
-                    it.copy(
-                        user = updatedUser,
-                        isUpdatingProfile = false,
-                        updateProfileError = null
-                    )
-                }
+            ).onSuccess {
+                // Room flow will auto-update user state
+                _uiState.update { it.copy(isUpdatingProfile = false, updateProfileError = null) }
                 onSuccess()
             }.onFailure { error ->
                 _uiState.update {
@@ -131,14 +133,9 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isUploadingAvatar = true, updateProfileError = null) }
             userRepository.uploadAvatar(file, mimeType)
-                .onSuccess { updatedUser ->
-                    _uiState.update {
-                        it.copy(
-                            user = updatedUser,
-                            isUploadingAvatar = false,
-                            updateProfileError = null
-                        )
-                    }
+                .onSuccess {
+                    // Room flow will auto-update user state
+                    _uiState.update { it.copy(isUploadingAvatar = false, updateProfileError = null) }
                     onSuccess()
                 }
                 .onFailure { error ->

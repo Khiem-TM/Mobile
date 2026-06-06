@@ -1,7 +1,7 @@
-package com.vitalai.data.local.dao
+package com.vitalai.data.local.room.dao
 
 import androidx.room.*
-import com.vitalai.data.local.entity.PendingSyncActionEntity
+import com.vitalai.data.local.room.entity.PendingSyncActionEntity
 
 @Dao
 interface PendingSyncActionDao {

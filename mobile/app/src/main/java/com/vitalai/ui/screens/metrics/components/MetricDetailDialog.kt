@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.BodyMetricDto
+import com.vitalai.ui.screens.metrics.formatCompact
 import com.vitalai.ui.screens.metrics.formatDateDisplay
 import com.vitalai.ui.theme.*
 import kotlin.math.abs
@@ -25,7 +26,6 @@ import kotlin.math.abs
 internal fun MetricDetailDialog(
     metric: BodyMetricDto,
     photoUrls: List<String>,
-    isMeasurementCard: Boolean = false,
     previousMetric: BodyMetricDto? = null,
     onDismiss: () -> Unit
 ) {
@@ -63,68 +63,82 @@ internal fun MetricDetailDialog(
 
                 DetailRow("Ngày đo", formatDateDisplay(metric.date))
 
-                if (!isMeasurementCard) {
+                DeltaDetailRow(
+                    label = "Cân nặng",
+                    value = "${metric.weightKg.formatCompact()} kg",
+                    delta = previousMetric?.weightKg?.let { prev -> metric.weightKg - prev }
+                )
+                metric.heightCm?.let { current ->
                     DeltaDetailRow(
-                        label = "Cân nặng",
-                        value = "%.1f kg".format(metric.weightKg),
-                        delta = previousMetric?.weightKg?.let { prev -> metric.weightKg - prev }
+                        label = "Chiều cao",
+                        value = "${current.formatCompact()} cm",
+                        delta = previousMetric?.heightCm?.let { prev -> current - prev }
                     )
-                    metric.heightCm?.let { current ->
-                        DeltaDetailRow(
-                            label = "Chiều cao",
-                            value = "%.1f cm".format(current),
-                            delta = previousMetric?.heightCm?.let { prev -> current - prev }
-                        )
-                    }
-                    metric.bmi?.let { DetailRow("BMI", "%.1f".format(it)) }
-                    metric.bmr?.let { DetailRow("BMR", "%.0f kcal/ngày".format(it)) }
-                    metric.tdee?.let { DetailRow("TDEE", "%.0f kcal/ngày".format(it)) }
                 }
+                metric.bmi?.let { DetailRow("BMI", it.formatCompact()) }
+                metric.bmr?.let { DetailRow("BMR", "%.0f kcal/ngày".format(it)) }
+                metric.tdee?.let { DetailRow("TDEE", "%.0f kcal/ngày".format(it)) }
 
                 metric.bodyFatPct?.let { current ->
                     DeltaDetailRow(
                         label = "Tỷ lệ mỡ",
-                        value = "%.1f%%".format(current),
+                        value = "${current.formatCompact()}%",
                         delta = previousMetric?.bodyFatPct?.let { prev -> current - prev }
                     )
                 }
                 metric.waistCm?.let { current ->
                     DeltaDetailRow(
                         label = "Vòng eo",
-                        value = "%.1f cm".format(current),
+                        value = "${current.formatCompact()} cm",
                         delta = previousMetric?.waistCm?.let { prev -> current - prev }
                     )
                 }
                 metric.hipCm?.let { current ->
                     DeltaDetailRow(
                         label = "Vòng mông",
-                        value = "%.1f cm".format(current),
+                        value = "${current.formatCompact()} cm",
                         delta = previousMetric?.hipCm?.let { prev -> current - prev }
                     )
                 }
                 metric.chestCm?.let { current ->
                     DeltaDetailRow(
                         label = "Vòng ngực",
-                        value = "%.1f cm".format(current),
+                        value = "${current.formatCompact()} cm",
                         delta = previousMetric?.chestCm?.let { prev -> current - prev }
                     )
                 }
                 metric.armCm?.let { current ->
                     DeltaDetailRow(
                         label = "Bắp tay",
-                        value = "%.1f cm".format(current),
+                        value = "${current.formatCompact()} cm",
                         delta = previousMetric?.armCm?.let { prev -> current - prev }
                     )
                 }
                 metric.neckCm?.let { current ->
                     DeltaDetailRow(
                         label = "Vòng cổ",
-                        value = "%.1f cm".format(current),
+                        value = "${current.formatCompact()} cm",
                         delta = previousMetric?.neckCm?.let { prev -> current - prev }
                     )
                 }
 
-                metric.notes?.let { if (it.isNotBlank()) DetailRow("Ghi chú", it) }
+                metric.notes?.let { notes ->
+                    if (notes.isNotBlank()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text("Ghi chú", fontSize = 13.sp, color = Ink500)
+                            Text(
+                                text = notes,
+                                fontSize = 13.sp,
+                                color = ForestGreen,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -167,7 +181,7 @@ private fun DeltaDetailRow(label: String, value: String, delta: Float?) {
                 val deltaColor = if (isUp) Color(0xFFF87171) else ForestGreen
                 val arrow = if (isUp) "↑" else "↓"
                 Text(
-                    "(${arrow}%.1f)".format(abs(delta)),
+                    "($arrow${abs(delta).formatCompact()})",
                     fontSize = 12.sp,
                     color = deltaColor,
                     fontWeight = FontWeight.SemiBold

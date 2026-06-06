@@ -1,7 +1,7 @@
 package com.vitalai.di
 
 import com.vitalai.BuildConfig
-import com.vitalai.data.local.TokenManager
+import com.vitalai.data.local.datastore.TokenManager
 import com.vitalai.data.remote.AuthApi
 import com.vitalai.data.remote.TokenAuthenticator
 import dagger.Module

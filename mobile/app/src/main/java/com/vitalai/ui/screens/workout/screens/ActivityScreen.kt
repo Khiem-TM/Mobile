@@ -509,7 +509,18 @@ private fun ActivityDatePickerDialog(
                 .toEpochMilli()
         }.getOrNull()
     }
-    val pickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+    val pickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val selectedDate = java.time.Instant.ofEpochMilli(utcTimeMillis)
+                    .atZone(java.time.ZoneId.of("UTC"))
+                    .toLocalDate()
+                val today = LocalDate.now()
+                return !selectedDate.isAfter(today)
+            }
+        }
+    )
     DatePickerDialog(
         onDismissRequest = onDismiss,
         confirmButton = {

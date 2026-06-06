@@ -4,7 +4,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.vitalai.core.error.AppErrorMapper
 import com.vitalai.core.notification.DeviceTokenRegistrar
-import com.vitalai.data.local.TokenManager
+import com.vitalai.data.local.datastore.TokenManager
 import com.vitalai.data.remote.AuthApi
 import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.AuthResponseDto

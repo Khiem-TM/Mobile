@@ -2,9 +2,14 @@ package com.vitalai.data.repository
 
 import android.content.Context
 import com.vitalai.core.sync.SyncScheduler
-import com.vitalai.data.local.dao.PendingSyncActionDao
-import com.vitalai.data.local.entity.PendingSyncActionEntity
+import com.vitalai.data.local.room.dao.PendingSyncActionDao
+import com.vitalai.data.local.room.entity.PendingSyncActionEntity
 import com.vitalai.data.remote.TrainingApi
+import com.vitalai.data.remote.UpdateStepsRequest
+import com.vitalai.data.remote.UpdateWaterRequest
+import com.vitalai.data.remote.UpdateSleepRequest
+import com.vitalai.data.remote.UpdateMoodRequest
+import com.vitalai.data.remote.UpdateNoteRequest
 import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.remote.model.AddExerciseRequest
 import com.vitalai.data.remote.model.CreateWorkoutSessionDto
@@ -254,7 +259,7 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateSteps(steps: Int, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateSteps(mapOf("logDate" to logDate, "steps" to steps))
+            val response = trainingApi.updateSteps(UpdateStepsRequest(logDate, steps))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
                 val sessionsResponse = trainingApi.getSessionsByDate(logDate)
@@ -279,7 +284,7 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateWater(waterMl: Int, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateWater(mapOf("logDate" to logDate, "waterMl" to waterMl))
+            val response = trainingApi.updateWater(UpdateWaterRequest(logDate, waterMl))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
                 val sessionsResponse = trainingApi.getSessionsByDate(logDate)
@@ -305,9 +310,25 @@ class TrainingRepository @Inject constructor(
     suspend fun getActivityLogRange(fromDate: String, toDate: String): Result<List<ActivityLogDto>> {
         return try {
             val response = trainingApi.getActivityLogRange(fromDate, toDate)
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
-            else Result.success(emptyList())
+            val body = response.body()?.data ?: emptyList()
+
+            val start = java.time.LocalDate.parse(fromDate)
+            val end = java.time.LocalDate.parse(toDate)
+            val allDates = generateSequence(start) { d -> d.plusDays(1).takeIf { !it.isAfter(end) } }.map { it.toString() }.toList()
+
+            val logsByDate = body.associateBy { it.logDate }.toMutableMap()
+            allDates.forEach { date ->
+                val existing = logsByDate[date] ?: ActivityLogDto(logDate = date)
+                val pendingW = pendingWater(date)
+                val pendingS = pendingSteps(date)
+                if (pendingW != null || pendingS != null || logsByDate.containsKey(date)) {
+                    logsByDate[date] = existing.copy(
+                        waterMl = pendingW ?: existing.waterMl,
+                        steps = pendingS ?: existing.steps
+                    )
+                }
+            }
+            Result.success(logsByDate.values.toList())
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -315,7 +336,7 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateSleep(sleepHours: Float, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateSleep(mapOf("logDate" to logDate, "sleepHours" to sleepHours))
+            val response = trainingApi.updateSleep(UpdateSleepRequest(logDate, sleepHours))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi cập nhật giấc ngủ (${response.code()})"))
@@ -326,7 +347,7 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateMood(mood: String, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateMood(mapOf("logDate" to logDate, "mood" to mood))
+            val response = trainingApi.updateMood(UpdateMoodRequest(logDate, mood))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi cập nhật tâm trạng (${response.code()})"))
@@ -337,7 +358,7 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateNote(note: String, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateNote(mapOf("logDate" to logDate, "note" to note))
+            val response = trainingApi.updateNote(UpdateNoteRequest(logDate, note))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) Result.success(body)
             else Result.failure(Exception("Lỗi cập nhật ghi chú (${response.code()})"))

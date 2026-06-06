@@ -1,4 +1,4 @@
-package com.vitalai.data.local
+package com.vitalai.data.local.datastore
 
 import android.content.Context
 import androidx.datastore.core.DataStore

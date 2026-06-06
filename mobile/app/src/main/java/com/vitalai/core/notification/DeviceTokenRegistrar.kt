@@ -3,7 +3,7 @@ package com.vitalai.core.notification
 import com.google.firebase.messaging.FirebaseMessaging
 import com.vitalai.core.logging.AppLogger
 import com.vitalai.core.settings.AppSettingsDataStore
-import com.vitalai.data.local.TokenManager
+import com.vitalai.data.local.datastore.TokenManager
 import com.vitalai.data.remote.DeviceTokenApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await

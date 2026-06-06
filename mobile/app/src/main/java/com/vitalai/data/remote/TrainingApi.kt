@@ -16,6 +16,22 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import com.squareup.moshi.JsonClass
+
+@JsonClass(generateAdapter = true)
+data class UpdateStepsRequest(val logDate: String, val steps: Int)
+
+@JsonClass(generateAdapter = true)
+data class UpdateWaterRequest(val logDate: String, val waterMl: Int)
+
+@JsonClass(generateAdapter = true)
+data class UpdateSleepRequest(val logDate: String, val sleepHours: Float)
+
+@JsonClass(generateAdapter = true)
+data class UpdateMoodRequest(val logDate: String, val mood: String)
+
+@JsonClass(generateAdapter = true)
+data class UpdateNoteRequest(val logDate: String, val note: String)
 
 interface TrainingApi {
     @GET("training-sessions")
@@ -76,19 +92,19 @@ interface TrainingApi {
     suspend fun getActivityLog(@Query("date") date: String): Response<ApiResponse<ActivityLogDto>>
 
     @PATCH("activity-logs/steps")
-    suspend fun updateSteps(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+    suspend fun updateSteps(@Body request: UpdateStepsRequest): Response<ApiResponse<ActivityLogDto>>
 
     @PATCH("activity-logs/water")
-    suspend fun updateWater(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+    suspend fun updateWater(@Body request: UpdateWaterRequest): Response<ApiResponse<ActivityLogDto>>
 
     @PATCH("activity-logs/sleep")
-    suspend fun updateSleep(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+    suspend fun updateSleep(@Body request: UpdateSleepRequest): Response<ApiResponse<ActivityLogDto>>
 
     @PATCH("activity-logs/mood")
-    suspend fun updateMood(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+    suspend fun updateMood(@Body request: UpdateMoodRequest): Response<ApiResponse<ActivityLogDto>>
 
     @PATCH("activity-logs/note")
-    suspend fun updateNote(@Body body: Map<String, Any>): Response<ApiResponse<ActivityLogDto>>
+    suspend fun updateNote(@Body request: UpdateNoteRequest): Response<ApiResponse<ActivityLogDto>>
 
     @GET("activity-logs/range")
     suspend fun getActivityLogRange(
