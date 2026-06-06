@@ -25,7 +25,7 @@ export class DashboardService {
     @Inject(forwardRef(() => TrainingSessionsService))
     private readonly trainingSessionsService: TrainingSessionsService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   async getUserDailyDashboard(userId: string, date: string) {
     const key = `cache:dashboard:daily:${userId}:${date}`;
@@ -69,7 +69,19 @@ export class DashboardService {
   }
 
   async invalidateDailyCache(userId: string, date: string): Promise<void> {
-    await this.redisService.del(`cache:dashboard:daily:${userId}:${date}`);
+    const d = new Date(date);
+    const day = d.getDay() || 7;
+    const weekStart = new Date(d);
+    weekStart.setDate(weekStart.getDate() - (day - 1));
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+
+    await Promise.all([
+      this.redisService.del(`cache:dashboard:daily:${userId}:${date}`),
+      this.redisService.del(`cache:dashboard:weekly:${userId}:${weekStartStr}`),
+      this.redisService.del(`cache:dashboard:monthly:${userId}:${year}:${month}`),
+    ]);
   }
 
   async getWeeklyReport(userId: string, weekStart: string) {
@@ -82,11 +94,13 @@ export class DashboardService {
     const fromDate = weekStart;
     const toDate = endDate.toISOString().split('T')[0];
 
-    const [activityRange, bodyRange, sessions] = await Promise.all([
+    const [activityRange, bodyRange, rawSessions] = await Promise.all([
       this.activityLogsService.getRange(userId, fromDate, toDate),
       this.bodyMetricsService.getRange(userId, fromDate, toDate),
       this.trainingSessionsService.getSessionHistoryRange(userId, fromDate, toDate),
     ]);
+
+    const sessions = rawSessions.filter((s: any) => Number(s.totalDurationMinutes) > 0 || Number(s.totalCaloriesBurned) > 0);
 
     const dailyNutrition = await this.mealLogsService.getDailySummaryRange(userId, fromDate, toDate);
 
@@ -108,14 +122,14 @@ export class DashboardService {
     const weekResult = {
       period: { from: fromDate, to: toDate },
       nutrition: {
-        avg_daily_calories: daysLogged > 0 ? Math.round(totalCalories / daysLogged) : 0,
+        avg_daily_calories: Math.round(totalCalories / 7),
         total_calories: Math.round(totalCalories),
         days_logged: daysLogged,
         daily_breakdown: dailyNutrition,
       },
       activity: {
         total_steps: totalSteps,
-        avg_daily_steps: activityRange.length ? Math.round(totalSteps / activityRange.length) : 0,
+        avg_daily_steps: Math.round(totalSteps / 7),
         total_water_ml: totalWater,
       },
       training: {
@@ -138,11 +152,13 @@ export class DashboardService {
     const lastDay = new Date(year, month, 0).getDate();
     const toDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
 
-    const [activityRange, bodyRange, sessions] = await Promise.all([
+    const [activityRange, bodyRange, rawSessions] = await Promise.all([
       this.activityLogsService.getRange(userId, fromDate, toDate),
       this.bodyMetricsService.getRange(userId, fromDate, toDate),
       this.trainingSessionsService.getSessionHistoryRange(userId, fromDate, toDate),
     ]);
+
+    const sessions = rawSessions.filter((s: any) => Number(s.totalDurationMinutes) > 0 || Number(s.totalCaloriesBurned) > 0);
 
     const dailyNutrition = await this.mealLogsService.getDailySummaryRange(userId, fromDate, toDate);
     const monthTotalCalories = Object.values(dailyNutrition).reduce(
@@ -168,13 +184,13 @@ export class DashboardService {
       period: { from: fromDate, to: toDate, year, month },
       nutrition: {
         total_calories: Math.round(monthTotalCalories),
-        avg_daily_calories: daysLogged > 0 ? Math.round(monthTotalCalories / daysLogged) : 0,
+        avg_daily_calories: Math.round(monthTotalCalories / lastDay),
         days_logged: daysLogged,
         daily_breakdown: dailyNutrition,
       },
       activity: {
         total_steps: totalSteps,
-        avg_daily_steps: activityRange.length ? Math.round(totalSteps / activityRange.length) : 0,
+        avg_daily_steps: Math.round(totalSteps / lastDay),
         total_water_ml: totalWater,
         active_days: activityRange.length,
       },
