@@ -77,11 +77,18 @@ fun UpsertBodyMetricRequest.toDto(tempId: String) = BodyMetricDto(
 
 fun String.toDateRange(): Pair<String, String> {
     val today = LocalDate.now()
-    val from = when (this) {
-        "week" -> today.minusDays(6)
-        "month" -> today.minusDays(29)
-        "3months" -> today.minusDays(89)
-        else -> today.minusDays(6)
+    return when (this) {
+        "month" -> {
+            val firstOfMonth = today.withDayOfMonth(1)
+            Pair(firstOfMonth.minusMonths(11).toString(), firstOfMonth.plusMonths(2).toString())
+        }
+        else -> {
+            val from = when (this) {
+                "week"    -> today.minusDays(6)
+                "3months" -> today.minusDays(179)
+                else      -> today.minusDays(6)
+            }
+            Pair(from.toString(), today.plusDays(1).toString())
+        }
     }
-    return Pair(from.toString(), today.plusDays(1).toString())
 }

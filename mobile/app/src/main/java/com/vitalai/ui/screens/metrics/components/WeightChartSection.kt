@@ -9,6 +9,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.VerticalAlignBottom
+import androidx.compose.material.icons.filled.VerticalAlignTop
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontWeight.Companion.SemiBold
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -40,7 +45,7 @@ import com.vitalai.ui.screens.metrics.formatDateDisplay
 import com.vitalai.ui.theme.*
 import java.time.DayOfWeek
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
+import java.time.YearMonth
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -55,11 +60,34 @@ internal fun PeriodChartSection(
     earliestDate: LocalDate? = null,
     onExpandWeekRange: ((LocalDate) -> Unit)? = null
 ) {
-    var weekRangeText   by remember { mutableStateOf("") }
-    var selectedMetric  by remember { mutableStateOf<BodyMetricDto?>(null) }
-    var selectedDayIdx  by remember { mutableStateOf<Int?>(null) }
-    var chartWidthPx    by remember { mutableFloatStateOf(0f) }
+    var weekRangeText      by remember { mutableStateOf("") }
+    var selectedMetric     by remember { mutableStateOf<BodyMetricDto?>(null) }
+    var selectedDayIdx     by remember { mutableStateOf<Int?>(null) }
+    var chartWidthPx       by remember { mutableFloatStateOf(0f) }
+    var visibleWeekWeights   by remember { mutableStateOf<List<Float>>(emptyList()) }
+    var visibleMonthWeights  by remember { mutableStateOf<List<Float>>(emptyList()) }
+    var selectedMonthXNorm   by remember { mutableStateOf<Float?>(null) }
+    var selectedMonthMetric  by remember { mutableStateOf<BodyMetricDto?>(null) }
+    var monthYearText by remember {
+        val now = LocalDate.now()
+        mutableStateOf("Tháng ${now.monthValue}, ${now.year}")
+    }
+    var selectedQuarterAvgWeight by remember { mutableStateOf<Float?>(null) }
+    var selectedQuarterXNorm     by remember { mutableStateOf<Float?>(null) }
+    var quarterCenterMonth       by remember { mutableStateOf<YearMonth?>(null) }
+    var monthDisplayStart        by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1)) }
     val density = LocalDensity.current
+
+    LaunchedEffect(selectedPeriod) {
+        if (selectedPeriod != "month") {
+            selectedMonthXNorm  = null
+            selectedMonthMetric = null
+        }
+        if (selectedPeriod != "3months") {
+            selectedQuarterAvgWeight = null
+            selectedQuarterXNorm     = null
+        }
+    }
 
     VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -103,9 +131,58 @@ internal fun PeriodChartSection(
             Spacer(Modifier.height(12.dp))
 
             if (periodData != null && periodData.data.size >= 2) {
+                val quarterRangeText = quarterCenterMonth?.let { center ->
+                    "Tháng ${center.minusMonths(1).monthValue} - ${center.plusMonths(1).monthValue}, ${center.year}"
+                } ?: ""
+                val displayWeights = when (selectedPeriod) {
+                    "week"  -> visibleWeekWeights
+                    "month" -> {
+                        val start = monthDisplayStart
+                        val end   = start.withDayOfMonth(start.lengthOfMonth())
+                        periodData.data.mapNotNull { dto ->
+                            val d = runCatching { LocalDate.parse(dto.date.take(10)) }.getOrNull()
+                                ?: return@mapNotNull null
+                            if (!d.isBefore(start) && !d.isAfter(end)) dto.weightKg else null
+                        }
+                    }
+                    "3months" -> {
+                        val monthAvgMap: Map<YearMonth, Float> = periodData.data
+                            .mapNotNull { dto ->
+                                val d = runCatching { LocalDate.parse(dto.date.take(10)) }.getOrNull()
+                                    ?: return@mapNotNull null
+                                YearMonth.from(d) to dto.weightKg
+                            }
+                            .groupBy({ it.first }, { it.second })
+                            .mapValues { (_, ws) -> ws.average().toFloat() }
+
+                        val center = quarterCenterMonth ?: monthAvgMap.keys.maxOrNull()
+
+                        if (center != null) {
+                            val visible = setOf(center.minusMonths(1), center, center.plusMonths(1))
+                            visible.mapNotNull { ym -> monthAvgMap[ym] }
+                        } else emptyList()
+                    }
+                    else -> periodData.data.map { it.weightKg }
+                }
+                val (minText, maxText) = when {
+                    displayWeights.isEmpty() -> "--" to "--"
+                    displayWeights.all { it == displayWeights.first() } -> {
+                        val v = String.format(Locale.US, "%.1f", displayWeights.first())
+                        v to v
+                    }
+                    else ->
+                        String.format(Locale.US, "%.1f", displayWeights.minOrNull()!!) to
+                        String.format(Locale.US, "%.1f", displayWeights.maxOrNull()!!)
+                }
+                val avgDisplay = if (displayWeights.isEmpty()) null
+                                 else displayWeights.average().toFloat()
+
                 val idx    = selectedDayIdx
                 val metric = selectedMetric
-                val showTooltip = selectedPeriod == "week" && idx != null && metric != null && chartWidthPx > 0f
+                val showTooltip =
+                    (selectedPeriod == "week"     && idx != null && metric != null && chartWidthPx > 0f) ||
+                    (selectedPeriod == "month"    && selectedMonthMetric != null && selectedMonthXNorm != null && chartWidthPx > 0f) ||
+                    (selectedPeriod == "3months"  && selectedQuarterAvgWeight != null && selectedQuarterXNorm != null && chartWidthPx > 0f)
                 Box(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.alpha(0f).padding(horizontal = 8.dp, vertical = 3.dp)) {
                         Text("99.9 kg", fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 15.sp)
@@ -115,10 +192,13 @@ internal fun PeriodChartSection(
                     if (showTooltip) {
                         val parentWDp = with(density) { chartWidthPx.toDp() }
                         val chartWDp  = parentWDp - 8.dp - 46.dp
-                        val colWDp    = chartWDp / 7f
                         val cardWDp   = chartWDp * 2f / 7f
-                        val centerX   = 8.dp + colWDp * (idx!! + 0.5f)
-                        val cardLeft  = (centerX - cardWDp / 2f).coerceIn(0.dp, parentWDp - cardWDp)
+                        val centerX   = when (selectedPeriod) {
+                            "week"    -> 8.dp + (chartWDp / 7f) * (idx!! + 0.5f)
+                            "month"   -> 8.dp + chartWDp * selectedMonthXNorm!!
+                            else      -> 8.dp + chartWDp * selectedQuarterXNorm!!
+                        }
+                        val cardLeft = (centerX - cardWDp / 2f).coerceIn(0.dp, parentWDp - cardWDp)
                         Box(
                             modifier = Modifier
                                 .offset(x = cardLeft)
@@ -127,20 +207,39 @@ internal fun PeriodChartSection(
                                 .background(Ink900)
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
-                            Column {
-                                Text(
-                                    String.format(Locale.US, "%.1f kg", metric!!.weightKg),
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    lineHeight = 15.sp
-                                )
-                                Text(
-                                    formatDateDisplay(metric.date),
-                                    color = Color.White.copy(alpha = 0.75f),
-                                    fontSize = 8.sp,
-                                    lineHeight = 11.sp
-                                )
+                            if (selectedPeriod == "3months") {
+                                Column {
+                                    Text(
+                                        text = "TB tháng",
+                                        color = Color.White.copy(alpha = 0.75f),
+                                        fontSize = 8.sp,
+                                        lineHeight = 11.sp
+                                    )
+                                    Text(
+                                        text = String.format(Locale.US, "%.1f kg", selectedQuarterAvgWeight!!),
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            } else {
+                                val displayMetric = if (selectedPeriod == "week") metric!! else selectedMonthMetric!!
+                                Column {
+                                    Text(
+                                        String.format(Locale.US, "%.1f kg", displayMetric.weightKg),
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 15.sp
+                                    )
+                                    Text(
+                                        formatDateDisplay(displayMetric.date),
+                                        color = Color.White.copy(alpha = 0.75f),
+                                        fontSize = 8.sp,
+                                        lineHeight = 11.sp
+                                    )
+                                }
                             }
                         }
                     } else {
@@ -149,20 +248,48 @@ internal fun PeriodChartSection(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("TB: ${String.format(Locale.US, "%.1f", periodData.avgWeight)} kg", fontSize = 12.sp, color = Ink500)
+                            Text(
+                                if (avgDisplay != null) "TB: ${String.format(Locale.US, "%.1f", avgDisplay)} kg" else "TB: --",
+                                fontSize = 12.sp,
+                                color = Ink500
+                            )
                             if (selectedPeriod == "week" && weekRangeText.isNotEmpty()) {
-                                Text(weekRangeText, fontSize = 11.sp, color = Ink400)
+                                Text(weekRangeText, fontSize = 12.sp, color = ForestGreen, fontWeight = SemiBold)
+                            } else if (selectedPeriod == "month") {
+                                Text(monthYearText, fontSize = 12.sp, color = ForestGreen, fontWeight = SemiBold)
+                            } else if (selectedPeriod == "3months" && quarterRangeText.isNotEmpty()) {
+                                Text(quarterRangeText, fontSize = 12.sp, color = ForestGreen, fontWeight = SemiBold)
                             }
-                            Text(String.format(Locale.US, "↓%.1f / ↑%.1f kg", periodData.minWeight, periodData.maxWeight), fontSize = 12.sp, color = Ink500)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Icon(Icons.Default.VerticalAlignBottom, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(14.dp))
+                                    Text(minText, fontSize = 12.sp, color = ForestGreen)
+                                }
+                                Text("/", fontSize = 12.sp, color = Ink400)
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Icon(Icons.Default.VerticalAlignTop, contentDescription = null, tint = Color(0xFFF87171), modifier = Modifier.size(14.dp))
+                                    Text(maxText, fontSize = 12.sp, color = Color(0xFFF87171))
+                                }
+                            }
                         }
                     }
                 }
                 Canvas(modifier = Modifier.fillMaxWidth().height(1.dp)) {
-                    val selIdx = selectedDayIdx
-                    if (selIdx != null && size.width > 0f) {
+                    if (size.width > 0f) {
                         val lp    = 8.dp.toPx()
                         val rp    = 46.dp.toPx()
-                        val connX = lp + (selIdx + 0.5f) * ((size.width - lp - rp) / 7f)
+                        val connX = when {
+                            selectedPeriod == "week"    && selectedDayIdx != null        ->
+                                lp + (selectedDayIdx!! + 0.5f) * ((size.width - lp - rp) / 7f)
+                            selectedPeriod == "month"   && selectedMonthXNorm != null    ->
+                                lp + selectedMonthXNorm!! * (size.width - lp - rp)
+                            selectedPeriod == "3months" && selectedQuarterXNorm != null  ->
+                                lp + selectedQuarterXNorm!! * (size.width - lp - rp)
+                            else -> return@Canvas
+                        }
                         drawLine(
                             color = Color.Gray.copy(alpha = 0.35f),
                             start = Offset(connX, 0f),
@@ -184,7 +311,20 @@ internal fun PeriodChartSection(
                     onDaySelected = { i, m ->
                         selectedDayIdx = i
                         selectedMetric = m
-                    }
+                    },
+                    onVisibleWeightsChange = { visibleWeekWeights = it },
+                    onMonthDaySelected = { m, xNorm ->
+                        selectedMonthMetric = m
+                        selectedMonthXNorm  = xNorm
+                    },
+                    onMonthRangeChange = { monthYearText = it },
+                    onVisibleMonthWeightsChange = { visibleMonthWeights = it },
+                    onMonthCenterStartChange = { monthDisplayStart = it },
+                    onQuarterMonthSelected = { avgW, xNorm ->
+                        selectedQuarterAvgWeight = avgW
+                        selectedQuarterXNorm     = xNorm
+                    },
+                    onQuarterCenterMonthChange = { quarterCenterMonth = it }
                 )
             } else {
                 Box(
@@ -213,7 +353,14 @@ private fun WeightLineChart(
     earliestDate: LocalDate? = null,
     onExpandWeekRange: ((LocalDate) -> Unit)? = null,
     onWeekRangeChange: ((String) -> Unit)? = null,
-    onDaySelected: ((Int?, BodyMetricDto?) -> Unit)? = null
+    onDaySelected: ((Int?, BodyMetricDto?) -> Unit)? = null,
+    onVisibleWeightsChange: ((List<Float>) -> Unit)? = null,
+    onMonthDaySelected: ((BodyMetricDto?, Float?) -> Unit)? = null,
+    onMonthRangeChange: ((String) -> Unit)? = null,
+    onVisibleMonthWeightsChange: ((List<Float>) -> Unit)? = null,
+    onMonthCenterStartChange: ((LocalDate) -> Unit)? = null,
+    onQuarterMonthSelected: ((Float?, Float?) -> Unit)? = null,
+    onQuarterCenterMonthChange: ((YearMonth) -> Unit)? = null
 ) {
     val pointsByDate = remember(data) {
         data.mapNotNull { metric ->
@@ -306,13 +453,17 @@ private fun WeightLineChart(
         val onWeekRangeChangeState = rememberUpdatedState(onWeekRangeChange)
         val startDayState          = rememberUpdatedState(startDay)
 
-        val onExpandWeekRangeState = rememberUpdatedState(onExpandWeekRange)
+        val onExpandWeekRangeState      = rememberUpdatedState(onExpandWeekRange)
+        val onVisibleWeightsChangeState = rememberUpdatedState(onVisibleWeightsChange)
 
         var selectedDayIdx by remember { mutableStateOf<Int?>(null) }
         LaunchedEffect(dayOffset) {
             selectedDayIdx = null
             onDaySelectedState.value?.invoke(null, null)
             onExpandWeekRangeState.value?.invoke(startDay)
+        }
+        LaunchedEffect(curMap) {
+            onVisibleWeightsChangeState.value?.invoke(curMap.values.map { it.weightKg })
         }
 
         val weekRangeText = remember(startDay) {
@@ -562,69 +713,476 @@ private fun WeightLineChart(
                 }
             }
         }
-    } else {
-        val firstDate = pointsByDate.first().first
-        val lastDate = pointsByDate.last().first
-        val totalDays = java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate).toFloat().coerceAtLeast(1f)
+    } else if (period == "month") {
+        var monthOffset by remember { mutableIntStateOf(0) }
+        val dragX  = remember { Animatable(0f) }
+        var rawDrag by remember { mutableFloatStateOf(0f) }
+        val dragXValue = rawDrag + dragX.value
+        val scope  = rememberCoroutineScope()
 
-        Column(modifier = modifier) {
-            Canvas(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                val w = size.width
-                val h = size.height
-                val leftPadding = 8.dp.toPx()
-                val rightPadding = 46.dp.toPx()
-                val topPadding = 12.dp.toPx()
-                val bottomPadding = 8.dp.toPx()
-                val chartW = w - leftPadding - rightPadding
-                val chartH = h - topPadding - bottomPadding
+        val baseMonth      = remember { LocalDate.now().withDayOfMonth(1) }
+        val curMonthStart  = remember(monthOffset) { baseMonth.plusMonths(monthOffset.toLong()) }
+        val prevMonthStart = remember(curMonthStart) { curMonthStart.minusMonths(1) }
+        val nextMonthStart = remember(curMonthStart) { curMonthStart.plusMonths(1) }
 
-                val points = pointsByDate.map { (date, metric) ->
-                    val dayOffset = java.time.temporal.ChronoUnit.DAYS.between(firstDate, date).toFloat()
-                    val x = leftPadding + dayOffset / totalDays * chartW
-                    val y = topPadding + (1f - (metric.weightKg - axisMin) / axisRange) * chartH
-                    Offset(x, y)
-                }
+        fun buildMonthPts(start: LocalDate): List<Pair<LocalDate, BodyMetricDto>> {
+            val end = start.withDayOfMonth(start.lengthOfMonth())
+            return pointsByDate.filter { (d, _) -> !d.isBefore(start) && !d.isAfter(end) }
+        }
+        val prevPoints = remember(pointsByDate, prevMonthStart) { buildMonthPts(prevMonthStart) }
+        val curPoints  = remember(pointsByDate, curMonthStart)  { buildMonthPts(curMonthStart) }
+        val nextPoints = remember(pointsByDate, nextMonthStart) { buildMonthPts(nextMonthStart) }
 
-                val gridColor = Ink200.copy(alpha = 0.75f)
+        val minMonth = remember(pointsByDate, earliestDate) {
+            (earliestDate ?: pointsByDate.firstOrNull()?.first ?: baseMonth).withDayOfMonth(1)
+        }
+        val hasPrev = curMonthStart > minMonth
+        val hasNext = curMonthStart < baseMonth
+        val hasPrevState = rememberUpdatedState(hasPrev)
+        val hasNextState = rememberUpdatedState(hasNext)
 
-                repeat(3) { index ->
-                    val fraction = index / 2f
-                    val y = topPadding + fraction * chartH
-                    drawLine(gridColor, Offset(leftPadding, y), Offset(w - rightPadding, y), strokeWidth = 1.dp.toPx())
-                    val weightAtLine = axisMax - fraction * axisRange
-                    val measured = textMeasurer.measure("%.0f".format(weightAtLine), axisLabelStyle)
-                    drawText(measured, topLeft = Offset(w - rightPadding + 5.dp.toPx(), y - measured.size.height / 2f))
-                }
+        var selectedMonthIdx by remember(curPoints) { mutableStateOf<Int?>(null) }
 
-                drawPath(
-                    Path().apply {
-                        moveTo(points.first().x, topPadding + chartH)
-                        points.forEach { lineTo(it.x, it.y) }
-                        lineTo(points.last().x, topPadding + chartH)
-                        close()
-                    },
-                    color = ForestGreen.copy(alpha = 0.15f)
-                )
-                drawPath(
-                    Path().apply {
-                        moveTo(points.first().x, points.first().y)
-                        points.drop(1).forEach { lineTo(it.x, it.y) }
-                    },
-                    color = ForestGreen,
-                    style = Stroke(width = 2.dp.toPx())
-                )
+        val onMonthDaySelectedState       = rememberUpdatedState(onMonthDaySelected)
+        val onMonthRangeChangeState       = rememberUpdatedState(onMonthRangeChange)
+        val onVisibleMonthWCState         = rememberUpdatedState(onVisibleMonthWeightsChange)
+        val onMonthCenterStartChangeState = rememberUpdatedState(onMonthCenterStartChange)
+        val curPointsState                = rememberUpdatedState(curPoints)
+        val curMonthStartState            = rememberUpdatedState(curMonthStart)
 
-                points.forEach { pt ->
-                    drawCircle(color = ForestGreen, radius = 4.dp.toPx(), center = pt)
-                    drawCircle(color = Color.White, radius = 2.dp.toPx(), center = pt)
+        LaunchedEffect(curPoints) {
+            selectedMonthIdx = null
+            onMonthDaySelectedState.value?.invoke(null, null)
+            onVisibleMonthWCState.value?.invoke(curPoints.map { it.second.weightKg })
+        }
+        LaunchedEffect(curMonthStart) { onMonthCenterStartChangeState.value?.invoke(curMonthStart) }
+        val monthYearStr = remember(curMonthStart) { "Tháng ${curMonthStart.monthValue}, ${curMonthStart.year}" }
+        LaunchedEffect(monthYearStr) { onMonthRangeChangeState.value?.invoke(monthYearStr) }
+
+        Box(
+            modifier = modifier.pointerInput(Unit) {
+                val lp    = 8.dp.toPx()
+                val rp    = 46.dp.toPx()
+                val pageW = size.width.toFloat() - lp - rp
+                val inset = 16.dp.toPx()   // must stay in sync with horizontalInset in Canvas block
+
+                awaitEachGesture {
+                    val velocityTracker = VelocityTracker()
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    velocityTracker.addPosition(down.uptimeMillis, down.position)
+                    var dragging = false
+
+                    while (true) {
+                        val event  = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                        if (!change.pressed) {
+                            if (dragging) {
+                                val velocity = velocityTracker.calculateVelocity().x
+                                scope.launch {
+                                    val cur = rawDrag + dragX.value
+                                    dragX.snapTo(cur); rawDrag = 0f
+                                    val mShift = (-cur / pageW).roundToInt().coerceIn(-1, 1)
+                                    when {
+                                        (velocity < -300f || mShift >= 1) && hasNextState.value -> {
+                                            onMonthDaySelectedState.value?.invoke(null, null)
+                                            dragX.animateTo(-pageW, spring(dampingRatio = 1f, stiffness = 800f))
+                                            monthOffset++; dragX.snapTo(0f)
+                                        }
+                                        (velocity > 300f || mShift <= -1) && hasPrevState.value -> {
+                                            onMonthDaySelectedState.value?.invoke(null, null)
+                                            dragX.animateTo(pageW, spring(dampingRatio = 1f, stiffness = 800f))
+                                            monthOffset--; dragX.snapTo(0f)
+                                        }
+                                        else -> dragX.animateTo(0f, spring(dampingRatio = 0.65f, stiffness = 300f))
+                                    }
+                                }
+                            } else if (!dragX.isRunning) {
+                                val tapDx = change.position.x - down.position.x
+                                val tapDy = change.position.y - down.position.y
+                                if (kotlin.math.abs(tapDx) < viewConfiguration.touchSlop &&
+                                    kotlin.math.abs(tapDy) < viewConfiguration.touchSlop) {
+                                    val tapX    = down.position.x
+                                    val pts     = curPointsState.value
+                                    val daysInMo = curMonthStartState.value.lengthOfMonth()
+                                    fun xLocal(day: Int) =
+                                        lp + inset + (day - 1).toFloat() / (daysInMo - 1).coerceAtLeast(1) * (pageW - 2 * inset)
+                                    val tapThreshold = 16.dp.toPx()
+                                    val nearest = pts.indices.minByOrNull { i ->
+                                        kotlin.math.abs(tapX - xLocal(pts[i].first.dayOfMonth))
+                                    }?.takeIf { i ->
+                                        kotlin.math.abs(tapX - xLocal(pts[i].first.dayOfMonth)) <= tapThreshold
+                                    }
+                                    val newIdx = if (nearest != null && selectedMonthIdx != nearest) nearest else null
+                                    selectedMonthIdx = newIdx
+                                    if (newIdx != null) {
+                                        val day = pts[newIdx].first.dayOfMonth
+                                        onMonthDaySelectedState.value?.invoke(
+                                            pts[newIdx].second,
+                                            (xLocal(day) - lp) / pageW.coerceAtLeast(1f)
+                                        )
+                                    } else {
+                                        onMonthDaySelectedState.value?.invoke(null, null)
+                                    }
+                                }
+                            }
+                            break
+                        }
+
+                        val totalDx = change.position.x - down.position.x
+                        val totalDy = change.position.y - down.position.y
+                        if (!dragging) {
+                            when {
+                                kotlin.math.abs(totalDx) > viewConfiguration.touchSlop &&
+                                kotlin.math.abs(totalDx) >= kotlin.math.abs(totalDy) -> {
+                                    dragging = true
+                                    selectedMonthIdx = null
+                                    onMonthDaySelectedState.value?.invoke(null, null)
+                                    change.consume()
+                                }
+                                kotlin.math.abs(totalDy) > viewConfiguration.touchSlop -> break
+                            }
+                        }
+                        if (dragging) {
+                            change.consume()
+                            val dx = change.position.x - change.previousPosition.x
+                            val elastic = (dx > 0f && !hasPrevState.value) || (dx < 0f && !hasNextState.value)
+                            rawDrag += if (elastic) dx * 0.3f else dx
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                        }
+                    }
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(firstDate.format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi"))), color = Ink500, fontSize = 10.sp)
-                Text(lastDate.format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi"))), color = Ink500, fontSize = 10.sp)
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                val leftPadding  = 8.dp.toPx()
+                val rightPadding = 46.dp.toPx()
+                val topPadding   = 12.dp.toPx()
+                val tickExtend   = 6.dp.toPx()
+                val labelHeight  = 16.dp.toPx()
+                val bottomPadding = tickExtend + labelHeight + 4.dp.toPx()
+                val chartW       = w - leftPadding - rightPadding
+                val chartH       = h - topPadding - bottomPadding
+                val chartBottom  = topPadding + chartH
+                val dotRadius        = 4.dp.toPx()
+                val horizontalInset  = dotRadius + 12.dp.toPx()
+
+                fun yForWeight(wt: Float) = topPadding + (1f - (wt - axisMin) / axisRange) * chartH
+
+                val gridColor  = Ink200.copy(alpha = 0.75f)
+                val dashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()), 0f)
+
+                repeat(3) { gridIdx ->
+                    val fraction = gridIdx / 2f
+                    val y = topPadding + fraction * chartH
+                    drawLine(gridColor, Offset(leftPadding, y), Offset(w - rightPadding, y), strokeWidth = 1.dp.toPx())
+                    val lbl = textMeasurer.measure("%.0f".format(axisMax - fraction * axisRange), axisLabelStyle)
+                    drawText(lbl, topLeft = Offset(w - rightPadding + 5.dp.toPx(), y - lbl.size.height / 2f))
+                }
+
+                val pageOffsets  = listOf(dragXValue - chartW, dragXValue, dragXValue + chartW)
+                val pageDataList = listOf(prevPoints, curPoints, nextPoints)
+                val pageMonths   = listOf(prevMonthStart, curMonthStart, nextMonthStart)
+
+                pageOffsets.forEachIndexed { pageIdx, tx ->
+                    val clipLeft  = (tx + leftPadding).coerceAtLeast(leftPadding)
+                    val clipRight = (tx + leftPadding + chartW).coerceAtMost(w - rightPadding)
+                    if (clipLeft >= clipRight) return@forEachIndexed
+
+                    val month    = pageMonths[pageIdx]
+                    val daysInMo = month.lengthOfMonth()
+                    val pts      = pageDataList[pageIdx]
+
+                    fun xForDayPage(day: Int) =
+                        tx + leftPadding + horizontalInset +
+                        (day - 1).toFloat() / (daysInMo - 1).coerceAtLeast(1) * (chartW - 2 * horizontalInset)
+
+                    clipRect(clipLeft, 0f, clipRight, h) {
+                        val weekSepOffsets = generateSequence(0) { it + 7 }.takeWhile { it < daysInMo }.toList()
+                        val endOff         = daysInMo - 1
+                        val allSep         = if (weekSepOffsets.last() == endOff) weekSepOffsets
+                                             else weekSepOffsets + listOf(endOff)
+                        allSep.forEach { off ->
+                            drawLine(
+                                Ink200.copy(alpha = 0.9f),
+                                Offset(xForDayPage(off + 1), topPadding),
+                                Offset(xForDayPage(off + 1), chartBottom + tickExtend),
+                                1.dp.toPx(),
+                                pathEffect = dashEffect
+                            )
+                        }
+                        weekSepOffsets.forEach { off ->
+                            val lbl = textMeasurer.measure((off + 1).toString(), axisLabelStyle)
+                            drawText(lbl, topLeft = Offset(
+                                xForDayPage(off + 1) - lbl.size.width / 2f,
+                                chartBottom + tickExtend + 3.dp.toPx()
+                            ))
+                        }
+
+                        if (pageIdx == 1) {
+                            selectedMonthIdx?.let { si ->
+                                if (si < pts.size) {
+                                    val x = xForDayPage(pts[si].first.dayOfMonth)
+                                    drawLine(
+                                        Color.Gray.copy(alpha = 0.35f),
+                                        Offset(x, 0f), Offset(x, chartBottom),
+                                        1.5.dp.toPx()
+                                    )
+                                }
+                            }
+                        }
+
+                        val ptOffsets = pts.map { (date, m) ->
+                            Offset(xForDayPage(date.dayOfMonth), yForWeight(m.weightKg))
+                        }
+                        if (ptOffsets.size >= 2) {
+                            drawPath(
+                                Path().apply {
+                                    moveTo(ptOffsets.first().x, chartBottom)
+                                    ptOffsets.forEach { lineTo(it.x, it.y) }
+                                    lineTo(ptOffsets.last().x, chartBottom)
+                                    close()
+                                },
+                                color = ForestGreen.copy(alpha = 0.15f)
+                            )
+                            drawPath(
+                                Path().apply {
+                                    moveTo(ptOffsets.first().x, ptOffsets.first().y)
+                                    ptOffsets.drop(1).forEach { lineTo(it.x, it.y) }
+                                },
+                                color = ForestGreen,
+                                style = Stroke(2.dp.toPx())
+                            )
+                        }
+                        ptOffsets.forEach { pt ->
+                            drawCircle(ForestGreen, 4.dp.toPx(), pt)
+                            drawCircle(Color.White, 2.dp.toPx(), pt)
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        val latestDataMonth = remember(pointsByDate) { YearMonth.from(pointsByDate.last().first) }
+        val allMonthAvg: Map<YearMonth, Float> = remember(pointsByDate) {
+            pointsByDate
+                .groupBy { (date, _) -> YearMonth.from(date) }
+                .mapValues { (_, pts) -> pts.map { (_, m) -> m.weightKg }.average().toFloat() }
+        }
+
+        var monthOffset by remember(latestDataMonth) { mutableIntStateOf(0) }
+        val centerMonth = latestDataMonth.plusMonths(monthOffset.toLong())
+
+        val hasPrev = allMonthAvg.containsKey(centerMonth.minusMonths(1))
+        val hasNext = allMonthAvg.containsKey(centerMonth.plusMonths(1))
+        val hasPrevState = rememberUpdatedState(hasPrev)
+        val hasNextState = rememberUpdatedState(hasNext)
+
+        // Visible: [center-1, center, center+1]; neighbors for line: center-2, center+2
+        val stripMonths = remember(centerMonth) {
+            (-2..2).map { centerMonth.plusMonths(it.toLong()) }
+        }
+
+        var selectedQuarterIdx by remember { mutableStateOf<Int?>(null) }
+        val dragXAnim = remember { Animatable(0f) }
+        var rawDrag by remember { mutableFloatStateOf(0f) }
+        val scope = rememberCoroutineScope()
+        val dragXValue = rawDrag + dragXAnim.value
+
+        val onQuarterSelectedState          = rememberUpdatedState(onQuarterMonthSelected)
+        val onQuarterCenterMonthChangeState = rememberUpdatedState(onQuarterCenterMonthChange)
+        val centerMonthState                = rememberUpdatedState(centerMonth)
+
+        LaunchedEffect(centerMonth) {
+            selectedQuarterIdx = null
+            onQuarterSelectedState.value?.invoke(null, null)
+            onQuarterCenterMonthChangeState.value?.invoke(centerMonth)
+        }
+
+        Box(
+            modifier = modifier.pointerInput(Unit) {
+                val lp       = 8.dp.toPx()
+                val rp       = 46.dp.toPx()
+                val chartW   = size.width.toFloat() - lp - rp
+                val sectionW = chartW / 3f
+
+                awaitEachGesture {
+                    val velocityTracker = VelocityTracker()
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    velocityTracker.addPosition(down.uptimeMillis, down.position)
+                    var dragging = false
+
+                    while (true) {
+                        val event  = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                        if (!change.pressed) {
+                            if (dragging) {
+                                val velocity = velocityTracker.calculateVelocity().x
+                                scope.launch {
+                                    val cur = rawDrag + dragXAnim.value
+                                    dragXAnim.snapTo(cur); rawDrag = 0f
+                                    // shift threshold: half a section width
+                                    val mShift = (-cur / sectionW).roundToInt().coerceIn(-1, 1)
+                                    when {
+                                        (velocity < -300f || mShift >= 1) && hasNextState.value -> {
+                                            onQuarterSelectedState.value?.invoke(null, null)
+                                            dragXAnim.animateTo(-sectionW, spring(dampingRatio = 1f, stiffness = 800f))
+                                            monthOffset++; dragXAnim.snapTo(0f)
+                                        }
+                                        (velocity > 300f || mShift <= -1) && hasPrevState.value -> {
+                                            onQuarterSelectedState.value?.invoke(null, null)
+                                            dragXAnim.animateTo(sectionW, spring(dampingRatio = 1f, stiffness = 800f))
+                                            monthOffset--; dragXAnim.snapTo(0f)
+                                        }
+                                        else -> dragXAnim.animateTo(0f, spring(dampingRatio = 0.65f, stiffness = 300f))
+                                    }
+                                }
+                            } else if (!dragXAnim.isRunning) {
+                                val tapDx = change.position.x - down.position.x
+                                val tapDy = change.position.y - down.position.y
+                                if (kotlin.math.abs(tapDx) < viewConfiguration.touchSlop &&
+                                    kotlin.math.abs(tapDy) < viewConfiguration.touchSlop) {
+                                    val tapX       = down.position.x
+                                    val sectionIdx = ((tapX - lp) / sectionW).toInt().coerceIn(0, 2)
+                                    // stripMonths: index 0=center-2, 1=center-1, 2=center, 3=center+1, 4=center+2
+                                    // visible sections 0,1,2 → strip indices 1,2,3
+                                    val ym  = centerMonthState.value.plusMonths((sectionIdx - 1).toLong())
+                                    val avg = allMonthAvg[ym]
+                                    if (avg != null) {
+                                        val newIdx = if (selectedQuarterIdx == sectionIdx) null else sectionIdx
+                                        selectedQuarterIdx = newIdx
+                                        val xNorm = if (newIdx != null) (sectionIdx + 0.5f) / 3f else null
+                                        onQuarterSelectedState.value?.invoke(avg.takeIf { newIdx != null }, xNorm)
+                                    } else {
+                                        selectedQuarterIdx = null
+                                        onQuarterSelectedState.value?.invoke(null, null)
+                                    }
+                                }
+                            }
+                            break
+                        }
+
+                        val totalDx = change.position.x - down.position.x
+                        val totalDy = change.position.y - down.position.y
+                        if (!dragging) {
+                            when {
+                                kotlin.math.abs(totalDx) > viewConfiguration.touchSlop &&
+                                kotlin.math.abs(totalDx) >= kotlin.math.abs(totalDy) -> {
+                                    dragging = true
+                                    selectedQuarterIdx = null
+                                    onQuarterSelectedState.value?.invoke(null, null)
+                                    change.consume()
+                                }
+                                kotlin.math.abs(totalDy) > viewConfiguration.touchSlop -> break
+                            }
+                        }
+                        if (dragging) {
+                            change.consume()
+                            val dx = change.position.x - change.previousPosition.x
+                            val elastic = (dx > 0f && !hasPrevState.value) || (dx < 0f && !hasNextState.value)
+                            rawDrag += if (elastic) dx * 0.3f else dx
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                        }
+                    }
+                }
+            }
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val w  = size.width
+                val h  = size.height
+                val lp = 8.dp.toPx()
+                val rp = 46.dp.toPx()
+                val tp = 12.dp.toPx()
+                val labelH      = 16.dp.toPx()
+                val bp          = labelH + 4.dp.toPx()
+                val chartW      = w - lp - rp
+                val chartH      = h - tp - bp
+                val chartBottom = tp + chartH
+                val sectionW    = chartW / 3f
+
+                fun yForWeight(wt: Float) = tp + (1f - (wt - axisMin) / axisRange) * chartH
+
+                // Static: horizontal grid + Y-axis labels
+                val gridColor   = Ink200.copy(alpha = 0.75f)
+                val sectionDash = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()), 0f)
+                repeat(3) { index ->
+                    val fraction = index / 2f
+                    val y = tp + fraction * chartH
+                    drawLine(gridColor, Offset(lp, y), Offset(w - rp, y), strokeWidth = 1.dp.toPx())
+                    val weightAtLine = axisMax - fraction * axisRange
+                    val measured = textMeasurer.measure("%.0f".format(weightAtLine), axisLabelStyle)
+                    drawText(measured, topLeft = Offset(w - rp + 5.dp.toPx(), y - measured.size.height / 2f))
+                }
+                // Single strip: stripMonths indices 0..4 = [center-2, center-1, center, center+1, center+2]
+                // At dragXValue=0: index 1 → section 0, index 2 → section 1 (center), index 3 → section 2
+                // x formula: dragXValue + lp + (i - 1 + 0.5) * sectionW = dragXValue + lp + (i - 0.5) * sectionW
+                val stripOffsets: List<Offset?> = stripMonths.mapIndexed { i, ym ->
+                    val cx = dragXValue + lp + (i - 0.5f) * sectionW
+                    allMonthAvg[ym]?.let { avg -> Offset(cx, yForWeight(avg)) }
+                }
+
+                clipRect(lp, 0f, lp + chartW, h) {
+                    // Separator lines scroll with content
+                    for (j in 0..3) {
+                        val x = dragXValue + lp + j * sectionW
+                        drawLine(Color.Gray.copy(alpha = 0.35f), Offset(x, tp), Offset(x, chartBottom),
+                            strokeWidth = 1.dp.toPx(), pathEffect = sectionDash)
+                    }
+
+                    // Build line segments (consecutive non-null runs)
+                    val segments = mutableListOf<List<Offset>>()
+                    var seg = mutableListOf<Offset>()
+                    stripOffsets.forEach { pt ->
+                        if (pt != null) seg.add(pt)
+                        else { if (seg.size >= 2) segments.add(seg.toList()); seg = mutableListOf() }
+                    }
+                    if (seg.size >= 2) segments.add(seg.toList())
+
+                    segments.forEach { segPts ->
+                        drawPath(
+                            Path().apply {
+                                moveTo(segPts.first().x, chartBottom)
+                                segPts.forEach { lineTo(it.x, it.y) }
+                                lineTo(segPts.last().x, chartBottom)
+                                close()
+                            },
+                            color = ForestGreen.copy(alpha = 0.15f)
+                        )
+                        drawPath(
+                            Path().apply {
+                                moveTo(segPts.first().x, segPts.first().y)
+                                segPts.drop(1).forEach { lineTo(it.x, it.y) }
+                            },
+                            color = ForestGreen,
+                            style = Stroke(width = 2.dp.toPx())
+                        )
+                    }
+
+                    // Dots for all strip indices (clipRect clips off-screen ones)
+                    for (i in 0..4) {
+                        stripOffsets[i]?.let { pt ->
+                            drawCircle(color = ForestGreen, radius = 4.dp.toPx(), center = pt)
+                            drawCircle(color = Color.White, radius = 2.dp.toPx(), center = pt)
+                        }
+                    }
+
+                    // Selection line (only at rest — selection clears on drag)
+                    selectedQuarterIdx?.let { si ->
+                        val cx = lp + (si + 0.5f) * sectionW
+                        drawLine(Color.Gray.copy(alpha = 0.35f), Offset(cx, 0f), Offset(cx, chartBottom), 1.5.dp.toPx())
+                    }
+
+                    // Month labels for all strip indices (clipRect clips off-screen ones)
+                    for (i in 0..4) {
+                        val ym  = stripMonths[i]
+                        val cx  = dragXValue + lp + (i - 0.5f) * sectionW
+                        val lbl = textMeasurer.measure("Th${ym.monthValue}", axisLabelStyle)
+                        drawText(lbl, topLeft = Offset(cx - lbl.size.width / 2f, chartBottom + 4.dp.toPx()))
+                    }
+                }
             }
         }
     }
