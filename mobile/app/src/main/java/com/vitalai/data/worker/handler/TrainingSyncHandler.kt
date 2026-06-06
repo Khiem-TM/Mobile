@@ -2,6 +2,8 @@ package com.vitalai.data.worker.handler
 
 import com.vitalai.data.local.room.entity.PendingSyncActionEntity
 import com.vitalai.data.remote.TrainingApi
+import com.vitalai.data.remote.UpdateStepsRequest
+import com.vitalai.data.remote.UpdateWaterRequest
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -20,12 +22,12 @@ class TrainingSyncHandler @Inject constructor(
             action.actionType.startsWith("UPDATE_STEPS") -> {
                 val date = action.actionType.substringAfter(":", LocalDate.now().toString())
                 val steps = action.payload.toIntOrNull() ?: return false
-                trainingApi.updateSteps(mapOf("logDate" to date, "steps" to steps)).isSuccessful
+                trainingApi.updateSteps(UpdateStepsRequest(date, steps)).isSuccessful
             }
             action.actionType.startsWith("UPDATE_WATER") -> {
                 val date = action.actionType.substringAfter(":", LocalDate.now().toString())
                 val waterMl = action.payload.toIntOrNull() ?: return false
-                trainingApi.updateWater(mapOf("logDate" to date, "waterMl" to waterMl)).isSuccessful
+                trainingApi.updateWater(UpdateWaterRequest(date, waterMl)).isSuccessful
             }
             else -> false
         }
