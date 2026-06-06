@@ -93,7 +93,7 @@ private val mainTabRoutes = listOf(
  * thay vì để từng màn hình tab tự dựng lại.
  */
 @Composable
-fun VitalApp(deepLinkBus: DeepLinkBus? = null) {
+fun VitalApp(deepLinkBus: DeepLinkBus? = null, startLoggedIn: Boolean = false) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -164,7 +164,8 @@ fun VitalApp(deepLinkBus: DeepLinkBus? = null) {
             VitalNavGraph(
                 navController = navController,
                 contentPadding = innerPadding,
-                onOpenCoachDrawer = { scope.launch { drawerState.open() } }
+                onOpenCoachDrawer = { scope.launch { drawerState.open() } },
+                startLoggedIn = startLoggedIn
             )
         }
     }
@@ -174,11 +175,12 @@ fun VitalApp(deepLinkBus: DeepLinkBus? = null) {
 fun VitalNavGraph(
     navController: NavHostController,
     contentPadding: PaddingValues,
-    onOpenCoachDrawer: () -> Unit
+    onOpenCoachDrawer: () -> Unit,
+    startLoggedIn: Boolean = false
 ) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Welcome,
+        startDestination = if (startLoggedIn) Screen.Home else Screen.Welcome,
         modifier = Modifier.padding(contentPadding)
     ) {
         // ── Auth ──────────────────────────────────────────────

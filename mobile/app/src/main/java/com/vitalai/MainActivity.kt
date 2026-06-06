@@ -16,18 +16,23 @@ import com.vitalai.core.notification.DeviceTokenRegistrar
 import com.vitalai.core.notification.NotificationDeepLink
 import com.vitalai.core.notification.VitalFirebaseMessagingService
 import com.vitalai.core.sync.SyncScheduler
+import com.vitalai.data.local.datastore.TokenManager
 import com.vitalai.navigation.VitalApp
 import com.vitalai.ui.theme.VitalAITheme
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import androidx.activity.enableEdgeToEdge
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var deepLinkBus: DeepLinkBus
     @Inject lateinit var deviceTokenRegistrar: DeviceTokenRegistrar
     @Inject lateinit var syncScheduler: SyncScheduler
+    @Inject lateinit var tokenManager: TokenManager
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* kết quả không bắt buộc xử lý */ }
@@ -40,6 +45,9 @@ class MainActivity : ComponentActivity() {
         handleDeepLinkIntent(intent)
         ensureNotificationPermission()
 
+        // Đọc token trước setContent — OS splash đang hiển thị nên user không thấy chờ.
+        val startLoggedIn = runBlocking { tokenManager.accessToken.first() } != null
+
         // Đồng bộ FCM token nếu đã đăng nhập (no-op nếu chưa).
         lifecycleScope.launch { runCatching { deviceTokenRegistrar.ensureRegistered() } }
 
@@ -48,7 +56,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VitalAITheme {
-                VitalApp(deepLinkBus = deepLinkBus)
+                VitalApp(deepLinkBus = deepLinkBus, startLoggedIn = startLoggedIn)
             }
         }
     }
