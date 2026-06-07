@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, Edit, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Check, Edit, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
@@ -9,6 +10,7 @@ import { FilterBar } from '../components/FilterBar';
 import { FormField } from '../components/FormField';
 import { StatusBadge, statusVariant } from '../components/StatusBadge';
 import { compactParams, del, get, patch, post } from '../lib/api';
+import { getAdminFoodById } from '../lib/adminResources';
 import {
   boolFromSelect,
   formatDate,
@@ -61,6 +63,7 @@ const initialFilters: FoodFilters = {
 
 export function FoodsPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState(initialFilters);
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState<{ mode: 'create' | 'edit'; food?: Food } | null>(null);
@@ -72,6 +75,18 @@ export function FoodsPage() {
     queryKey: ['foods', 'all', params],
     queryFn: () => get<Paginated<Food>>('/admin/foods', { params }),
   });
+  const editFoodId = searchParams.get('edit');
+  const editFoodQuery = useQuery({
+    queryKey: ['foods', editFoodId],
+    queryFn: () => getAdminFoodById(editFoodId!),
+    enabled: Boolean(editFoodId),
+  });
+
+  useEffect(() => {
+    if (!editFoodQuery.data) return;
+    setDrawer({ mode: 'edit', food: editFoodQuery.data });
+    setSearchParams({}, { replace: true });
+  }, [editFoodQuery.data, setSearchParams]);
 
   const createFood = useMutation({
     mutationFn: (payload: Record<string, unknown>) => post<Food>('/admin/foods', payload),
@@ -146,7 +161,7 @@ export function FoodsPage() {
       header: 'Thực phẩm',
       render: (food) => (
         <div className="min-w-[180px]">
-          <p className="font-extrabold text-text">{food.name}</p>
+          <Link className="font-extrabold text-text hover:text-primary" to={`/foods/${food.id}`}>{food.name}</Link>
           <p className="truncate text-xs text-muted">{food.brand || food.category || 'Global food'}</p>
         </div>
       ),
@@ -170,6 +185,9 @@ export function FoodsPage() {
       className: 'text-right',
       render: (food) => (
         <div className="flex justify-end gap-1">
+          <Link className="icon-btn" to={`/foods/${food.id}`}>
+            <Eye className="h-4 w-4" />
+          </Link>
           <button className="icon-btn" onClick={() => setDrawer({ mode: 'edit', food })} type="button">
             <Edit className="h-4 w-4" />
           </button>

@@ -1,4 +1,8 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AdminService } from './admin.service';
 import { UserRole } from '../../common/enums/user-role.enum';
@@ -16,7 +20,11 @@ describe('AdminService', () => {
       save: jest.fn((entity) => Promise.resolve(entity)),
       count: jest.fn().mockResolvedValue(0),
     };
-    const exerciseRepo = { count: jest.fn().mockResolvedValue(0) };
+    const exerciseRepo = {
+      findOne: jest.fn(),
+      save: jest.fn((entity) => Promise.resolve(entity)),
+      count: jest.fn().mockResolvedValue(0),
+    };
     const trainingSessionRepo = { count: jest.fn().mockResolvedValue(0) };
     const blogRepo = { count: jest.fn().mockResolvedValue(0) };
     const dataSource = { query: jest.fn().mockResolvedValue([{ count: 0 }]) };
@@ -51,6 +59,7 @@ describe('AdminService', () => {
       service,
       userRepo,
       foodRepo,
+      exerciseRepo,
       authService,
       redisService,
       auditLogService,
@@ -134,6 +143,33 @@ describe('AdminService', () => {
     );
   });
 
+  it('returns a global food by id for admin detail', async () => {
+    const { service, foodRepo } = createService();
+    const food = { id: 'food-id', name: 'Cơm rang', is_custom: false };
+    foodRepo.findOne.mockResolvedValue(food);
+
+    await expect(service.getFoodById('food-id')).resolves.toBe(food);
+    expect(foodRepo.findOne).toHaveBeenCalledWith({ where: { id: 'food-id' } });
+  });
+
+  it('throws 404 when admin food detail does not exist', async () => {
+    const { service, foodRepo } = createService();
+    foodRepo.findOne.mockResolvedValue(null);
+
+    await expect(service.getFoodById('missing-food')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('blocks admin food detail for custom foods', async () => {
+    const { service, foodRepo } = createService();
+    foodRepo.findOne.mockResolvedValue({ id: 'custom-food', is_custom: true });
+
+    await expect(service.getFoodById('custom-food')).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
   it('blocks admin verification for custom foods', async () => {
     const { service, foodRepo } = createService();
     const food = { id: 'custom-food', is_verified: false, is_active: true, is_custom: true };
@@ -157,5 +193,25 @@ describe('AdminService', () => {
     expect(foodRepo.count).toHaveBeenCalledWith({
       where: { is_verified: false, is_active: true, is_custom: false },
     });
+  });
+
+  it('returns an exercise by id for admin detail', async () => {
+    const { service, exerciseRepo } = createService();
+    const exercise = { id: 'exercise-id', name: 'Hít đất' };
+    exerciseRepo.findOne.mockResolvedValue(exercise);
+
+    await expect(service.getExerciseById('exercise-id')).resolves.toBe(exercise);
+    expect(exerciseRepo.findOne).toHaveBeenCalledWith({
+      where: { id: 'exercise-id' },
+    });
+  });
+
+  it('throws 404 when admin exercise detail does not exist', async () => {
+    const { service, exerciseRepo } = createService();
+    exerciseRepo.findOne.mockResolvedValue(null);
+
+    await expect(service.getExerciseById('missing-exercise')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });

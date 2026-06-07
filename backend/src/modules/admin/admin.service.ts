@@ -512,6 +512,13 @@ export class AdminService {
     return { foods, total, page, limit: safeLimit };
   }
 
+  async getFoodById(id: string): Promise<Food> {
+    const food = await this.foodRepo.findOne({ where: { id } });
+    if (!food) throw new NotFoundException('Food not found');
+    this.ensureGlobalFood(food);
+    return food;
+  }
+
   async createFood(
     dto: CreateFoodAdminDto,
     context?: AdminAuditContext,
@@ -731,6 +738,12 @@ export class AdminService {
       .take(safeLimit)
       .getManyAndCount();
     return { exercises, total, page, limit: safeLimit };
+  }
+
+  async getExerciseById(id: string): Promise<Exercise> {
+    const exercise = await this.exerciseRepo.findOne({ where: { id } });
+    if (!exercise) throw new NotFoundException('Exercise not found');
+    return exercise;
   }
 
   async createExercise(

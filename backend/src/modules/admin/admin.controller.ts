@@ -257,6 +257,12 @@ export class AdminController {
     );
   }
 
+  @ApiOperation({ summary: 'Get a global food entry by ID' })
+  @Get('foods/:id')
+  getFoodById(@Param('id') id: string) {
+    return this.adminService.getFoodById(id);
+  }
+
   @ApiOperation({ summary: 'Create a new food entry' })
   @Post('foods')
   createFood(
@@ -335,6 +341,12 @@ export class AdminController {
       search,
       { exerciseType, category, muscleGroup, difficultyLevel, isActive },
     );
+  }
+
+  @ApiOperation({ summary: 'Get an exercise by ID' })
+  @Get('exercises/:id')
+  getExerciseById(@Param('id') id: string) {
+    return this.adminService.getExerciseById(id);
   }
 
   @ApiOperation({ summary: 'Create a new exercise' })

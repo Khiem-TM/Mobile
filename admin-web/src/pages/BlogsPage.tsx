@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   Bold,
   Camera,
@@ -65,7 +65,11 @@ const initialFilters: BlogFilters = {
 
 export function BlogsPage() {
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState(initialFilters);
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<BlogFilters>(() => ({
+    ...initialFilters,
+    status: searchParams.get('status') ?? '',
+  }));
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState<{ mode: 'create' | 'edit'; blog?: Blog } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Blog | null>(null);
@@ -73,6 +77,12 @@ export function BlogsPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    const status = searchParams.get('status') ?? '';
+    setFilters((current) => (current.status === status ? current : { ...current, status }));
+    setPage(1);
+  }, [searchParams]);
 
   const params = useMemo(() => compactParams({ page, limit: 20, ...filters }), [filters, page]);
   const blogsQuery = useQuery({

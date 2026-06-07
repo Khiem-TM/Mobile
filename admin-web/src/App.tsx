@@ -6,7 +6,9 @@ import { AuditPage } from './pages/AuditPage';
 import { BlogDetailPage } from './pages/BlogDetailPage';
 import { BlogsPage } from './pages/BlogsPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ExerciseDetailPage } from './pages/ExerciseDetailPage';
 import { ExercisesPage } from './pages/ExercisesPage';
+import { FoodDetailPage } from './pages/FoodDetailPage';
 import { FoodsPage } from './pages/FoodsPage';
 import { LoginPage } from './pages/LoginPage';
 import { SystemPage } from './pages/SystemPage';
@@ -39,8 +41,10 @@ export default function App() {
           <Route element={<UsersPage />} path="users" />
           <Route element={<UserDetailPage />} path="users/:id" />
           <Route element={<FoodsPage />} path="foods" />
+          <Route element={<FoodDetailPage />} path="foods/:id" />
           <Route element={<Navigate replace to="/foods" />} path="foods/pending" />
           <Route element={<ExercisesPage />} path="exercises" />
+          <Route element={<ExerciseDetailPage />} path="exercises/:id" />
           <Route element={<BlogsPage />} path="blogs" />
           <Route element={<BlogDetailPage />} path="blogs/:id" />
           <Route element={<WarningsPage />} path="warnings" />

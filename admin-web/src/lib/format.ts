@@ -1,10 +1,19 @@
-import type { AdminUser, Blog, Food, Paginated } from '../types';
+import type { AdminUser, Blog, Exercise, Food, Paginated } from '../types';
 
 export function formatNumber(value: number | string | null | undefined, suffix = '') {
   const numeric = Number(value ?? 0);
   return `${new Intl.NumberFormat('vi-VN', {
     notation: numeric >= 10_000 ? 'compact' : 'standard',
     maximumFractionDigits: numeric >= 10_000 ? 1 : 0,
+  }).format(numeric)}${suffix}`;
+}
+
+export function formatDecimal(value: number | string | null | undefined, suffix = '', maximumFractionDigits = 1) {
+  if (value === undefined || value === null || value === '') return '-';
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '-';
+  return `${new Intl.NumberFormat('vi-VN', {
+    maximumFractionDigits,
   }).format(numeric)}${suffix}`;
 }
 
@@ -55,6 +64,37 @@ export function isFoodCustom(food: Food) {
 
 export function getFoodCalories(food: Food) {
   return Number(food.calories_per_100g ?? food.caloriesPer100g ?? 0);
+}
+
+export function getFoodMacro(food: Food, key: 'protein' | 'fat' | 'carbs' | 'fiber') {
+  if (key === 'protein') return Number(food.protein_per_100g ?? food.proteinPer100g ?? 0);
+  if (key === 'fat') return Number(food.fat_per_100g ?? food.fatPer100g ?? 0);
+  if (key === 'carbs') return Number(food.carbs_per_100g ?? food.carbsPer100g ?? 0);
+  return Number(food.fiber_per_100g ?? food.fiberPer100g ?? 0);
+}
+
+export function getFoodImageUrls(food: Food) {
+  return (food.image_urls ?? food.imageUrls ?? []).filter(Boolean);
+}
+
+export function getFoodFavorites(food: Food) {
+  return Number(food.favorites_count ?? food.favoritesCount ?? 0);
+}
+
+export function getExerciseType(exercise: Exercise) {
+  return exercise.exerciseType ?? exercise.exercise_type ?? 'SPORT';
+}
+
+export function isExerciseActive(exercise: Exercise) {
+  return exercise.isActive ?? false;
+}
+
+export function getExerciseImageUrls(exercise: Exercise) {
+  return [exercise.imageAvtUrl, ...(exercise.imageUrl ?? [])].filter(Boolean) as string[];
+}
+
+export function getExerciseFavorites(exercise: Exercise) {
+  return Number(exercise.favoritesCount ?? 0);
 }
 
 export function getBlogTags(blog: Blog) {

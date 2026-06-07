@@ -1,4 +1,5 @@
-import { Bell, Grid3X3, Menu, Search, Settings2 } from 'lucide-react';
+import { Grid3X3, Menu, Search, Settings2 } from 'lucide-react';
+import { AdminNotificationPopup } from './AdminNotificationPopup';
 import { useAuth } from '../lib/auth';
 import { getUserDisplayName } from '../lib/format';
 
@@ -15,10 +16,7 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         <input className="input h-11 rounded-full bg-surface-low pl-12" placeholder="Tìm kiếm tài nguyên, người dùng..." />
       </div>
       <div className="ml-auto flex items-center gap-1">
-        <button className="icon-btn relative" type="button">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-danger" />
-        </button>
+        <AdminNotificationPopup enabled={Boolean(session)} />
         <button className="icon-btn" type="button">
           <Settings2 className="h-5 w-5" />
         </button>

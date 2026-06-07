@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Edit, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Edit, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { z } from 'zod';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
@@ -9,6 +10,7 @@ import { FilterBar } from '../components/FilterBar';
 import { FormField } from '../components/FormField';
 import { StatusBadge, statusVariant } from '../components/StatusBadge';
 import { compactParams, del, get, patch, post } from '../lib/api';
+import { getAdminExerciseById } from '../lib/adminResources';
 import { boolFromSelect, formatDate, formatNumber, getItems, toNumberOrUndefined } from '../lib/format';
 import type { ApiErrorShape, Exercise, Paginated } from '../types';
 
@@ -58,6 +60,7 @@ const initialFilters: ExerciseFilters = {
 
 export function ExercisesPage() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState(initialFilters);
   const [page, setPage] = useState(1);
   const [drawer, setDrawer] = useState<{ mode: 'create' | 'edit'; exercise?: Exercise } | null>(null);
@@ -69,6 +72,18 @@ export function ExercisesPage() {
     queryKey: ['exercises', params],
     queryFn: () => get<Paginated<Exercise>>('/admin/exercises', { params }),
   });
+  const editExerciseId = searchParams.get('edit');
+  const editExerciseQuery = useQuery({
+    queryKey: ['exercises', editExerciseId],
+    queryFn: () => getAdminExerciseById(editExerciseId!),
+    enabled: Boolean(editExerciseId),
+  });
+
+  useEffect(() => {
+    if (!editExerciseQuery.data) return;
+    setDrawer({ mode: 'edit', exercise: editExerciseQuery.data });
+    setSearchParams({}, { replace: true });
+  }, [editExerciseQuery.data, setSearchParams]);
 
   const createExercise = useMutation({
     mutationFn: (payload: Record<string, unknown>) => post<Exercise>('/admin/exercises', payload),
@@ -141,7 +156,7 @@ export function ExercisesPage() {
       header: 'Bài tập',
       render: (exercise) => (
         <div className="min-w-[180px]">
-          <p className="font-extrabold text-text">{exercise.name}</p>
+          <Link className="font-extrabold text-text hover:text-primary" to={`/exercises/${exercise.id}`}>{exercise.name}</Link>
           <p className="truncate text-xs text-muted">{exercise.category || exercise.muscleGroup || '-'}</p>
         </div>
       ),
@@ -161,6 +176,9 @@ export function ExercisesPage() {
       className: 'text-right',
       render: (exercise) => (
         <div className="flex justify-end gap-1">
+          <Link className="icon-btn" to={`/exercises/${exercise.id}`}>
+            <Eye className="h-4 w-4" />
+          </Link>
           <button className="icon-btn" onClick={() => setDrawer({ mode: 'edit', exercise })} type="button">
             <Edit className="h-4 w-4" />
           </button>

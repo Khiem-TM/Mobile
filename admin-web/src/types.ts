@@ -18,7 +18,7 @@ export interface AdminUser {
   createdAt?: string;
   updated_at?: string;
   updatedAt?: string;
-  healthProfile?: Record<string, unknown> | null;
+  healthProfile?: UserHealthProfile | null;
   recentSessions?: TrainingSession[];
   adminSummary?: {
     mealLogCount?: number;
@@ -26,6 +26,52 @@ export interface AdminUser {
     aiScanCount?: number;
     chatSessionCount?: number;
   };
+}
+
+export interface UserHealthProfile {
+  id?: string;
+  userId?: string;
+  foodAllergies?: string[];
+  food_allergies?: string[];
+  birthDate?: string;
+  birth_date?: string;
+  gender?: string;
+  heightCm?: number | string;
+  height_cm?: number | string;
+  initialWeightKg?: number | string;
+  initial_weight_kg?: number | string;
+  targetWeightKg?: number | string | null;
+  target_weight_kg?: number | string | null;
+  activityLevel?: string;
+  activity_level?: string;
+  dietType?: string | null;
+  diet_type?: string | null;
+  waterGoalMl?: number;
+  water_goal_ml?: number;
+  stepGoal?: number;
+  step_goal?: number;
+  caloriesGoal?: number | string | null;
+  calories_goal?: number | string | null;
+  dailyCaloriesGoal?: number | string | null;
+  daily_calories_goal?: number | string | null;
+  proteinGoalG?: number | string | null;
+  protein_goal_g?: number | string | null;
+  fatGoalG?: number | string | null;
+  fat_goal_g?: number | string | null;
+  carbsGoalG?: number | string | null;
+  carbs_goal_g?: number | string | null;
+  goalType?: string | null;
+  goal_type?: string | null;
+  weeklyRateKg?: number | string | null;
+  weekly_rate_kg?: number | string | null;
+  goalStartDate?: string | null;
+  goal_start_date?: string | null;
+  goalDeadline?: string | null;
+  goal_deadline?: string | null;
+  goalStatus?: string | null;
+  goal_status?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Food {
@@ -54,14 +100,22 @@ export interface Food {
   fiberPer100g?: number | null;
   image_urls?: string[] | null;
   imageUrls?: string[] | null;
+  image_public_ids?: string[] | null;
+  imagePublicIds?: string[] | null;
+  favorites_count?: number;
+  favoritesCount?: number;
   is_verified?: boolean;
   isVerified?: boolean;
   is_active?: boolean;
   isActive?: boolean;
   is_custom?: boolean;
   isCustom?: boolean;
+  created_by_user_id?: string | null;
+  createdByUserId?: string | null;
   created_at?: string;
   createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
 }
 
 export interface Exercise {
@@ -76,6 +130,9 @@ export interface Exercise {
   difficultyLevel?: string | null;
   metValue?: number;
   imageAvtUrl?: string | null;
+  imageUrl?: string[] | null;
+  image_public_ids?: string[] | null;
+  imagePublicIds?: string[] | null;
   videoUrl?: string | null;
   isActive?: boolean;
   equipment?: string | null;
@@ -90,7 +147,9 @@ export interface Exercise {
   defaultIntensityLevel?: string | null;
   movementType?: string | null;
   estimatedCaloriesPerMinute?: number | null;
+  favoritesCount?: number;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Blog {
@@ -143,7 +202,15 @@ export interface TrainingSession {
   createdAt?: string;
   totalDurationMinutes?: number;
   totalCaloriesBurned?: number;
-  items?: Array<Record<string, unknown>>;
+  items?: Array<{
+    id?: string;
+    durationMinutes?: number;
+    caloriesBurned?: number;
+    reps?: number;
+    sets?: number;
+    exercise?: Exercise | null;
+    [key: string]: unknown;
+  }>;
 }
 
 export interface AdminStats {
