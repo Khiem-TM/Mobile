@@ -57,6 +57,7 @@ import androidx.navigation.NavController
 import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.screens.discover.components.BlogCover
+import com.vitalai.ui.screens.discover.components.formatBlogTime
 import com.vitalai.ui.screens.discover.viewmodels.MyBlogsViewModel
 import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppMutedBackground
@@ -282,7 +283,7 @@ private fun MyBlogCard(blog: BlogDto, onOpen: () -> Unit, onEdit: () -> Unit, on
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(5.dp))
-                    Text(blog.displayDate(), color = Ink500, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    Text(formatBlogTime(blog.createdAt), color = Ink500, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     if (blog.status == "approved") {
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -439,18 +440,4 @@ private fun Int.compactCount(): String {
         this >= 1_000 -> String.format("%.1fk", this / 1_000f).removeSuffix(".0k") + "k"
         else -> toString()
     }
-}
-
-private fun BlogDto.displayDate(): String {
-    val date = createdAt.take(10)
-    if (date.length != 10) return date
-    val parts = date.split("-")
-    if (parts.size != 3) return date
-    val month = when (parts[1]) {
-        "01" -> "Jan"; "02" -> "Feb"; "03" -> "Mar"; "04" -> "Apr"
-        "05" -> "May"; "06" -> "Jun"; "07" -> "Jul"; "08" -> "Aug"
-        "09" -> "Sep"; "10" -> "Oct"; "11" -> "Nov"; "12" -> "Dec"
-        else -> parts[1]
-    }
-    return "${parts[2]} $month ${parts[0]}"
 }

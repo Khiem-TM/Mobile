@@ -7,6 +7,7 @@ import com.vitalai.data.remote.model.BlogPageDto
 import com.vitalai.data.remote.model.CommentPageDto
 import com.vitalai.data.remote.model.CreateCommentRequest
 import com.vitalai.data.remote.model.CreateBlogRequest
+import com.vitalai.data.remote.model.UpdateCommentRequest
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -48,6 +49,13 @@ interface BlogApi {
     suspend fun postComment(
         @Path("id") id: String,
         @Body request: CreateCommentRequest
+    ): Response<ApiResponse<com.vitalai.data.remote.model.CommentDto>>
+
+    @PATCH("blogs/{id}/comments/{commentId}")
+    suspend fun updateComment(
+        @Path("id") id: String,
+        @Path("commentId") commentId: String,
+        @Body request: UpdateCommentRequest
     ): Response<ApiResponse<com.vitalai.data.remote.model.CommentDto>>
 
     @DELETE("blogs/{id}/comments/{commentId}")

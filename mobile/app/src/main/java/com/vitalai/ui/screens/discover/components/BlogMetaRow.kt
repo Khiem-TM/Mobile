@@ -14,7 +14,7 @@ import com.vitalai.ui.theme.VitalAITheme
 @Composable
 fun BlogMetaRow(blog: BlogDto, modifier: Modifier = Modifier, inverse: Boolean = false) {
     Text(
-        text = "${blog.displayAuthor} · ${blog.createdAt.take(10)}",
+        text = "${blog.displayAuthor} · ${formatBlogTime(blog.createdAt)}",
         fontSize = 12.sp,
         color = if (inverse) Color.White.copy(alpha = 0.78f) else Ink500,
         maxLines = 1,

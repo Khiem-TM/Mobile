@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -59,6 +60,7 @@ import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.screens.discover.components.BlogCover
+import com.vitalai.ui.screens.discover.components.formatBlogTime
 import com.vitalai.ui.screens.discover.viewmodels.BlogSearchDateFilter
 import com.vitalai.ui.screens.discover.viewmodels.BlogSearchSortOption
 import com.vitalai.ui.screens.discover.viewmodels.BlogSearchViewModel
@@ -88,7 +90,7 @@ fun BlogSearchScreen(
     }
 
     Scaffold(
-        containerColor = AppMutedBackground,
+        containerColor = AppSurface,
         topBar = {
             TopAppBar(
                 navigationIcon = {
@@ -133,7 +135,7 @@ fun BlogSearchScreen(
                     .fillMaxSize()
                     .padding(padding),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 item {
                     SearchResultControls(
@@ -185,10 +187,10 @@ private fun SearchField(
 ) {
     Row(
         modifier = modifier
-            .height(42.dp)
+            .height(46.dp)
             .clip(RoundedCornerShape(VitalRadius.Pill))
             .background(AppSurface2)
-            .padding(horizontal = 14.dp),
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(Icons.Default.Search, contentDescription = null, tint = Ink400, modifier = Modifier.size(18.dp))
@@ -226,45 +228,49 @@ private fun SearchField(
 
 @Composable
 private fun SearchResultCard(blog: BlogDto, onClick: () -> Unit) {
-    Surface(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        color = AppSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-        shadowElevation = VitalElevation.Level1
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            BlogCover(
-                blog = blog,
-                modifier = Modifier.size(82.dp),
-                radius = VitalRadius.Lg,
-                fallbackGradient = true
+        BlogCover(
+            blog = blog,
+            modifier = Modifier.size(58.dp),
+            radius = 14.dp,
+            fallbackGradient = true
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                blog.title,
+                color = Ink900,
+                fontSize = 16.sp,
+                lineHeight = 20.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                blog.firstTag?.let {
-                    Text(it, color = Mint500, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Spacer(Modifier.height(4.dp))
-                }
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(7.dp)
+                        .clip(RoundedCornerShape(VitalRadius.Pill))
+                        .background(Mint500)
+                )
+                Spacer(Modifier.width(6.dp))
                 Text(
-                    blog.title,
-                    color = Ink900,
-                    fontSize = 16.sp,
-                    lineHeight = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
+                    listOfNotNull(blog.firstTag, blog.displayAuthor, formatBlogTime(blog.createdAt)).joinToString(" · "),
+                    color = Ink500,
+                    fontSize = 12.sp,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Ink500, modifier = Modifier.size(15.dp))
-                    Spacer(Modifier.width(5.dp))
-                    Text(blog.displayAuthor, color = Ink500, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
             }
         }
+        Icon(Icons.Default.MoreHoriz, contentDescription = null, tint = Ink500, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -515,9 +521,10 @@ private fun SearchDiscoveryState(
     modifier: Modifier = Modifier
 ) {
     val hasQuery = query.trim().isNotBlank()
-    val primaryItems = if (hasQuery) suggestions else popularSearches
+    var showAllHistory by remember { mutableStateOf(false) }
+    val visibleHistory = if (showAllHistory) history else history.take(6)
 
-    if (primaryItems.isEmpty() && history.isEmpty()) {
+    if (suggestions.isEmpty() && popularSearches.isEmpty() && history.isEmpty()) {
         EmptySearchState(
             title = "Tìm kiếm bài viết",
             subtitle = "Nhập tiêu đề, tác giả hoặc tag để tìm bài viết.",
@@ -528,112 +535,174 @@ private fun SearchDiscoveryState(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        if (primaryItems.isNotEmpty()) {
+        if (hasQuery) {
             item {
-                SearchSectionHeader(if (hasQuery) "Gợi ý tìm kiếm" else "Tìm kiếm phổ biến")
+                SearchListHeader(title = "Gợi ý tìm kiếm")
             }
-            items(primaryItems, key = { "primary-$it" }) { item ->
-                SearchQueryRow(
+            items(suggestions, key = { "suggestion-$it" }) { item ->
+                CompactSearchRow(
                     query = item,
                     icon = Icons.Default.Search,
-                    onSelect = { onSelect(item) }
+                    subtitle = "Tìm bài viết liên quan",
+                    onSelect = { onSelect(item) },
+                    onRemove = null
                 )
             }
-        }
-
-        if (history.isNotEmpty()) {
+        } else {
             item {
-                Row(
-                    modifier = Modifier.padding(top = if (primaryItems.isNotEmpty()) 12.dp else 0.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                SearchListHeader(
+                    title = "Mới đây",
+                    action = if (history.size > 6 && !showAllHistory) "Xem tất cả" else if (history.isNotEmpty()) "Xóa tất cả" else null,
+                    onAction = {
+                        if (history.size > 6 && !showAllHistory) showAllHistory = true else onClearAll()
+                    }
+                )
+            }
+
+            if (visibleHistory.isEmpty()) {
+                item {
                     Text(
-                        "Tìm kiếm gần đây",
-                        color = Ink900,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                        "Chưa có tìm kiếm gần đây",
+                        color = Ink500,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 14.dp)
                     )
-                    Text(
-                        "Xóa hết",
-                        color = Mint500,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(VitalRadius.Pill))
-                            .clickable(onClick = onClearAll)
-                            .padding(horizontal = 10.dp, vertical = 7.dp)
+                }
+            } else {
+                items(visibleHistory, key = { "history-$it" }) { item ->
+                    CompactSearchRow(
+                        query = item,
+                        icon = Icons.Default.History,
+                        subtitle = "Tìm kiếm gần đây",
+                        onSelect = { onSelect(item) },
+                        onRemove = { onRemove(item) }
                     )
                 }
             }
 
-            items(history, key = { "history-$it" }) { item ->
-                SearchQueryRow(
-                    query = item,
-                    icon = Icons.Default.History,
-                    onSelect = { onSelect(item) },
-                    onRemove = { onRemove(item) }
-                )
+            if (popularSearches.isNotEmpty()) {
+                item {
+                    SearchListHeader(
+                        title = "Tìm kiếm phổ biến",
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                }
+                items(popularSearches.take(6), key = { "popular-$it" }) { item ->
+                    CompactSearchRow(
+                        query = item,
+                        icon = Icons.Default.Search,
+                        subtitle = "Được tìm kiếm nhiều",
+                        onSelect = { onSelect(item) },
+                        onRemove = null
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SearchSectionHeader(title: String) {
-    Text(
-        title,
-        color = Ink900,
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(bottom = 4.dp)
-    )
+private fun SearchListHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    action: String? = null,
+    onAction: () -> Unit = {}
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            title,
+            color = Ink900,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
+        )
+        if (action != null) {
+            Text(
+                action,
+                color = Mint500,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
+                    .clickable(onClick = onAction)
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            )
+        }
+    }
 }
 
 @Composable
-private fun SearchQueryRow(
+private fun CompactSearchRow(
     query: String,
     icon: ImageVector,
+    subtitle: String,
     onSelect: () -> Unit,
-    onRemove: (() -> Unit)? = null
+    onRemove: (() -> Unit)?
 ) {
-    Surface(
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelect),
-        shape = RoundedCornerShape(18.dp),
-        color = AppSurface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-        shadowElevation = VitalElevation.Level1
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 2.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(start = 14.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            modifier = Modifier.size(44.dp),
+            shape = RoundedCornerShape(14.dp),
+            color = AppSurface2
         ) {
-            Surface(shape = RoundedCornerShape(VitalRadius.Pill), color = AppSurface2) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = Ink500,
-                    modifier = Modifier.padding(8.dp).size(18.dp)
-                )
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = Mint500, modifier = Modifier.size(21.dp))
             }
-            Spacer(Modifier.width(12.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 query,
                 color = Ink900,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                overflow = TextOverflow.Ellipsis
             )
-            if (onRemove != null) {
-                IconButton(onClick = onRemove) {
-                    Icon(Icons.Default.Close, contentDescription = "Xóa lịch sử", tint = Ink400, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(RoundedCornerShape(VitalRadius.Pill))
+                        .background(Mint500)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(subtitle, color = Ink500, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        if (onRemove != null) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(38.dp)) {
+                    Icon(Icons.Default.MoreHoriz, contentDescription = "Tùy chọn", tint = Ink500, modifier = Modifier.size(22.dp))
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Xóa khỏi lịch sử", color = Ink700) },
+                        onClick = {
+                            menuExpanded = false
+                            onRemove()
+                        }
+                    )
                 }
             }
         }

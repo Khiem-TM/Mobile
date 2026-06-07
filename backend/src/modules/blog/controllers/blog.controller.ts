@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Param,
   Query,
@@ -18,6 +19,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { UserRole } from '../../../common/enums/user-role.enum';
 import type { JwtPayload } from '../../../common/interfaces/jwt-payload.interface';
 import { CreateCommentDto } from '../dto/create-comment.dto';
+import { UpdateCommentDto } from '../dto/update-comment.dto';
 
 @ApiTags('blogs')
 @Controller('blogs')
@@ -108,6 +110,19 @@ export class BlogController {
     @Body() dto: CreateCommentDto,
   ) {
     return this.blogService.addComment(user.sub, id, dto);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Update own comment' })
+  @Patch(':id/comments/:commentId')
+  updateComment(
+    @Param('id') id: string,
+    @Param('commentId') commentId: string,
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: UpdateCommentDto,
+  ) {
+    return this.blogService.updateOwnComment(user.sub, id, commentId, dto);
   }
 
   @ApiBearerAuth()
