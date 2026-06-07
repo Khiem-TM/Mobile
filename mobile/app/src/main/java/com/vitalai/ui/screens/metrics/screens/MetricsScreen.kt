@@ -148,16 +148,14 @@ fun MetricsScreen(
                 }
 
                 // 6. Body measurements card
-                uiState.latestMeasurements?.let { measurements ->
-                    item {
-                        BodyMeasurementsCard(
-                            latest = measurements,
-                            onClick = {
-                                viewModel.setUpdateTab(1)
-                                showUpdateSheet = true
-                            }
-                        )
-                    }
+                item {
+                    BodyMeasurementsCard(
+                        latest = uiState.latestMeasurements,
+                        onClick = {
+                            viewModel.setUpdateTab(1)
+                            showUpdateSheet = true
+                        }
+                    )
                 }
 
                 // 7. Progress photos section

@@ -309,14 +309,14 @@ internal fun WeightProgressEmptyCard(modifier: Modifier = Modifier, onClick: () 
 }
 
 @Composable
-internal fun BodyMeasurementsCard(latest: BodyMetricDto, onClick: () -> Unit) {
+internal fun BodyMeasurementsCard(latest: BodyMetricDto?, onClick: () -> Unit) {
     val measurements = buildList {
-        latest.bodyFatPct?.let { add("Tỷ lệ mỡ" to "${it.formatCompact()}%") }
-        latest.waistCm?.let { add("Vòng eo" to "%.0f cm".format(it)) }
-        latest.hipCm?.let { add("Vòng hông" to "%.0f cm".format(it)) }
-        latest.chestCm?.let { add("Vòng ngực" to "%.0f cm".format(it)) }
-        latest.armCm?.let { add("Bắp tay" to "%.0f cm".format(it)) }
-        latest.neckCm?.let { add("Vòng cổ" to "%.0f cm".format(it)) }
+        latest?.bodyFatPct?.let { add("Tỷ lệ mỡ" to "${it.formatCompact()}%") }
+        latest?.waistCm?.let { add("Vòng eo" to "%.0f cm".format(it)) }
+        latest?.hipCm?.let { add("Vòng hông" to "%.0f cm".format(it)) }
+        latest?.chestCm?.let { add("Vòng ngực" to "%.0f cm".format(it)) }
+        latest?.armCm?.let { add("Bắp tay" to "%.0f cm".format(it)) }
+        latest?.neckCm?.let { add("Vòng cổ" to "%.0f cm".format(it)) }
     }
 
     VitalCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {

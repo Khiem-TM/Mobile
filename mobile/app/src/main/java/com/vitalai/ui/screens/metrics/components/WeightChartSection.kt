@@ -130,7 +130,7 @@ internal fun PeriodChartSection(
 
             Spacer(Modifier.height(12.dp))
 
-            if (periodData != null && periodData.data.size >= 2) {
+            if (periodData != null && periodData.data.isNotEmpty()) {
                 val quarterRangeText = quarterCenterMonth?.let { center ->
                     "Tháng ${center.minusMonths(1).monthValue} - ${center.plusMonths(1).monthValue}, ${center.year}"
                 } ?: ""
@@ -334,7 +334,7 @@ internal fun PeriodChartSection(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "Cần ít nhất 2 điểm dữ liệu để hiển thị biểu đồ",
+                        "Chưa có dữ liệu cân nặng để hiển thị biểu đồ",
                         color = Ink400,
                         fontSize = 13.sp,
                         textAlign = TextAlign.Center
@@ -367,9 +367,9 @@ private fun WeightLineChart(
             metric.metricLocalDateOrNull()?.let { it to metric }
         }.distinctBy { it.first }.sortedBy { it.first }
     }
-    if (pointsByDate.size < 2) {
+    if (pointsByDate.isEmpty()) {
         Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text("Cần ít nhất 2 điểm dữ liệu", color = Ink500, fontSize = 12.sp)
+            Text("Chưa có dữ liệu", color = Ink500, fontSize = 12.sp)
         }
         return
     }
