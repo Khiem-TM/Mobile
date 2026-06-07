@@ -6,6 +6,7 @@ import com.vitalai.data.remote.model.BlogDto
 import com.vitalai.data.remote.model.CreateBlogBlockRequest
 import com.vitalai.data.remote.model.CreateBlogRequest
 import com.vitalai.data.repository.BlogRepository
+import com.vitalai.ui.screens.discover.components.mergeBlogTags
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,9 +61,8 @@ class BlogComposerViewModel @Inject constructor(
     private fun loadAvailableTags() {
         viewModelScope.launch {
             blogRepository.getTags().onSuccess { tags ->
-                val systemTags = listOf("Dinh dưỡng", "Tập luyện", "Sức khỏe", "Giảm cân", "Eat clean")
                 _uiState.update {
-                    it.copy(availableTags = (tags + systemTags).filter { tag -> tag.isNotBlank() }.distinctBy { tag -> tag.lowercase() })
+                    it.copy(availableTags = mergeBlogTags(tags))
                 }
             }
         }

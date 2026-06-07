@@ -14,6 +14,7 @@ import { CreateBlogDto } from '../dto/create-blog.dto';
 import { UpdateBlogDto } from '../dto/update-blog.dto';
 import { CreateBlogBlockDto } from '../dto/create-blog-block.dto';
 import { CreateCommentDto } from '../dto/create-comment.dto';
+import { UpdateCommentDto } from '../dto/update-comment.dto';
 import { RedisService } from '../../support/redis/redis.service';
 import { randomUUID } from 'crypto';
 import { UsersService } from '../../user/services/users.service';
@@ -309,31 +310,57 @@ export class BlogService {
   }
 
   async toggleLike(userId: string, blogId: string) {
-    const blog = await this.blogRepo.findOne({
-      where: { id: blogId, status: 'approved', deletedAt: IsNull() },
-    });
-    if (!blog) throw new NotFoundException('Blog not found');
+    const result = await this.dataSource.transaction(async (manager) => {
+      // Serialize toggles for the same blog so likesCount remains consistent
+      // when multiple users/devices update it concurrently.
+      const blog = await manager.findOne(Blog, {
+        where: { id: blogId, status: 'approved', deletedAt: IsNull() },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!blog) throw new NotFoundException('Blog not found');
 
-    const existing = await this.likeRepo.findOne({
-      where: { user_id: userId, blog_id: blogId },
-    });
+      const existing = await manager.findOne(BlogLike, {
+        where: { user_id: userId, blog_id: blogId },
+      });
 
-    await this.dataSource.transaction(async (manager) => {
       if (existing) {
         await manager.delete(BlogLike, { user_id: userId, blog_id: blogId });
-        await manager.decrement(Blog, { id: blogId }, 'likesCount', 1);
+        await manager
+          .createQueryBuilder()
+          .update(Blog)
+          .set({ likesCount: () => 'GREATEST("likes_count" - 1, 0)' })
+          .where('id = :blogId', { blogId })
+          .execute();
       } else {
         await manager.save(BlogLike, manager.create(BlogLike, { user_id: userId, blog_id: blogId }));
         await manager.increment(Blog, { id: blogId }, 'likesCount', 1);
       }
+
+      const updatedBlog = await manager.findOneByOrFail(Blog, { id: blogId });
+      return {
+        blog,
+        liked: !existing,
+        likesCount: updatedBlog.likesCount,
+      };
     });
 
+    // Detail reload must see the new count immediately. List cache invalidation
+    // and notifications can continue in the background without delaying the UI.
+    await this.redisService.del(`cache:blogs:one:${blogId}`);
+    void this.redisService
+      .delByPattern('cache:blogs:list:*')
+      .catch(() => undefined);
+
     // Chỉ thông báo khi tạo lượt thích mới (không thông báo khi bỏ thích).
-    if (!existing) {
-      await this.publishBlogInteraction(BlogNotificationType.LIKE, blog, userId);
+    if (result.liked) {
+      void this.publishBlogInteraction(
+        BlogNotificationType.LIKE,
+        result.blog,
+        userId,
+      ).catch(() => undefined);
     }
 
-    return { liked: !existing };
+    return { liked: result.liked, likesCount: result.likesCount };
   }
 
   async isLiked(userId: string, blogId: string) {
@@ -381,6 +408,36 @@ export class BlogService {
     return this.commentRepo.findOne({
       where: { id: comment.id },
       relations: ['authorUser'],
+    });
+  }
+
+  async updateOwnComment(
+    userId: string,
+    blogId: string,
+    commentId: string,
+    dto: UpdateCommentDto,
+  ) {
+    return this.dataSource.transaction(async (manager) => {
+      const comment = await manager.findOne(BlogComment, {
+        where: {
+          id: commentId,
+          blog_id: blogId,
+          deletedAt: IsNull(),
+        },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!comment) throw new NotFoundException('Comment not found');
+      if (comment.author_id !== userId) {
+        throw new ForbiddenException('Not your comment');
+      }
+
+      comment.content = dto.content;
+      await manager.save(BlogComment, comment);
+
+      return manager.findOne(BlogComment, {
+        where: { id: commentId, deletedAt: IsNull() },
+        relations: ['authorUser'],
+      });
     });
   }
 

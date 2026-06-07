@@ -68,10 +68,34 @@ class BlogSearchHistoryStore @Inject constructor(
         }
     }
 
+    suspend fun switchToAccount(userId: String) {
+        val normalizedUserId = userId.trim()
+        if (normalizedUserId.isBlank()) {
+            clearForLogout()
+            return
+        }
+
+        context.blogSearchHistoryStore.edit { preferences ->
+            val previousUserId = preferences[HISTORY_OWNER_USER_ID]
+            if (previousUserId != normalizedUserId) {
+                preferences.remove(SEARCH_HISTORY)
+            }
+            preferences[HISTORY_OWNER_USER_ID] = normalizedUserId
+        }
+    }
+
+    suspend fun clearForLogout() {
+        context.blogSearchHistoryStore.edit { preferences ->
+            preferences.remove(SEARCH_HISTORY)
+            preferences.remove(HISTORY_OWNER_USER_ID)
+        }
+    }
+
     companion object {
         private const val MAX_HISTORY_ITEMS = 10
         private const val MIN_QUERY_LENGTH = 2
         private const val SEPARATOR = "\u001F"
         private val SEARCH_HISTORY = stringPreferencesKey("search_history")
+        private val HISTORY_OWNER_USER_ID = stringPreferencesKey("history_owner_user_id")
     }
 }

@@ -30,6 +30,7 @@ import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.screens.discover.components.BlogAuthorAvatar
 import com.vitalai.ui.screens.discover.components.BlogCover
 import com.vitalai.ui.screens.discover.components.BlogStatPill
+import com.vitalai.ui.screens.discover.components.formatBlogTime
 import com.vitalai.ui.screens.discover.viewmodels.AuthorBlogsViewModel
 import com.vitalai.ui.theme.*
 
@@ -165,7 +166,7 @@ private fun AuthorBlogItem(blog: BlogDto, onClick: () -> Unit) {
                     }
                     Spacer(Modifier.width(8.dp))
                 }
-                Text(blog.createdAt.take(10), color = Ink500, fontSize = 12.sp)
+                Text(formatBlogTime(blog.createdAt), color = Ink500, fontSize = 12.sp)
             }
             Spacer(Modifier.height(8.dp))
             Text(

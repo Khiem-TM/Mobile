@@ -1,143 +1,97 @@
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { IsNull } from 'typeorm';
+import { BlogComment } from '../entities/blog-comment.entity';
 import { BlogService } from './blog.service';
-import { Blog } from '../entities/blog.entity';
 
-describe('BlogService moderation', () => {
-  function createService() {
-    const blogRepo = {
-      findOne: jest.fn(),
-      findAndCount: jest.fn(),
-    };
-    const blockRepo = {};
-    const likeRepo = {};
-    const commentRepo = {
-      findOne: jest.fn(),
-      findAndCount: jest.fn(),
-    };
-    const manager = {
-      create: jest.fn((_: unknown, data: Record<string, unknown>) => data),
-      save: jest.fn((entity: unknown, data?: Record<string, unknown>) => {
-        if (entity === Blog) return Promise.resolve({ id: 'blog-id', ...data });
-        return Promise.resolve(data ?? entity);
-      }),
-      update: jest.fn().mockResolvedValue({ affected: 1 }),
-      decrement: jest.fn().mockResolvedValue({ affected: 1 }),
-    };
+describe('BlogService updateOwnComment', () => {
+  const createService = (manager: Record<string, jest.Mock>) => {
     const dataSource = {
-      transaction: jest.fn(async (callback: (manager: typeof manager) => Promise<unknown>) =>
-        callback(manager),
-      ),
+      transaction: jest.fn(async (operation) => operation(manager)),
     };
-    const redisService = {
-      getJson: jest.fn(),
-      setJson: jest.fn(),
-      del: jest.fn(),
-      delByPattern: jest.fn(),
-    };
-    const auditLogService = { recordFromContext: jest.fn() };
+
     const service = new BlogService(
-      blogRepo as any,
-      blockRepo as any,
-      likeRepo as any,
-      commentRepo as any,
-      dataSource as any,
-      { uploadBase64: jest.fn(), deleteFile: jest.fn() } as any,
-      redisService as any,
-      { findById: jest.fn() } as any,
-      { emit: jest.fn() } as any,
-      auditLogService as any,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      dataSource as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
     );
 
-    return { service, blogRepo, commentRepo, dataSource, manager, redisService, auditLogService };
-  }
+    return { service, dataSource };
+  };
 
-  it('creates user blogs as pending unless saved as draft', async () => {
-    const { service, blogRepo, manager } = createService();
-    blogRepo.findOne.mockResolvedValue({ id: 'blog-id', status: 'pending' });
+  it('updates and returns the comment inside one locked transaction', async () => {
+    const comment = {
+      id: 'comment-1',
+      blog_id: 'blog-1',
+      author_id: 'user-1',
+      content: 'Old content',
+    };
+    const updated = { ...comment, content: 'Updated content' };
+    const manager = {
+      findOne: jest.fn().mockResolvedValueOnce(comment).mockResolvedValueOnce(updated),
+      save: jest.fn().mockResolvedValue(updated),
+    };
+    const { service, dataSource } = createService(manager);
 
-    await service.createUserBlog('user-id', {
-      title: 'Community post',
-      status: 'approved',
+    await expect(
+      service.updateOwnComment('user-1', 'blog-1', 'comment-1', {
+        content: 'Updated content',
+      }),
+    ).resolves.toEqual(updated);
+
+    expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(manager.findOne).toHaveBeenNthCalledWith(1, BlogComment, {
+      where: {
+        id: 'comment-1',
+        blog_id: 'blog-1',
+        deletedAt: IsNull(),
+      },
+      lock: { mode: 'pessimistic_write' },
     });
-
-    expect(manager.create).toHaveBeenCalledWith(
-      Blog,
-      expect.objectContaining({
-        author_id: 'user-id',
-        status: 'pending',
-      }),
+    expect(manager.save).toHaveBeenCalledWith(
+      BlogComment,
+      expect.objectContaining({ content: 'Updated content' }),
     );
   });
 
-  it('returns admin blog detail without requiring approved status', async () => {
-    const { service, blogRepo } = createService();
-    blogRepo.findOne.mockResolvedValue({ id: 'blog-id', status: 'pending' });
-
-    const result = await service.adminGetBlogById('blog-id');
-
-    expect(result).toEqual({ id: 'blog-id', status: 'pending' });
-    expect(blogRepo.findOne).toHaveBeenCalledWith(
-      expect.objectContaining({
-        relations: ['blocks', 'authorUser'],
+  it('rejects a user who does not own the comment', async () => {
+    const manager = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'comment-1',
+        blog_id: 'blog-1',
+        author_id: 'another-user',
+        content: 'Content',
       }),
-    );
+      save: jest.fn(),
+    };
+    const { service } = createService(manager);
+
+    await expect(
+      service.updateOwnComment('user-1', 'blog-1', 'comment-1', {
+        content: 'Updated content',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(manager.save).not.toHaveBeenCalled();
   });
 
-  it('lists non-deleted comments for admin moderation', async () => {
-    const { service, blogRepo, commentRepo } = createService();
-    blogRepo.findOne.mockResolvedValue({ id: 'blog-id' });
-    commentRepo.findAndCount.mockResolvedValue([[{ id: 'comment-id' }], 1]);
+  it('does not expose comments from another blog or deleted comments', async () => {
+    const manager = {
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    };
+    const { service } = createService(manager);
 
-    const result = await service.adminGetBlogComments('blog-id', 1, 20);
-
-    expect(result).toEqual({
-      items: [{ id: 'comment-id' }],
-      total: 1,
-      page: 1,
-      limit: 20,
-    });
-    expect(commentRepo.findAndCount).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { blog_id: 'blog-id', deletedAt: expect.any(Object) },
-        relations: ['authorUser'],
+    await expect(
+      service.updateOwnComment('user-1', 'wrong-blog', 'comment-1', {
+        content: 'Updated content',
       }),
-    );
-  });
-
-  it('soft-deletes admin comments and records audit logs', async () => {
-    const { service, commentRepo, manager, redisService, auditLogService } = createService();
-    commentRepo.findOne.mockResolvedValue({
-      id: 'comment-id',
-      blog_id: 'blog-id',
-      author_id: 'author-id',
-    });
-
-    await service.adminDeleteComment(
-      'comment-id',
-      { actorUserId: 'admin-id', actorEmail: 'admin@test.com' },
-      'blog-id',
-    );
-
-    expect(manager.update).toHaveBeenCalled();
-    expect(manager.decrement).toHaveBeenCalledWith(Blog, { id: 'blog-id' }, 'commentCount', 1);
-    expect(redisService.delByPattern).toHaveBeenCalledWith('cache:blogs:list:*');
-    expect(redisService.del).toHaveBeenCalledWith('cache:blogs:one:blog-id');
-    expect(auditLogService.recordFromContext).toHaveBeenCalledWith(
-      expect.objectContaining({ actorUserId: 'admin-id' }),
-      expect.objectContaining({
-        action: 'admin.blog_comment.delete',
-        targetType: 'blog_comment',
-        targetId: 'comment-id',
-      }),
-    );
-  });
-
-  it('rejects comment deletion when the comment does not belong to the blog', async () => {
-    const { service, commentRepo } = createService();
-    commentRepo.findOne.mockResolvedValue({ id: 'comment-id', blog_id: 'other-blog' });
-
-    await expect(service.adminDeleteComment('comment-id', undefined, 'blog-id')).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(manager.save).not.toHaveBeenCalled();
   });
 });

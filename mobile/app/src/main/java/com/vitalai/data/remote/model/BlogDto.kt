@@ -61,7 +61,8 @@ data class BlogPageDto(
 
 @JsonClass(generateAdapter = true)
 data class BlogLikedDto(
-    @Json(name = "liked") val liked: Boolean
+    @Json(name = "liked") val liked: Boolean,
+    @Json(name = "likesCount") val likesCount: Int? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -69,7 +70,8 @@ data class CommentDto(
     @Json(name = "id") val id: String,
     @Json(name = "content") val content: String,
     @Json(name = "authorUser") val authorUser: AuthorUserDto? = null,
-    @Json(name = "createdAt") val createdAt: String
+    @Json(name = "createdAt") val createdAt: String,
+    @Json(name = "updatedAt") val updatedAt: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -82,6 +84,11 @@ data class CommentPageDto(
 
 @JsonClass(generateAdapter = true)
 data class CreateCommentRequest(
+    @Json(name = "content") val content: String
+)
+
+@JsonClass(generateAdapter = true)
+data class UpdateCommentRequest(
     @Json(name = "content") val content: String
 )
 
