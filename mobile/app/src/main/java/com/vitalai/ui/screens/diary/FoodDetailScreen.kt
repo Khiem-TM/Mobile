@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import com.vitalai.data.remote.model.FoodDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
@@ -275,38 +275,30 @@ private fun FoodImageHeader(
     onBack: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
+    val imageUrl = food.displayImageUrl
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(320.dp)
             .background(FoodModule.Keylime)
     ) {
-        SubcomposeAsyncImage(
-            model = food.imageUrl,
-            contentDescription = food.name,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            loading = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(FoodModule.Keylime),
-                    contentAlignment = Alignment.Center
-                ) {
-                    FoodThumbFallback(name = food.name, size = 104.dp, circle = true)
-                }
-            },
-            error = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(FoodModule.Keylime),
-                    contentAlignment = Alignment.Center
-                ) {
-                    FoodThumbFallback(name = food.name, size = 104.dp, circle = true)
-                }
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = food.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(FoodModule.Keylime),
+                contentAlignment = Alignment.Center
+            ) {
+                FoodThumbFallback(name = food.name, size = 104.dp, circle = true)
             }
-        )
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()

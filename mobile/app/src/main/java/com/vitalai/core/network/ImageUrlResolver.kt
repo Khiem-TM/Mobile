@@ -19,14 +19,52 @@ object ImageUrlResolver {
 
     fun resolve(url: String?): String? {
         if (url.isNullOrBlank()) return null
-        val trimmed = url.trim()
-        if (trimmed.startsWith("http://", ignoreCase = true) ||
-            trimmed.startsWith("https://", ignoreCase = true)
+        val trimmed = normalizeRawUrl(url) ?: return null
+        if (trimmed.startsWith("//")) {
+            return "https:$trimmed"
+        }
+        val safeUrl = trimmed.replace(" ", "%20")
+        if (safeUrl.startsWith("http://", ignoreCase = true) ||
+            safeUrl.startsWith("https://", ignoreCase = true)
         ) {
-            return trimmed
+            return safeUrl
         }
         val base = BuildConfig.BASE_URL.trimEnd('/')
-        val path = if (trimmed.startsWith("/")) trimmed else "/$trimmed"
+        val path = if (safeUrl.startsWith("/")) safeUrl else "/$safeUrl"
         return "$base$path"
+    }
+
+    fun resolveFirst(vararg urls: String?): String? =
+        urls.firstNotNullOfOrNull { resolve(it) }
+
+    fun resolveFirst(urls: Iterable<String?>?): String? =
+        urls?.firstNotNullOfOrNull { resolve(it) }
+
+    fun compactResolvable(urls: Iterable<String?>?): List<String>? =
+        urls
+            ?.mapNotNull { url -> url?.takeIf { resolve(it) != null } }
+            ?.takeIf { it.isNotEmpty() }
+
+    private fun normalizeRawUrl(raw: String): String? {
+        var value = raw.trim()
+        if (value.isBlank() || value == "{}") return null
+
+        // Be tolerant of PostgreSQL text-array values accidentally delivered as
+        // a raw string, e.g. "{https://...}" or "{\"https://...\"}".
+        if (value.startsWith("{") && value.endsWith("}")) {
+            value = value.removePrefix("{").removeSuffix("}").trim()
+            if (value.startsWith("\"")) {
+                val closingQuote = value.indexOf('"', startIndex = 1)
+                if (closingQuote > 0) value = value.substring(1, closingQuote)
+            }
+        }
+
+        value = value
+            .trim()
+            .trim('"')
+            .trim('\'')
+            .trim()
+
+        return value.takeIf { it.isNotBlank() && it != "{}" }
     }
 }

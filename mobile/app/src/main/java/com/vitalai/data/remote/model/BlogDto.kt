@@ -10,7 +10,9 @@ data class AuthorUserDto(
     @Json(name = "display_name") val displayName: String?,
     @Json(name = "email") val email: String?,
     @Json(name = "avatar_url") val avatarUrl: String? = null
-)
+) {
+    val displayAvatarUrl: String? get() = ImageUrlResolver.resolve(avatarUrl)
+}
 
 @JsonClass(generateAdapter = true)
 data class BlogBlockDto(

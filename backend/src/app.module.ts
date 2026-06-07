@@ -15,6 +15,50 @@ import { AdminModule } from './modules/admin/admin.module';
 import { ChatbotModule } from './modules/chatbot/chatbot.module';
 import { NotificationModule } from './modules/notification/notification.module';
 
+function parseBoolean(value: string | undefined, defaultValue = false): boolean {
+  if (value === undefined) return defaultValue;
+  return ['true', '1', 'yes', 'on'].includes(value.toLowerCase());
+}
+
+function parsePort(value: string | undefined, defaultValue: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : defaultValue;
+}
+
+function getDatabaseUrlHost(databaseUrl: string): string | undefined {
+  try {
+    return new URL(databaseUrl).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
+function isLocalDatabaseHost(host: string | undefined): boolean {
+  if (!host) return false;
+  return ['localhost', '127.0.0.1', '::1', 'postgres'].includes(host);
+}
+
+function shouldUseDatabaseSsl(
+  configService: ConfigService,
+  databaseUrl?: string,
+): boolean {
+  const dbSsl = configService.get<string>('DB_SSL');
+  if (dbSsl !== undefined) return parseBoolean(dbSsl);
+
+  if (!databaseUrl) return false;
+  const host = getDatabaseUrlHost(databaseUrl);
+  return !isLocalDatabaseHost(host);
+}
+
+function describeDatabaseUrl(databaseUrl: string): string {
+  try {
+    const url = new URL(databaseUrl);
+    return `${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname}`;
+  } catch {
+    return 'DATABASE_URL';
+  }
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -54,26 +98,46 @@ import { NotificationModule } from './modules/notification/notification.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        const synchronize = parseBoolean(
+          configService.get<string>('DB_SYNCHRONIZE'),
+          false,
+        );
+        const isSsl = shouldUseDatabaseSsl(configService, databaseUrl);
+        const baseConfig = {
+          type: 'postgres' as const,
+          autoLoadEntities: true,
+          synchronize,
+          ...(isSsl && { ssl: { rejectUnauthorized: false } }),
+        };
+
+        if (databaseUrl) {
+          console.log(
+            `Connecting to ${describeDatabaseUrl(databaseUrl)} via DATABASE_URL (synchronize=${synchronize})`,
+          );
+          return {
+            ...baseConfig,
+            url: databaseUrl,
+          };
+        }
+
         const dbHost = configService.get<string>('DB_HOST', 'localhost');
-        const dbPort = configService.get<number>('DB_PORT', 5432);
+        const dbPort = parsePort(configService.get<string>('DB_PORT'), 5432);
         const dbUser = configService.get<string>('DB_USER', 'postgres');
         const dbPass = configService.get<string>('DB_PASS', '123456');
         const dbName = configService.get<string>('DB_NAME', 'calories_tracker');
 
-        console.log(`Connecting to ${dbUser}@${dbHost}:${dbPort}/${dbName}`);
-
-        const isSsl = configService.get<string>('DB_SSL', 'false') === 'true';
+        console.log(
+          `Connecting to ${dbHost}:${dbPort}/${dbName} via DB_* env (synchronize=${synchronize})`,
+        );
 
         return {
-          type: 'postgres' as const,
+          ...baseConfig,
           host: dbHost,
           port: dbPort,
           username: dbUser,
           password: dbPass,
           database: dbName,
-          autoLoadEntities: true,
-          synchronize: configService.get<string>('NODE_ENV', 'development') !== 'production',
-          ...(isSsl && { ssl: { rejectUnauthorized: false } }),
         };
       },
     }),

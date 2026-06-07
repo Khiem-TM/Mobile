@@ -37,9 +37,9 @@ data class ExerciseDto(
     @Json(name = "movementType") val movementType: String? = null,
     @Json(name = "exerciseType") val exerciseType: String = "SPORT"
 ) {
-    val displayImageUrl: String? get() = ImageUrlResolver.resolve(
-        thumbnailUrl ?: imageAvtUrl ?: imageUrl?.firstOrNull()
-    )
+    val displayImageUrl: String? get() =
+        ImageUrlResolver.resolveFirst(thumbnailUrl, imageAvtUrl)
+            ?: ImageUrlResolver.resolveFirst(imageUrl)
     val muscleGroup: String get() = muscleGroupRaw ?: primaryMuscleGroup
 }
 

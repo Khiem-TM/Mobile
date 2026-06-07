@@ -359,7 +359,7 @@ private fun FoodResultRow(food: FoodDto, onClick: () -> Unit, onQuickAdd: () -> 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        FoodThumb(name = food.name, imageUrl = food.imageUrl, size = 44.dp)
+        FoodThumb(name = food.name, imageUrl = food.displayImageUrl, size = 44.dp)
         Column(Modifier.weight(1f)) {
             Text(
                 food.name,

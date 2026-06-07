@@ -8,9 +8,15 @@ import com.vitalai.core.network.ImageUrlResolver
 data class FoodBriefDto(
     @Json(name = "id") val id: String,
     @Json(name = "name") val name: String,
-    @Json(name = "image_urls") val imageUrls: List<String>?
+    @Json(name = "image_urls") val imageUrls: List<String>? = null,
+    @Json(name = "imageUrls") val imageUrlsCamel: List<String>? = null,
+    @Json(name = "image_url") val imageUrlRaw: String? = null,
+    @Json(name = "imageUrl") val imageUrlCamelRaw: String? = null
 ) {
-    val imageUrl: String? get() = ImageUrlResolver.resolve(imageUrls?.firstOrNull())
+    val imageUrl: String? get() =
+        ImageUrlResolver.resolveFirst(imageUrls)
+            ?: ImageUrlResolver.resolveFirst(imageUrlsCamel)
+            ?: ImageUrlResolver.resolveFirst(imageUrlRaw, imageUrlCamelRaw)
 }
 
 @JsonClass(generateAdapter = true)

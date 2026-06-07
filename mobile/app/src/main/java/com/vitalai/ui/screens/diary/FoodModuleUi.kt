@@ -33,7 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.SubcomposeAsyncImage
+import coil.compose.AsyncImage
 import com.vitalai.ui.theme.BorderGrey
 import com.vitalai.ui.theme.CreamCanvas
 import com.vitalai.ui.theme.DarkCharcoal
@@ -133,16 +133,24 @@ internal fun FoodThumb(
     circle: Boolean = true
 ) {
     val shape = if (circle) CircleShape else RoundedCornerShape(FoodModule.CardRadius)
-    SubcomposeAsyncImage(
-        model = imageUrl,
-        contentDescription = name,
-        contentScale = ContentScale.Crop,
+    Box(
         modifier = modifier
             .size(size)
-            .clip(shape),
-        loading = { FoodThumbFallback(name = name, size = size, circle = circle) },
-        error = { FoodThumbFallback(name = name, size = size, circle = circle) }
-    )
+            .clip(shape)
+            .background(FoodModule.Keylime),
+        contentAlignment = Alignment.Center
+    ) {
+        if (imageUrl != null) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            FoodThumbFallback(name = name, size = size, circle = circle)
+        }
+    }
 }
 
 @Composable

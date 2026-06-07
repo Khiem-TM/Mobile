@@ -10,7 +10,10 @@ data class FoodDto(
     @Json(name = "name") val name: String,
     @Json(name = "brand") val brand: String?,
     @Json(name = "category") val category: String?,
-    @Json(name = "image_urls") val imageUrls: List<String>?,
+    @Json(name = "image_urls") val imageUrlsSnake: List<String>? = null,
+    @Json(name = "imageUrls") val imageUrlsCamel: List<String>? = null,
+    @Json(name = "image_url") val imageUrlRaw: String? = null,
+    @Json(name = "imageUrl") val imageUrlCamelRaw: String? = null,
     @Json(name = "serving_size_g") val servingSizeG: Float,
     @Json(name = "serving_unit") val servingUnit: String,
     @Json(name = "calories_per_100g") val caloriesPer100g: Float,
@@ -21,7 +24,13 @@ data class FoodDto(
     @Json(name = "is_verified") val isVerified: Boolean,
     @Json(name = "is_custom") val isCustom: Boolean
 ) {
-    val imageUrl: String? get() = ImageUrlResolver.resolve(imageUrls?.firstOrNull())
+    val imageUrls: List<String>?
+        get() = ImageUrlResolver.compactResolvable(imageUrlsSnake)
+            ?: ImageUrlResolver.compactResolvable(imageUrlsCamel)
+            ?: ImageUrlResolver.compactResolvable(listOf(imageUrlRaw, imageUrlCamelRaw))
+
+    val displayImageUrl: String? get() = ImageUrlResolver.resolve(imageUrls?.firstOrNull())
+    val imageUrl: String? get() = displayImageUrl
 }
 
 @JsonClass(generateAdapter = true)

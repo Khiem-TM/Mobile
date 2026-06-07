@@ -118,8 +118,9 @@ services:
   #     start_period: 120s # model load on CPU is slow
 
   # ───────────────────────── Backend NestJS ─────────────────────────
-  # Gateway/Business/Source-of-truth. Đọc secrets từ backend/.env (env_file),
-  # các host nội bộ được override sang tên service trong network docker.
+  # Gateway/Business/Source-of-truth. Đọc secrets từ backend/.env (env_file).
+  # Backend DB dùng DATABASE_URL Supabase trong backend/.env; Postgres container
+  # phía trên vẫn giữ cho rag-service.
   backend:
     build:
       context: ./backend
@@ -129,12 +130,9 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # NODE_ENV=development để TypeORM synchronize tự tạo bảng (chưa có migration).
       NODE_ENV: development
       PORT: 3005
-      # Hạ tầng nội bộ (ghi đè giá trị localhost trong .env)
-      DB_HOST: postgres
-      DB_PORT: 5432
+      # Hạ tầng nội bộ ngoài database backend.
       REDIS_HOST: redis
       REDIS_PORT: 6379
       KAFKA_ENABLED: "true"
@@ -152,8 +150,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       kafka:

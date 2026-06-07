@@ -108,7 +108,7 @@ fun BlogDetailScreen(
                             Screen.AuthorBlogs(
                                 authorId = author.id,
                                 authorName = blog.displayAuthor,
-                                avatarUrl = author.avatarUrl
+                                avatarUrl = author.displayAvatarUrl
                             )
                         )
                     }
@@ -199,7 +199,7 @@ private fun BlogContent(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     BlogAuthorAvatar(
                         name = blog.displayAuthor,
-                        avatarUrl = blog.authorUser?.avatarUrl,
+                        avatarUrl = blog.authorUser?.displayAvatarUrl,
                         modifier = Modifier
                             .clickable(enabled = blog.authorUser != null) { onOpenAuthor(blog) },
                         size = 42.dp
@@ -450,13 +450,14 @@ private fun BlogBlockView(block: BlogBlockDto) {
             }
         }
         "image" -> {
-            if (!block.imageUrl.isNullOrBlank()) {
+            val imageUrl = block.displayImageUrl
+            if (imageUrl != null) {
                 Surface(
                     shape = RoundedCornerShape(VitalRadius.Lg),
                     color = AppSurface2
                 ) {
                     AsyncImage(
-                        model = block.displayImageUrl,
+                        model = imageUrl,
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
