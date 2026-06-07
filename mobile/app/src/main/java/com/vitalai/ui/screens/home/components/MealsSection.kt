@@ -1,83 +1,31 @@
 package com.vitalai.ui.screens.home.components
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DirectionsRun
-import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.TrendingUp
-import androidx.compose.material.icons.outlined.LocalDrink
-import androidx.compose.material.icons.outlined.FlashOn
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.vitalai.data.remote.model.BodyMetricDto
 import com.vitalai.navigation.Screen
-import com.vitalai.ui.components.ArcGauge
-import com.vitalai.ui.components.ErrorState
-import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.AppLine
-import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.AppSurface2
-import com.vitalai.ui.theme.AmberContainer
-import com.vitalai.ui.theme.AmberOnContainer
-import com.vitalai.ui.theme.AmberTint
-import com.vitalai.ui.theme.Ink400
-import com.vitalai.ui.theme.Ink500
-import com.vitalai.ui.theme.Ink700
 import com.vitalai.ui.theme.Ink900
-import com.vitalai.ui.theme.MacroCarbs
-import com.vitalai.ui.theme.MacroFat
-import com.vitalai.ui.theme.MacroProtein
-import com.vitalai.ui.theme.MealTimeBg
-import com.vitalai.ui.theme.MealTimeText
-import com.vitalai.ui.theme.Mint100
 import com.vitalai.ui.theme.Mint500
-import com.vitalai.ui.theme.WaterBlue
-import com.vitalai.ui.theme.WaterBlueTint
 import com.vitalai.ui.theme.VitalRadius
-import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import com.vitalai.ui.screens.home.viewmodels.HomeUiState
-import com.vitalai.ui.screens.home.viewmodels.HomeViewModel
 
 @Composable
 fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navController: NavController, selectedDate: String) {
@@ -152,65 +100,100 @@ fun MealOverviewCard(
     modifier: Modifier = Modifier,
     isSmall: Boolean = false
 ) {
+    val height = if (isSmall) 130.dp else 190.dp
+    
     Card(
-        modifier = modifier,
+        modifier = modifier.height(height),
         shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
+        colors = CardDefaults.cardColors(containerColor = AppSurface2),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, AppLine.copy(alpha = 0.5f))
     ) {
-        Column {
+        Box(modifier = Modifier.fillMaxSize()) {
             if (imageUrl != null) {
                 AsyncImage(
                     model = imageUrl,
                     contentDescription = mealType,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxWidth().height(if (isSmall) 90.dp else 140.dp)
+                    modifier = Modifier.fillMaxSize()
                 )
             } else {
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(if (isSmall) 90.dp else 140.dp)
-                        .background(AppSurface2),
+                    modifier = Modifier.fillMaxSize().background(AppSurface2),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("🍽️", fontSize = if (isSmall) 26.sp else 34.sp)
+                    Text("🍽️", fontSize = if (isSmall) 24.sp else 44.sp)
                 }
             }
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(mealType, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                if (!isSmall) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(description, fontSize = 12.sp, color = Ink500, maxLines = 1, modifier = Modifier.weight(1f))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                modifier = Modifier.clip(RoundedCornerShape(100)).background(MealTimeBg).padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("⏱️", fontSize = 10.sp)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(time, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = MealTimeText)
-                            }
-                            Row(
-                                modifier = Modifier.clip(RoundedCornerShape(100)).background(AmberContainer).padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Outlined.LocalDrink, contentDescription = null, tint = AmberOnContainer, modifier = Modifier.size(12.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("$calories", fontSize = 11.sp, fontWeight = FontWeight.Medium, color = AmberOnContainer)
-                            }
-                        }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                            startY = 100f
+                        )
+                    )
+            )
+
+            Box(modifier = Modifier.fillMaxSize().padding(if (isSmall) 8.dp else 16.dp)) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .padding(horizontal = if (isSmall) 6.dp else 8.dp, vertical = if (isSmall) 2.dp else 4.dp)
+                ) {
+                    Text(
+                        text = mealType.uppercase(), 
+                        fontSize = if (isSmall) 8.sp else 10.sp, 
+                        fontWeight = FontWeight.ExtraBold, 
+                        color = Color.White,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(end = if (isSmall) 85.dp else 100.dp)
+                ) {
+                    Text(
+                        text = description,
+                        fontSize = if (isSmall) 13.sp else 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 2,
+                        lineHeight = if (isSmall) 16.sp else 28.sp,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    if (!isSmall && time.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(time, fontSize = 12.sp, color = Color.White.copy(alpha = 0.8f))
                     }
-                } else {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(description, fontSize = 12.sp, color = Ink500)
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = if (isSmall) 6.dp else 10.dp, vertical = if (isSmall) 4.dp else 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Icon(Icons.Default.LocalFireDepartment, contentDescription = "Kcal", tint = Color(0xFFFFD54F), modifier = Modifier.size(if (isSmall) 12.dp else 16.dp))
+                        Text(
+                            text = "$calories kcal",
+                            fontSize = if (isSmall) 10.sp else 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }
     }
-}
+}
