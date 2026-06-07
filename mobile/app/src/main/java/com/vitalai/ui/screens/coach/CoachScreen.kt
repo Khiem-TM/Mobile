@@ -165,7 +165,11 @@ fun CoachScreen(
                 }
 
                 // Input row
-                Surface(color = AppSurface, shadowElevation = 8.dp) {
+                Surface(
+                    color = AppSurface,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -176,8 +180,10 @@ fun CoachScreen(
                             value = uiState.inputText,
                             onValueChange = viewModel::updateInput,
                             placeholder = { Text("Hỏi Vita điều gì đó...", color = Ink500, fontSize = 14.sp) },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 56.dp),
+                            shape = RoundedCornerShape(22.dp),
                             maxLines = 4,
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = Mint500,

@@ -8,9 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.DrawerState
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -78,15 +78,6 @@ private fun WithStatusBarInset(content: @Composable () -> Unit) {
     }
 }
 
-/** Các route tab chính sở hữu thanh điều hướng dưới + nền muted dùng chung. */
-private val mainTabRoutes = listOf(
-    Screen.Home::class.qualifiedName,
-    Screen.Diary::class.qualifiedName,
-    Screen.Discover::class.qualifiedName,
-    Screen.Coach::class.qualifiedName,
-    Screen.Profile::class.qualifiedName
-)
-
 /**
  * Vỏ ứng dụng cấp cao nhất: một Drawer + một Scaffold + một NavHost dùng chung.
  * Thanh điều hướng dưới và Drawer lịch sử Coach giờ là instance duy nhất ở đây,
@@ -96,15 +87,21 @@ private val mainTabRoutes = listOf(
 fun VitalApp(deepLinkBus: DeepLinkBus? = null, startLoggedIn: Boolean = false) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
-    val isCoach = currentRoute == Screen.Coach::class.qualifiedName
-    val isMainTab = currentRoute in mainTabRoutes
+    val destination = backStackEntry?.destination
+    val currentRoute = destination?.route
+    val routeArguments = backStackEntry?.arguments
+    val isCoach = destination?.hasRoute(Screen.Coach::class.qualifiedName!!, routeArguments) == true
+    val isMainTab = destination?.let {
+        it.hasRoute(Screen.Home::class.qualifiedName!!, routeArguments) ||
+            it.hasRoute(Screen.Diary::class.qualifiedName!!, routeArguments) ||
+            it.hasRoute(Screen.Discover::class.qualifiedName!!, routeArguments) ||
+            it.hasRoute(Screen.Profile::class.qualifiedName!!, routeArguments)
+    } == true
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    // DrawerState riêng theo route để màn kế tiếp luôn bắt đầu ở trạng thái đóng ngay
+    // từ frame đầu tiên, không lóe lại lịch sử Coach trước khi LaunchedEffect chạy.
+    val drawerState = remember(currentRoute) { DrawerState(DrawerValue.Closed) }
     val scope = rememberCoroutineScope()
-
-    // Rời khỏi Coach thì luôn đóng Drawer lại.
-    LaunchedEffect(isCoach) { if (!isCoach) drawerState.close() }
 
     // Điều hướng theo deep-link từ notification (nếu có).
     val pendingDeepLink by (deepLinkBus?.pending
@@ -122,7 +119,8 @@ fun VitalApp(deepLinkBus: DeepLinkBus? = null, startLoggedIn: Boolean = false) {
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        // Chỉ cho kéo Drawer khi đang ở Coach; các màn khác khóa lại.
+        // Cho phép chạm vùng nền mờ để đóng lịch sử; DrawerState riêng theo route
+        // vẫn ngăn trạng thái mở bị giữ lại khi chuyển sang Camera.
         gesturesEnabled = isCoach,
         drawerContent = {
             if (isCoach) {
