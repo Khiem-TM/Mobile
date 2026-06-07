@@ -119,17 +119,29 @@ export class DashboardService {
       0,
     );
 
+    // Calculate days passed in the week for accurate averaging
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayDate = new Date(todayStr);
+    const fromDateObj = new Date(fromDate);
+    let daysDivider = 7;
+    if (todayStr >= fromDate && todayStr <= toDate) {
+      const diffTime = todayDate.getTime() - fromDateObj.getTime();
+      daysDivider = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    } else if (todayStr < fromDate) {
+      daysDivider = 1;
+    }
+
     const weekResult = {
       period: { from: fromDate, to: toDate },
       nutrition: {
-        avg_daily_calories: Math.round(totalCalories / 7),
+        avg_daily_calories: Math.round(totalCalories / daysDivider),
         total_calories: Math.round(totalCalories),
         days_logged: daysLogged,
         daily_breakdown: dailyNutrition,
       },
       activity: {
         total_steps: totalSteps,
-        avg_daily_steps: Math.round(totalSteps / 7),
+        avg_daily_steps: Math.round(totalSteps / daysDivider),
         total_water_ml: totalWater,
       },
       training: {
