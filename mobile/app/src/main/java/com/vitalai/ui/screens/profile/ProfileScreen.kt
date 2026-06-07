@@ -6,6 +6,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +38,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import androidx.compose.material.icons.outlined.Flag
 import com.vitalai.util.copyUriToCacheFile
 import java.io.File
 import java.util.Locale
@@ -47,8 +50,7 @@ fun ProfileScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showEditAvatarDialog by remember { mutableStateOf(false) }
-    var isEditingDisplayName by remember { mutableStateOf(false) }
-    var displayNameDraft by remember { mutableStateOf("") }
+    var showEditDisplayNameDialog by remember { mutableStateOf(false) }
     val avatarPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -65,14 +67,26 @@ fun ProfileScreen(
         }
     }
 
-    LaunchedEffect(uiState.user?.id, uiState.user?.displayName) {
-        if (!isEditingDisplayName) {
-            displayNameDraft = uiState.user?.displayName.orEmpty()
-        }
+    if (showEditDisplayNameDialog) {
+        EditDisplayNameSheet(
+            currentName = uiState.user?.displayName.orEmpty(),
+            isSaving = uiState.isUpdatingProfile,
+            error = uiState.updateProfileError,
+            onDismiss = {
+                viewModel.clearUpdateProfileError()
+                showEditDisplayNameDialog = false
+            },
+            onSave = { newName ->
+                viewModel.updateProfile(newName, uiState.user?.avatarUrl.orEmpty()) {
+                    Toast.makeText(context, "Cập nhật tên hiển thị thành công!", Toast.LENGTH_SHORT).show()
+                    showEditDisplayNameDialog = false
+                }
+            }
+        )
     }
 
     if (showEditAvatarDialog) {
-        EditAvatarDialog(
+        EditAvatarSheet(
             avatarUrl = uiState.user?.avatarUrl.orEmpty(),
             isSaving = uiState.isUpdatingProfile,
             isUploading = uiState.isUploadingAvatar,
@@ -186,85 +200,37 @@ fun ProfileScreen(
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        if (isEditingDisplayName) {
-                            OutlinedTextField(
-                                value = displayNameDraft,
-                                onValueChange = { displayNameDraft = it },
-                                singleLine = true,
-                                enabled = !uiState.isUpdatingProfile,
-                                isError = displayNameDraft.trim().length !in 2..100,
-                                textStyle = LocalTextStyle.current.copy(
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Ink900
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(
-                                    onClick = {
-                                        viewModel.updateProfile(displayNameDraft, uiState.user?.avatarUrl.orEmpty()) {
-                                            Toast.makeText(context, "Cập nhật tên hiển thị thành công!", Toast.LENGTH_SHORT).show()
-                                            isEditingDisplayName = false
-                                        }
-                                    },
-                                    enabled = !uiState.isUpdatingProfile && displayNameDraft.trim().length in 2..100,
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    if (uiState.isUpdatingProfile) {
-                                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                    }
-                                    Text("Lưu", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                                TextButton(
-                                    onClick = {
-                                        viewModel.clearUpdateProfileError()
-                                        displayNameDraft = uiState.user?.displayName.orEmpty()
-                                        isEditingDisplayName = false
-                                    },
-                                    enabled = !uiState.isUpdatingProfile,
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
-                                    Text("Hủy", fontSize = 13.sp)
-                                }
-                            }
-                            uiState.updateProfileError?.let { error ->
-                                Text(error, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                            }
-                        } else {
-                            Box(
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                text = uiState.user?.displayName ?: "Người dùng",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Ink900,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = uiState.user?.displayName ?: "Người dùng",
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Ink900,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(end = 36.dp)
-                                )
+                                    .padding(end = 36.dp)
+                            )
 
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.CenterEnd)
-                                        .size(28.dp)
-                                        .clip(CircleShape)
-                                        .clickable {
-                                            viewModel.clearUpdateProfileError()
-                                            isEditingDisplayName = true
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Edit,
-                                        contentDescription = "Sửa tên",
-                                        tint = Ink700,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        viewModel.clearUpdateProfileError()
+                                        showEditDisplayNameDialog = true
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Sửa tên",
+                                    tint = Ink700,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                         Text(
@@ -287,33 +253,47 @@ fun ProfileScreen(
                             val goalText = when (uiState.healthProfile?.goalType?.lowercase()) {
                                 "lose_weight" -> "Giảm cân"
                                 "gain_weight" -> "Tăng cân"
+                                "gain_muscle" -> "Tăng cơ"
+                                "improve_endurance" -> "Tăng sức bền"
+                                "bulking" -> "Xả cơ"
+                                "cutting" -> "Siết cơ"
                                 "maintain" -> "Giữ cân"
                                 else -> "Mục tiêu"
                             }
                             Row(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(100))
-                                    .background(AmberContainer)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MacroWater)
                                     .padding(horizontal = 10.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("🎯", fontSize = 10.sp)
+                                Icon(
+                                    imageVector = Icons.Filled.Flag,
+                                    contentDescription = "Goal",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
                                 Spacer(modifier = Modifier.width(4.dp))
-                                Text(goalText, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = AmberOnContainer)
+                                Text(goalText, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                             // Streak tag
                             val streak = uiState.streaks?.loginStreak ?: 0
                             if (streak > 0) {
                                 Row(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(100))
-                                        .background(Mint50)
-                                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color(0xFFFF6D00))
+                                        .padding(horizontal = 10.dp, vertical = 2.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("🔥", fontSize = 11.sp)
+                                    Icon(
+                                        imageVector = Icons.Filled.LocalFireDepartment,
+                                        contentDescription = "Goal",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Text("$streak day streak", fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Mint700)
+                                    Text("Chuỗi $streak", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 }
                             }
                         }
@@ -322,46 +302,6 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // Stats Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                val currentWeight = uiState.healthProfile?.initialWeightKg
-                val targetWeight = uiState.healthProfile?.targetWeightKg
-                val heightCm = uiState.healthProfile?.heightCm
-                val bmi = if (currentWeight != null && heightCm != null && heightCm > 0) {
-                    val heightM = heightCm / 100f
-                    currentWeight / (heightM * heightM)
-                } else null
-
-                StatCard(
-                    value = currentWeight?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
-                    unit = "kg",
-                    label = "Hiện tại",
-                    color = Mint500,
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    value = targetWeight?.let { String.format(Locale.US, "%.0f", it) } ?: "--",
-                    unit = "kg",
-                    label = "Mục tiêu",
-                    color = Ink900,
-                    modifier = Modifier.weight(1f)
-                )
-                StatCard(
-                    value = bmi?.let { String.format(Locale.US, "%.1f", it) } ?: "--",
-                    unit = "",
-                    label = "BMI",
-                    color = Mint500,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             // Menu Section 1
             Card(
@@ -457,31 +397,6 @@ fun ProfileScreen(
     }
 
 @Composable
-private fun StatCard(value: String, unit: String, label: String, color: Color, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(value, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = color)
-                if (unit.isNotEmpty()) {
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(unit, fontSize = 13.sp, color = Ink500, modifier = Modifier.padding(bottom = 2.dp))
-                }
-            }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(label, fontSize = 12.sp, color = Ink500)
-        }
-    }
-}
-
-@Composable
 private fun ProfileMenuItem(
     icon: ImageVector,
     label: String,
@@ -513,8 +428,59 @@ private fun ProfileMenuItem(
     }
 }
 
+/** OutlinedTextField với viền giống ô input của màn Hồ sơ cơ thể (xám đậm khi focus, xám nhạt khi không). */
 @Composable
-private fun EditAvatarDialog(
+private fun DialogBorderedTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    topLabel: String? = null,
+    placeholder: @Composable (() -> Unit)? = null,
+    enabled: Boolean = true,
+    isError: Boolean = false
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isFocused by interactionSource.collectIsFocusedAsState()
+    val borderColor = if (isFocused) Color(0xFF9E9E9E) else Color(0xFFDDDDDD)
+
+    Column(modifier = modifier) {
+        if (topLabel != null) {
+            Text(
+                topLabel,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Ink500,
+                modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
+            )
+        }
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(2.dp, borderColor, RoundedCornerShape(8.dp)),
+            placeholder = placeholder,
+            singleLine = true,
+            enabled = enabled,
+            isError = isError,
+            interactionSource = interactionSource,
+            shape = RoundedCornerShape(8.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                disabledBorderColor = Color.Transparent,
+                errorBorderColor = Color.Transparent,
+                cursorColor = ForestGreen,
+                focusedPlaceholderColor = Ink400,
+                unfocusedPlaceholderColor = Ink400
+            )
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditAvatarSheet(
     avatarUrl: String,
     isSaving: Boolean,
     isUploading: Boolean,
@@ -526,88 +492,102 @@ private fun EditAvatarDialog(
     var avatarUrlDraft by remember(avatarUrl) {
         mutableStateOf(avatarUrl)
     }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = {
             if (!isSaving && !isUploading) onDismiss()
         },
-        containerColor = AppSurface,
-        title = {
-            Text("Sửa avatar", fontWeight = FontWeight.Bold)
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = avatarUrlDraft,
-                    onValueChange = { avatarUrlDraft = it },
-                    label = { Text("Avatar URL") },
-                    singleLine = true,
-                    enabled = !isSaving && !isUploading,
-                    placeholder = { Text("https://example.com/avatar.jpg") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (isUploading) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Đang tải ảnh lên...", color = Ink500, fontSize = 13.sp)
-                    }
-                }
-                if (error != null) {
-                    Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                }
-            }
-        },
-        confirmButton = {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        sheetState = sheetState,
+        containerColor = Color.White,
+        contentWindowInsets = { WindowInsets(0) },
+        dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) }
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 480.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp)
             ) {
-                IconButton(
-                    onClick = onUpload,
-                    enabled = !isSaving && !isUploading
-                ) {
-                    Icon(
-                        Icons.Default.FileUpload,
-                        contentDescription = "Tải ảnh avatar",
-                        tint = Ink700,
-                        modifier = Modifier.size(22.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Cập nhật ảnh đại diện",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp,
+                            color = ForestGreen
+                        )
+                        IconButton(
+                            onClick = onUpload,
+                            enabled = !isSaving && !isUploading
+                        ) {
+                            Icon(
+                                Icons.Default.FileUpload,
+                                contentDescription = "Tải ảnh avatar",
+                                tint = ForestGreen,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    DialogBorderedTextField(
+                        value = avatarUrlDraft,
+                        onValueChange = { avatarUrlDraft = it },
+                        topLabel = "Link ảnh",
+                        enabled = !isSaving && !isUploading,
+                        placeholder = { Text("https://example.com/avatar.jpg") },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onDismiss, enabled = !isSaving && !isUploading) {
-                        Text("Hủy")
+                    if (isUploading) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Đang tải ảnh lên...", color = Ink500, fontSize = 13.sp)
+                        }
+                    }
+                    if (error != null) {
+                        Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
                     }
                     Button(
                         onClick = { onSave(avatarUrlDraft) },
-                        enabled = !isSaving && !isUploading && avatarUrlDraft.trim().isNotBlank()
+                        enabled = !isSaving && !isUploading && avatarUrlDraft.trim().isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(VitalRadius.Md),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ForestGreen,
+                            disabledContainerColor = ForestGreen.copy(alpha = 0.5f),
+                            contentColor = Color.White,
+                            disabledContentColor = Color.White.copy(alpha = 0.6f)
+                        )
                     ) {
                         if (isSaving) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Text(
                             text = "Lưu",
                             color = Color.White,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EditDisplayNameDialog(
+private fun EditDisplayNameSheet(
     currentName: String,
     isSaving: Boolean,
     error: String?,
@@ -615,47 +595,71 @@ private fun EditDisplayNameDialog(
     onSave: (newName: String) -> Unit
 ) {
     var nameDraft by remember(currentName) { mutableStateOf(currentName) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = { if (!isSaving) onDismiss() },
-        containerColor = AppSurface,
-        title = { Text("Đổi tên hiển thị", fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = nameDraft,
-                    onValueChange = { nameDraft = it },
-                    label = { Text("Tên mới") },
-                    singleLine = true,
-                    enabled = !isSaving,
-                    isError = nameDraft.trim().length !in 2..100,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (error != null) {
-                    Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(nameDraft) },
-                enabled = !isSaving && nameDraft.trim().length in 2..100
+        sheetState = sheetState,
+        containerColor = Color.White,
+        contentWindowInsets = { WindowInsets(0) },
+        dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) }
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 480.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp)
             ) {
-                if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
-                    Spacer(modifier = Modifier.width(8.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Cập nhật tên hiển thị",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = ForestGreen
+                    )
+                    DialogBorderedTextField(
+                        value = nameDraft,
+                        onValueChange = { nameDraft = it },
+                        topLabel = "Tên mới",
+                        enabled = !isSaving,
+                        isError = nameDraft.trim().length !in 2..100,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (error != null) {
+                        Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                    }
+                    Button(
+                        onClick = { onSave(nameDraft) },
+                        enabled = !isSaving && nameDraft.trim().length in 2..100,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(VitalRadius.Md),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ForestGreen,
+                            disabledContainerColor = ForestGreen.copy(alpha = 0.5f),
+                            contentColor = Color.White,
+                            disabledContentColor = Color.White.copy(alpha = 0.6f)
+                        )
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = "Lưu",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
-                Text(
-                    text = "Lưu",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isSaving) { Text("Hủy") }
         }
-    )
+    }
 }
 
 @Preview(showBackground = true, showSystemUi = true)
@@ -828,41 +832,6 @@ fun ProfileScreenPreview() {
             }
 
             Spacer(modifier = Modifier.height(20.dp))
-
-            // Stats
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-
-                StatCard(
-                    value = "76.5",
-                    unit = "kg",
-                    label = "Hiện tại",
-                    color = Color(0xFF38C182),
-                    modifier = Modifier.weight(1f)
-                )
-
-                StatCard(
-                    value = "70",
-                    unit = "kg",
-                    label = "Mục tiêu",
-                    color = Color.Black,
-                    modifier = Modifier.weight(1f)
-                )
-
-                StatCard(
-                    value = "24.1",
-                    unit = "",
-                    label = "BMI",
-                    color = Color(0xFF38C182),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
 
             // Section 1
             Card(
