@@ -9,11 +9,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Visibility
@@ -40,12 +42,9 @@ import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.screens.discover.components.BlogAuthorAvatar
 import com.vitalai.ui.screens.discover.components.BlogCover
+import com.vitalai.ui.screens.discover.components.formatBlogTime
 import com.vitalai.ui.screens.discover.viewmodels.BlogDetailViewModel
 import com.vitalai.ui.theme.*
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,16 +55,34 @@ fun BlogDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var commentText by remember { mutableStateOf("") }
+    var commentPendingDelete by remember { mutableStateOf<String?>(null) }
+    var commentEditingId by remember { mutableStateOf<String?>(null) }
+    var editedCommentText by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(blogId) {
         viewModel.loadBlog(blogId)
+    }
+
+    LaunchedEffect(uiState.likeError) {
+        uiState.likeError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearLikeError()
+        }
+    }
+
+    LaunchedEffect(uiState.commentActionError) {
+        uiState.commentActionError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearCommentActionError()
+        }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Chi tiết bài viết", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -88,7 +105,8 @@ fun BlogDetailScreen(
                 )
             }
         },
-        containerColor = AppMutedBackground
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = AppSurface
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -100,7 +118,9 @@ fun BlogDetailScreen(
             uiState.blog != null -> BlogContent(
                 blog = uiState.blog!!,
                 comments = uiState.comments,
+                currentUserId = uiState.currentUserId,
                 isLiked = uiState.isLiked,
+                isUpdatingLike = uiState.isUpdatingLike,
                 paddingValues = padding,
                 onOpenAuthor = { blog ->
                     blog.authorUser?.let { author ->
@@ -114,20 +134,82 @@ fun BlogDetailScreen(
                     }
                 },
                 onToggleLike = viewModel::toggleLike,
-                onDeleteComment = viewModel::deleteComment
+                onEditComment = {
+                    commentEditingId = it.id
+                    editedCommentText = it.content
+                },
+                editingCommentId = commentEditingId,
+                editedCommentText = editedCommentText,
+                isUpdatingComment = uiState.isUpdatingComment,
+                onEditedCommentChange = { if (it.length <= 2000) editedCommentText = it },
+                onCancelEditComment = {
+                    commentEditingId = null
+                    editedCommentText = ""
+                },
+                onSaveEditComment = { comment ->
+                    viewModel.updateComment(comment.id, editedCommentText)
+                    commentEditingId = null
+                    editedCommentText = ""
+                },
+                onDeleteComment = { commentPendingDelete = it }
             )
         }
     }
+
+    if (commentPendingDelete != null) {
+        AlertDialog(
+            onDismissRequest = { commentPendingDelete = null },
+            title = {
+                Text(
+                    "Xóa bình luận?",
+                    color = Ink900,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Bạn có chắc chắn muốn xóa bình luận này không?",
+                    color = Ink700
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        commentPendingDelete?.let(viewModel::deleteComment)
+                        commentPendingDelete = null
+                    }
+                ) {
+                    Text("Xóa bình luận", color = MacroProtein, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { commentPendingDelete = null }) {
+                    Text("Hủy", color = Ink500, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            containerColor = AppSurface
+        )
+    }
+
 }
 
 @Composable
 private fun BlogContent(
     blog: BlogDto,
     comments: List<CommentDto>,
+    currentUserId: String?,
     isLiked: Boolean,
+    isUpdatingLike: Boolean,
     paddingValues: PaddingValues,
     onOpenAuthor: (BlogDto) -> Unit,
     onToggleLike: () -> Unit,
+    onEditComment: (CommentDto) -> Unit,
+    editingCommentId: String?,
+    editedCommentText: String,
+    isUpdatingComment: Boolean,
+    onEditedCommentChange: (String) -> Unit,
+    onCancelEditComment: () -> Unit,
+    onSaveEditComment: (CommentDto) -> Unit,
     onDeleteComment: (String) -> Unit
 ) {
     Column(
@@ -139,37 +221,21 @@ private fun BlogContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 12.dp)
-                .height(196.dp)
-                .clip(RoundedCornerShape(VitalRadius.Xl))
+                .height(230.dp)
         ) {
             BlogCover(
                 blog = blog,
                 modifier = Modifier.fillMaxSize(),
-                radius = VitalRadius.Xl,
+                radius = 0.dp,
                 fallbackGradient = true
-            )
-            Icon(
-                Icons.Default.BookmarkBorder,
-                contentDescription = "Lưu bài",
-                tint = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(14.dp)
-                    .size(28.dp)
             )
         }
 
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            shape = RoundedCornerShape(VitalRadius.Xl),
-            color = AppSurface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, AppLine),
-            shadowElevation = VitalElevation.Level1
+            modifier = Modifier.fillMaxWidth(),
+            color = AppSurface
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
                 val tags = blog.tags
                 if (!tags.isNullOrEmpty()) {
                     Row(
@@ -188,7 +254,7 @@ private fun BlogContent(
                             }
                         }
                         Spacer(Modifier.weight(1f))
-                        Text("${blog.createdAt.take(10)} · ${blog.viewCount} views", color = Ink500, fontSize = 11.sp)
+                        Text("${formatBlogTime(blog.createdAt)} · ${blog.viewCount} views", color = Ink500, fontSize = 11.sp)
                     }
                     Spacer(Modifier.height(12.dp))
                 }
@@ -211,13 +277,11 @@ private fun BlogContent(
                             .clickable(enabled = blog.authorUser != null) { onOpenAuthor(blog) }
                     ) {
                         Text(blog.displayAuthor, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Ink900)
-                        Text(blog.createdAt.take(10), fontSize = 12.sp, color = Ink500)
+                        Text(formatBlogTime(blog.createdAt), fontSize = 12.sp, color = Ink500)
                     }
                 }
 
-                Spacer(Modifier.height(18.dp))
-                HorizontalDivider(color = AppLineSoft)
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
 
                 val blocks = blog.blocks
                 if (!blocks.isNullOrEmpty()) {
@@ -235,11 +299,19 @@ private fun BlogContent(
             blog = blog,
             commentsCount = maxOf(blog.commentCount, comments.size),
             isLiked = isLiked,
+            isUpdatingLike = isUpdatingLike,
             onToggleLike = onToggleLike
         )
         BlogCommentsSection(
-            commentsCount = maxOf(blog.commentCount, comments.size),
             comments = comments,
+            currentUserId = currentUserId,
+            onEditComment = onEditComment,
+            editingCommentId = editingCommentId,
+            editedCommentText = editedCommentText,
+            isUpdatingComment = isUpdatingComment,
+            onEditedCommentChange = onEditedCommentChange,
+            onCancelEditComment = onCancelEditComment,
+            onSaveEditComment = onSaveEditComment,
             onDeleteComment = onDeleteComment
         )
         Spacer(Modifier.height(18.dp))
@@ -251,51 +323,38 @@ private fun BlogEngagementBar(
     blog: BlogDto,
     commentsCount: Int,
     isLiked: Boolean,
+    isUpdatingLike: Boolean,
     onToggleLike: () -> Unit
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 2.dp),
-        color = AppSurface,
-        shadowElevation = VitalElevation.Level1
+        modifier = Modifier.fillMaxWidth(),
+        color = AppSurface
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 22.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            EngagementAction(
-                icon = Icons.Default.Favorite,
-                label = "${blog.likesCount}",
-                selected = isLiked,
-                onClick = onToggleLike
-            )
-            Spacer(Modifier.width(24.dp))
-            EngagementAction(
-                icon = Icons.AutoMirrored.Filled.MenuBook,
-                label = "$commentsCount",
-                selected = false,
-                onClick = {}
-            )
-            Spacer(Modifier.width(24.dp))
-            EngagementAction(
-                icon = Icons.Default.Share,
-                label = "Share",
-                selected = false,
-                onClick = {}
-            )
-            Spacer(Modifier.weight(1f))
-            Surface(
-                modifier = Modifier.size(44.dp),
-                shape = CircleShape,
-                color = AppSurface2
+        Column {
+            HorizontalDivider(color = AppLineSoft)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.BookmarkBorder, contentDescription = "Lưu bài", tint = Ink800, modifier = Modifier.size(24.dp))
-                }
+                EngagementAction(
+                    icon = Icons.Default.Favorite,
+                    label = "${blog.likesCount}",
+                    selected = isLiked,
+                    enabled = !isUpdatingLike,
+                    onClick = onToggleLike
+                )
+                Spacer(Modifier.width(22.dp))
+                EngagementAction(
+                    icon = Icons.Default.ChatBubbleOutline,
+                    label = "$commentsCount",
+                    selected = false,
+                    enabled = true,
+                    onClick = {}
+                )
             }
+            HorizontalDivider(color = AppLineSoft)
         }
     }
 }
@@ -305,12 +364,13 @@ private fun EngagementAction(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     selected: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(VitalRadius.Pill))
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(9.dp)
@@ -322,23 +382,40 @@ private fun EngagementAction(
 
 @Composable
 private fun BlogCommentsSection(
-    commentsCount: Int,
     comments: List<CommentDto>,
+    currentUserId: String?,
+    onEditComment: (CommentDto) -> Unit,
+    editingCommentId: String?,
+    editedCommentText: String,
+    isUpdatingComment: Boolean,
+    onEditedCommentChange: (String) -> Unit,
+    onCancelEditComment: () -> Unit,
+    onSaveEditComment: (CommentDto) -> Unit,
     onDeleteComment: (String) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = AppSurface
     ) {
-        Column(modifier = Modifier.padding(horizontal = 22.dp, vertical = 22.dp)) {
-            Text("Bình luận · $commentsCount", fontWeight = FontWeight.Bold, fontSize = 19.sp, color = Ink900)
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
             Spacer(Modifier.height(16.dp))
             if (comments.isEmpty()) {
                 Text("Chưa có bình luận nào.", color = Ink500, fontSize = 14.sp)
             } else {
                 comments.forEach { comment ->
-                    CommentItem(comment = comment, onDelete = { onDeleteComment(comment.id) })
-                    Spacer(Modifier.height(20.dp))
+                    CommentItem(
+                        comment = comment,
+                        canManage = currentUserId != null && comment.authorUser?.id == currentUserId,
+                        isEditing = editingCommentId == comment.id,
+                        editedText = editedCommentText,
+                        isUpdating = isUpdatingComment,
+                        onEditedTextChange = onEditedCommentChange,
+                        onCancelEdit = onCancelEditComment,
+                        onSaveEdit = { onSaveEditComment(comment) },
+                        onEdit = { onEditComment(comment) },
+                        onDelete = { onDeleteComment(comment.id) }
+                    )
+                    Spacer(Modifier.height(16.dp))
                 }
             }
         }
@@ -380,7 +457,7 @@ private fun BlogCommentInputBar(
                 singleLine = true,
                 modifier = Modifier
                     .weight(1f)
-                    .height(50.dp),
+                    .heightIn(min = 56.dp),
                 shape = RoundedCornerShape(VitalRadius.Pill),
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = AppSurface2,
@@ -406,7 +483,20 @@ private fun BlogCommentInputBar(
 }
 
 @Composable
-private fun CommentItem(comment: CommentDto, onDelete: () -> Unit) {
+private fun CommentItem(
+    comment: CommentDto,
+    canManage: Boolean,
+    isEditing: Boolean,
+    editedText: String,
+    isUpdating: Boolean,
+    onEditedTextChange: (String) -> Unit,
+    onCancelEdit: () -> Unit,
+    onSaveEdit: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top
@@ -422,21 +512,79 @@ private fun CommentItem(comment: CommentDto, onDelete: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(comment.authorUser?.displayName ?: "Người dùng", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Ink900)
                 Spacer(Modifier.width(8.dp))
-                Text(comment.createdAt.relativeTimeLabel(), fontSize = 13.sp, color = Ink500)
+                Text(formatBlogTime(comment.createdAt), fontSize = 13.sp, color = Ink500)
             }
             Spacer(Modifier.height(6.dp))
-            Text(comment.content, fontSize = 15.sp, color = Ink700, lineHeight = 22.sp)
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Icon(Icons.Default.Favorite, contentDescription = null, tint = Ink500, modifier = Modifier.size(14.dp))
-                    Text("0", fontSize = 12.sp, color = Ink500, fontWeight = FontWeight.SemiBold)
+            if (isEditing) {
+                OutlinedTextField(
+                    value = editedText,
+                    onValueChange = onEditedTextChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isUpdating,
+                    minLines = 2,
+                    maxLines = 5,
+                    textStyle = LocalTextStyle.current.copy(fontSize = 15.sp, color = Ink700)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(enabled = !isUpdating, onClick = onCancelEdit) {
+                        Text("Hủy", color = Ink500)
+                    }
+                    TextButton(
+                        enabled = !isUpdating &&
+                            editedText.isNotBlank() &&
+                            editedText.trim() != comment.content,
+                        onClick = onSaveEdit
+                    ) {
+                        Text("Lưu", color = Mint700, fontWeight = FontWeight.Bold)
+                    }
                 }
-                Text("Trả lời", fontSize = 12.sp, color = Ink500, fontWeight = FontWeight.Bold)
+            } else {
+                Text(comment.content, fontSize = 15.sp, color = Ink700, lineHeight = 22.sp)
             }
         }
-        IconButton(onClick = onDelete, modifier = Modifier.size(30.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Xóa bình luận", tint = Ink300, modifier = Modifier.size(15.dp))
+        if (canManage && !isEditing) {
+            Box {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MoreHoriz,
+                        contentDescription = "Tùy chọn bình luận",
+                        tint = Ink500,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    containerColor = AppSurface
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Sửa") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = Ink700)
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onEdit()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Xóa", color = MacroProtein) },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = MacroProtein)
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onDelete()
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -467,23 +615,6 @@ private fun BlogBlockView(block: BlogBlockDto) {
                 }
             }
         }
-    }
-}
-
-private fun String.relativeTimeLabel(): String {
-    val instant = runCatching { Instant.parse(this) }.getOrElse {
-        runCatching {
-            LocalDateTime.parse(take(19)).atZone(ZoneId.systemDefault()).toInstant()
-        }.getOrNull()
-    } ?: return take(10)
-
-    val duration = Duration.between(instant, Instant.now())
-    return when {
-        duration.toMinutes() < 1 -> "vừa xong"
-        duration.toHours() < 1 -> "${duration.toMinutes()}m"
-        duration.toDays() < 1 -> "${duration.toHours()}h"
-        duration.toDays() < 7 -> "${duration.toDays()}d"
-        else -> take(10)
     }
 }
 
@@ -554,10 +685,19 @@ fun BlogDetailScreenPreview() {
             BlogContent(
                 blog = mockBlog,
                 comments = emptyList(),
+                currentUserId = null,
                 isLiked = false,
+                isUpdatingLike = false,
                 paddingValues = padding,
                 onOpenAuthor = {},
                 onToggleLike = {},
+                onEditComment = {},
+                editingCommentId = null,
+                editedCommentText = "",
+                isUpdatingComment = false,
+                onEditedCommentChange = {},
+                onCancelEditComment = {},
+                onSaveEditComment = {},
                 onDeleteComment = {}
             )
         }

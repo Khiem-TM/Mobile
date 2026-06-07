@@ -4,6 +4,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import com.vitalai.core.error.AppErrorMapper
 import com.vitalai.core.notification.DeviceTokenRegistrar
+import com.vitalai.data.local.BlogSearchHistoryStore
 import com.vitalai.data.local.datastore.TokenManager
 import com.vitalai.data.remote.AuthApi
 import com.vitalai.data.remote.model.ApiResponse
@@ -18,6 +19,7 @@ import javax.inject.Singleton
 class AuthRepository @Inject constructor(
     private val authApi: AuthApi,
     private val tokenManager: TokenManager,
+    private val blogSearchHistoryStore: BlogSearchHistoryStore,
     private val deviceTokenRegistrar: DeviceTokenRegistrar,
     private val moshi: Moshi
 ) {
@@ -65,6 +67,7 @@ class AuthRepository @Inject constructor(
             val response = authApi.login(request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
+                blogSearchHistoryStore.switchToAccount(body.user.id)
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
                 syncDeviceToken()
                 Result.success(body)
@@ -81,6 +84,7 @@ class AuthRepository @Inject constructor(
             val response = authApi.register(request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
+                blogSearchHistoryStore.switchToAccount(body.user.id)
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
                 syncDeviceToken()
                 Result.success(body)
@@ -98,6 +102,7 @@ class AuthRepository @Inject constructor(
             val response = authApi.googleMobileLogin(mapOf("id_token" to idToken))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
+                blogSearchHistoryStore.switchToAccount(body.user.id)
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
                 syncDeviceToken()
                 Result.success(body)
@@ -118,6 +123,7 @@ class AuthRepository @Inject constructor(
             authApi.logout(mapOf("refresh_token" to refreshToken))
         } catch (_: Exception) {
         }
+        blogSearchHistoryStore.clearForLogout()
         tokenManager.clearTokens()
     }
 

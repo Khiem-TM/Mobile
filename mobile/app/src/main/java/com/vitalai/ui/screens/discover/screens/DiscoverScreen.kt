@@ -15,10 +15,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -49,6 +48,8 @@ import com.vitalai.ui.components.SectionHeader
 import com.vitalai.ui.components.VitalIconButton
 import com.vitalai.ui.screens.discover.components.BlogCover
 import com.vitalai.ui.screens.discover.components.BlogSearchBar
+import com.vitalai.ui.screens.discover.components.formatBlogTime
+import com.vitalai.ui.screens.discover.components.mergeBlogTags
 import com.vitalai.ui.screens.discover.viewmodels.DiscoverViewModel
 import com.vitalai.ui.theme.*
 
@@ -74,11 +75,8 @@ fun DiscoverScreen(
             }
         }
     }
-    val tags = remember(uiState.tags, uiState.blogs) {
-        val blogTags = uiState.blogs.flatMap { it.tags.orEmpty() }
-        val mergedTags = (uiState.tags + blogTags)
-            .filter { it.isNotBlank() }
-            .distinctBy { it.lowercase() }
+    val tags = remember(uiState.tags) {
+        val mergedTags = mergeBlogTags(uiState.tags)
         listOf(null to "Tất cả") + mergedTags.map { it to it }
     }
     val searchedBlogs = uiState.blogs
@@ -408,25 +406,11 @@ private fun FeaturedBlogCard(blog: BlogDto, modifier: Modifier = Modifier, onCli
             color = Mint500
         ) {
             Text(
-                "FEATURED",
+                blog.primaryTagLabel() ?: "Bài viết",
                 color = Color.White,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)
-            )
-        }
-        Surface(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(16.dp),
-            shape = RoundedCornerShape(VitalRadius.Pill),
-            color = Color.Black.copy(alpha = 0.22f)
-        ) {
-            Icon(
-                Icons.Default.BookmarkBorder,
-                contentDescription = "Lưu bài",
-                tint = Color.White,
-                modifier = Modifier.padding(8.dp).size(22.dp)
             )
         }
         Column(
@@ -435,7 +419,7 @@ private fun FeaturedBlogCard(blog: BlogDto, modifier: Modifier = Modifier, onCli
                 .padding(horizontal = 16.dp, vertical = 18.dp)
         ) {
             Text(
-                "${blog.primaryTagLabel() ?: "Bài viết"} • ${blog.readMinutes()} min read",
+                formatBlogTime(blog.createdAt),
                 color = Color.White.copy(alpha = 0.88f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -514,9 +498,9 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
                 )
                 Spacer(Modifier.weight(1f))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = null, tint = Ink700, modifier = Modifier.size(17.dp))
+                    Icon(Icons.Default.Schedule, contentDescription = null, tint = Ink500, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(5.dp))
-                    Text("${blog.readMinutes()} min", color = Ink500, fontSize = 13.sp)
+                    Text(formatBlogTime(blog.createdAt), color = Ink500, fontSize = 13.sp)
                 }
             }
         }
@@ -524,24 +508,6 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
 }
 
 private fun BlogDto.primaryTagLabel(): String? = tags?.firstOrNull()?.takeIf { it.isNotBlank() }
-
-private fun BlogDto.readMinutes(): Int {
-    val body = content
-        ?: blocks
-            ?.sortedBy { it.order }
-            ?.mapNotNull { it.textContent }
-            ?.joinToString(" ")
-    val wordCount = body
-        ?.trim()
-        ?.split(Regex("\\s+"))
-        ?.count { it.isNotBlank() }
-        ?: 0
-    return if (wordCount > 0) {
-        (wordCount / 180).coerceAtLeast(1)
-    } else {
-        (title.length / 16).coerceIn(3, 8)
-    }
-}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

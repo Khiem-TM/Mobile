@@ -2,11 +2,13 @@ package com.vitalai.data.repository
 
 import com.vitalai.data.remote.BlogApi
 import com.vitalai.data.remote.model.BlogDto
+import com.vitalai.data.remote.model.BlogLikedDto
 import com.vitalai.data.remote.model.BlogPageDto
 import com.vitalai.data.remote.model.CommentDto
 import com.vitalai.data.remote.model.CommentPageDto
 import com.vitalai.data.remote.model.CreateCommentRequest
 import com.vitalai.data.remote.model.CreateBlogRequest
+import com.vitalai.data.remote.model.UpdateCommentRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,11 +54,11 @@ class BlogRepository @Inject constructor(
         }
     }
 
-    suspend fun toggleLike(id: String): Result<Boolean> {
+    suspend fun toggleLike(id: String): Result<BlogLikedDto> {
         return try {
             val response = blogApi.toggleLike(id)
             val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body.liked)
+            if (response.isSuccessful && body != null && body.likesCount != null) Result.success(body)
             else Result.failure(Exception("Không cập nhật được lượt thích (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
@@ -101,6 +103,17 @@ class BlogRepository @Inject constructor(
             val response = blogApi.deleteComment(blogId, commentId)
             if (response.isSuccessful) Result.success(Unit)
             else Result.failure(Exception("Không xóa được bình luận (${response.code()})"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateComment(blogId: String, commentId: String, content: String): Result<CommentDto> {
+        return try {
+            val response = blogApi.updateComment(blogId, commentId, UpdateCommentRequest(content))
+            val body = response.body()?.data
+            if (response.isSuccessful && body != null) Result.success(body)
+            else Result.failure(Exception("Không sửa được bình luận (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
         }
