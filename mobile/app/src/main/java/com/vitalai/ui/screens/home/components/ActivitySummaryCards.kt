@@ -197,77 +197,68 @@ fun ActivityWeekSummaryCard(
         Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
             Text("7 ngày gần đây", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(14.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
                 days.forEach { day ->
-                    Text(
-                        labels[day.dayOfWeek.value - 1],
-                        color = if (day == selected) Ink900 else Ink500,
-                        fontSize = 12.sp,
-                        fontWeight = if (day == selected) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.width(34.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
+                    val dateStr = day.toString()
+                    val log = logsByDate[dateStr]
+                    val waterProgress = ((log?.waterMl ?: 0).toFloat() / waterGoal).coerceIn(0f, 1f)
+                    val stepProgress = ((log?.steps ?: 0).toFloat() / stepGoal).coerceIn(0f, 1f)
+                    
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(VitalRadius.Md))
+                            .clickable { onDateClick(dateStr) }
+                            .padding(top = 8.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            // Water bar
+                            Box(
+                                modifier = Modifier
+                                    .width(10.dp)
+                                    .fillMaxHeight(waterProgress.coerceAtLeast(0.04f))
+                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    .background(WaterBlue)
+                            )
+                            // Step bar
+                            Box(
+                                modifier = Modifier
+                                    .width(10.dp)
+                                    .fillMaxHeight(stepProgress.coerceAtLeast(0.04f))
+                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    .background(Mint500)
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = labels[day.dayOfWeek.value - 1],
+                            color = if (day == selected) Ink900 else Ink500,
+                            fontSize = 12.sp,
+                            fontWeight = if (day == selected) FontWeight.Bold else FontWeight.Normal,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            ActivityGoalRow(
-                days = days,
-                logsByDate = logsByDate,
-                color = WaterBlueTint,
-                activeColor = WaterBlue,
-                onDateClick = onDateClick
-            ) { log -> (log?.waterMl ?: 0) >= waterGoal }
-            Spacer(Modifier.height(7.dp))
-            ActivityGoalRow(
-                days = days,
-                logsByDate = logsByDate,
-                color = Mint100,
-                activeColor = Mint500,
-                onDateClick = onDateClick
-            ) { log -> (log?.steps ?: 0) >= stepGoal }
             Spacer(Modifier.height(14.dp))
             HorizontalDivider(color = AppLine)
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                LegendDot(WaterBlueTint, "Nước")
-                LegendDot(Mint100, "Bước chân")
-            }
-        }
-    }
-}
-
-@Composable
-fun ActivityGoalRow(
-    days: List<java.time.LocalDate>,
-    logsByDate: Map<String, com.vitalai.data.remote.model.ActivityLogDto>,
-    color: Color,
-    activeColor: Color,
-    onDateClick: (String) -> Unit,
-    achieved: (com.vitalai.data.remote.model.ActivityLogDto?) -> Boolean
-) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        days.forEach { day ->
-            val date = day.toString()
-            val ok = achieved(logsByDate[date])
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .background(if (ok) color else Mint100.copy(alpha = 0.45f))
-                    .clickable { onDateClick(date) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(if (ok) "✓" else "−", color = if (ok) Ink900 else Ink400, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                if (ok) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 6.dp)
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(activeColor)
-                    )
-                }
+                LegendDot(WaterBlue, "Nước")
+                LegendDot(Mint500, "Bước chân")
             }
         }
     }
@@ -279,4 +270,4 @@ fun LegendDot(color: Color, label: String) {
         Box(Modifier.size(13.dp).clip(CircleShape).background(color))
         Text(label, color = Ink700, fontSize = 12.sp)
     }
-}
+}
