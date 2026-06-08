@@ -11,6 +11,8 @@ import com.vitalai.data.remote.model.ApiResponse
 import com.vitalai.data.remote.model.AuthResponseDto
 import com.vitalai.data.remote.model.LoginRequest
 import com.vitalai.data.remote.model.RegisterRequest
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -116,12 +118,17 @@ class AuthRepository @Inject constructor(
     }
 
     suspend fun logout() {
-        // Gỡ FCM token trước khi xoá access token (endpoint cần JWT).
-        runCatching { deviceTokenRegistrar.unregisterCurrent() }
-        try {
-            val refreshToken = tokenManager.getRefreshToken()
-            authApi.logout(mapOf("refresh_token" to refreshToken))
-        } catch (_: Exception) {
+        // Gỡ FCM token và gọi API logout song song (cả hai cần JWT, chạy trước khi xoá access token).
+        coroutineScope {
+            val unregisterJob = async { runCatching { deviceTokenRegistrar.unregisterCurrent() } }
+            val logoutJob = async {
+                runCatching {
+                    val refreshToken = tokenManager.getRefreshToken()
+                    authApi.logout(mapOf("refresh_token" to refreshToken))
+                }
+            }
+            unregisterJob.await()
+            logoutJob.await()
         }
         blogSearchHistoryStore.clearForLogout()
         tokenManager.clearTokens()
