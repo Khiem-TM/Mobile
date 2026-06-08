@@ -1,4 +1,4 @@
-package com.vitalai.ui.screens.goals
+package com.vitalai.ui.screens.goals.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
