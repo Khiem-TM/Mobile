@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -348,5 +350,43 @@ fun ArcGauge(
             Text(label, fontSize = 44.sp, fontWeight = FontWeight.Bold, color = Ink900)
             Text(sublabel, fontSize = 13.sp, color = Ink500, textAlign = TextAlign.Center)
         }
+    }
+}
+
+@Composable
+fun VitalScreenHeader(
+    title: String,
+    subtitle: String? = null,
+    onBackClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {}
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(AppSurface)
+            .statusBarsPadding()
+            .padding(horizontal = 4.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (onBackClick != null) {
+            IconButton(
+                onClick = onBackClick,
+                modifier = Modifier.padding(end = 4.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+            }
+        } else {
+            Spacer(Modifier.width(12.dp))
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Ink900)
+            if (subtitle != null) {
+                Text(subtitle, color = Ink700, fontSize = 14.sp)
+            }
+        }
+
+        actions()
     }
 }

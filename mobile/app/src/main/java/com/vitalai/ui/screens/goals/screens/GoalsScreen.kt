@@ -1,5 +1,7 @@
-package com.vitalai.ui.screens.goals
+package com.vitalai.ui.screens.goals.screens
 
+import com.vitalai.ui.screens.goals.components.*
+import com.vitalai.ui.screens.goals.viewmodels.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -35,6 +37,7 @@ import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.SectionHeader
 import com.vitalai.ui.components.SegmentedPills
 import com.vitalai.ui.components.VitalButton
+import com.vitalai.ui.components.VitalScreenHeader
 import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppMutedBackground
 import com.vitalai.ui.theme.AppSurface
@@ -73,16 +76,9 @@ fun GoalsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text("Mục tiêu của tôi", fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Ink900)
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+            VitalScreenHeader(
+                title = "Mục tiêu của tôi",
+                onBackClick = { navController.popBackStack() }
             )
         },
         containerColor = AppSurface
@@ -160,59 +156,4 @@ fun GoalsScreen(
     }
 }
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        fontSize = 12.sp,
-        fontWeight = FontWeight.Bold,
-        color = Ink500,
-        modifier = Modifier.padding(bottom = 10.dp)
-    )
-}
 
-@Composable
-private fun GoalField(label: String, value: String, onValueChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 12.dp)
-    )
-}
-
-@Composable
-private fun MacroSliderField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    maxValue: Float
-) {
-    val floatValue = value.toFloatOrNull() ?: 0f
-    
-    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, color = Ink500, fontSize = 15.sp, fontWeight = FontWeight.Medium)
-            Text("${floatValue.toInt()}g", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-        }
-        androidx.compose.material3.Slider(
-            value = floatValue,
-            onValueChange = { onValueChange(it.toInt().toString()) },
-            valueRange = 0f..maxValue,
-            colors = androidx.compose.material3.SliderDefaults.colors(
-                thumbColor = Mint500,
-                activeTrackColor = Mint500,
-                inactiveTrackColor = Mint100
-            ),
-            modifier = Modifier.fillMaxWidth().height(32.dp)
-        )
-    }
-}

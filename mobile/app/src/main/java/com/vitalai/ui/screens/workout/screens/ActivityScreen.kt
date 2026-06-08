@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ActivityLogDto
+import com.vitalai.ui.components.VitalScreenHeader
 import com.vitalai.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -102,7 +103,7 @@ fun ActivityScreenContent(
 
     Scaffold(
         topBar = {
-            ActivityPixelHeader(
+            VitalScreenHeader(
                 title = "Nhật ký hôm nay",
                 subtitle = runCatching {
                     val date = LocalDate.parse(uiState.selectedDate)
@@ -110,7 +111,11 @@ fun ActivityScreenContent(
                         .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale("vi")) else it.toString() }
                 }.getOrDefault(selectedDateDisplay),
                 onBackClick = onBackClick,
-                onCalendarClick = { showDatePicker = true }
+                actions = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Default.CalendarMonth, contentDescription = "Chọn ngày", tint = Ink900)
+                    }
+                }
             )
         },
         containerColor = AppSurface
@@ -171,49 +176,7 @@ fun ActivityScreenContent(
 
 // ─── Private composables ──────────────────────────────────────────────────────
 
-@Composable
-private fun ActivityPixelHeader(
-    title: String,
-    subtitle: String,
-    onBackClick: () -> Unit,
-    onCalendarClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(AppSurface)
-            .statusBarsPadding()
-            .padding(start = 16.dp, end = 19.dp, top = 12.dp, bottom = 13.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Mint100)
-                .clickable(onClick = onBackClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Mint700, modifier = Modifier.size(24.dp))
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, color = Ink900, fontSize = 23.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
-            Text(subtitle, color = Ink700, fontSize = 14.sp, lineHeight = 17.sp)
-        }
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(AppSurface)
-                .border(1.dp, AppLine, CircleShape)
-                .clickable(onClick = onCalendarClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.CalendarMonth, contentDescription = "Chọn ngày", tint = Ink900, modifier = Modifier.size(23.dp))
-        }
-    }
-}
+
 
 @Composable
 private fun PixelWaterCard(
