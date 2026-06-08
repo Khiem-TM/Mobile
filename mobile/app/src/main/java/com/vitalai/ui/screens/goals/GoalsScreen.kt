@@ -32,6 +32,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.SectionHeader
+import com.vitalai.ui.components.SegmentedPills
 import com.vitalai.ui.components.VitalButton
 import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppMutedBackground
@@ -41,6 +43,7 @@ import com.vitalai.ui.theme.Ink900
 import com.vitalai.ui.theme.MacroCarbs
 import com.vitalai.ui.theme.MacroFat
 import com.vitalai.ui.theme.MacroProtein
+import com.vitalai.ui.theme.Mint100
 import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.VitalRadius
 
@@ -98,49 +101,21 @@ fun GoalsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
             ) {
-                Text(
-                    "LOẠI MỤC TIÊU",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Ink900,
+                SectionHeader(
+                    title = "Loại mục tiêu",
                     modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(VitalRadius.Pill))
-                        .background(AppSurface)
-                        .border(1.dp, AppLine, RoundedCornerShape(VitalRadius.Pill))
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    goalTypeOptions.forEach { opt ->
-                        val selected = uiState.goalType == opt.value
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(VitalRadius.Pill))
-                                .background(if (selected) Color(0xFF0F3E17) else Color.Transparent)
-                                .clickable { viewModel.onGoalType(opt.value) }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                opt.label,
-                                color = if (selected) Color.White else Ink500,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
-                }
+                SegmentedPills(
+                    options = goalTypeOptions.map { Pair(it.value, it.label) },
+                    selected = uiState.goalType,
+                    onSelected = { viewModel.onGoalType(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    selectedColor = Mint500
+                )
 
                 Spacer(Modifier.height(28.dp))
-                Text(
-                    "DINH DƯỠNG HẰNG NGÀY",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Ink900,
+                SectionHeader(
+                    title = "Dinh dưỡng hằng ngày",
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 GoalField("Calo mục tiêu (kcal)", uiState.dailyCaloriesGoal, viewModel::onDailyCalories)
@@ -159,34 +134,21 @@ fun GoalsScreen(
                 }
 
                 Spacer(Modifier.height(28.dp))
-                Text(
-                    "CÂN NẶNG",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Ink900,
+                SectionHeader(
+                    title = "Cân nặng",
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
                 GoalField("Cân nặng mục tiêu (kg)", uiState.targetWeightKg, viewModel::onTargetWeight)
                 GoalField("Tốc độ thay đổi mỗi tuần (kg)", uiState.weeklyRateKg, viewModel::onWeeklyRate)
 
                 Spacer(Modifier.height(28.dp))
-                androidx.compose.material3.Button(
+                VitalButton(
+                    text = if (uiState.isSaving) "Đang lưu..." else "Lưu mục tiêu",
                     onClick = { if (!uiState.isSaving) viewModel.save() },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    shape = RoundedCornerShape(VitalRadius.Md),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0F3E17),
-                        contentColor = Color.White
-                    ),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
-                ) {
-                    Text(
-                        text = if (uiState.isSaving) "Đang lưu..." else "Lưu mục tiêu",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp,
-                        color = Color.White
-                    )
-                }
+                    mint = true,
+                    textColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.fillMaxWidth()
+                )
                 uiState.error?.let {
                     Spacer(Modifier.height(12.dp))
                     Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error, fontSize = 13.sp)
@@ -246,9 +208,9 @@ private fun MacroSliderField(
             onValueChange = { onValueChange(it.toInt().toString()) },
             valueRange = 0f..maxValue,
             colors = androidx.compose.material3.SliderDefaults.colors(
-                thumbColor = Color(0xFF0F3E17),
-                activeTrackColor = Color(0xFF0F3E17),
-                inactiveTrackColor = Color(0xFFE4EDE7)
+                thumbColor = Mint500,
+                activeTrackColor = Mint500,
+                inactiveTrackColor = Mint100
             ),
             modifier = Modifier.fillMaxWidth().height(32.dp)
         )
