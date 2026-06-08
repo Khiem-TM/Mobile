@@ -76,6 +76,7 @@ import com.vitalai.ui.theme.MealTimeBg
 import com.vitalai.ui.theme.MealTimeText
 import com.vitalai.ui.theme.Mint100
 import com.vitalai.ui.theme.Mint500
+import com.vitalai.ui.theme.Mint900
 import com.vitalai.ui.theme.WaterBlue
 import com.vitalai.ui.theme.WaterBlueTint
 import com.vitalai.ui.theme.VitalRadius
@@ -129,7 +130,7 @@ fun WeekStrip(selectedDate: String, onDateSelected: (String) -> Unit) {
                     .width(46.dp)
                     .height(68.dp)
                     .clip(RoundedCornerShape(30.dp))
-                    .background(if (isSelected) Ink900 else AppSurface)
+                    .background(if (isSelected) Mint900 else AppSurface)
                     .border(
                         1.dp,
                         if (isSelected) Color.Transparent else if (isToday) Mint500 else AppLine,

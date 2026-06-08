@@ -6,16 +6,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.border
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,11 +32,18 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import com.vitalai.ui.components.SectionHeader
+import com.vitalai.ui.components.SegmentedPills
 import com.vitalai.ui.components.VitalButton
+import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppMutedBackground
 import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.Ink500
 import com.vitalai.ui.theme.Ink900
+import com.vitalai.ui.theme.MacroCarbs
+import com.vitalai.ui.theme.MacroFat
+import com.vitalai.ui.theme.MacroProtein
+import com.vitalai.ui.theme.Mint100
 import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.VitalRadius
 
@@ -41,6 +55,7 @@ private val goalTypeOptions = listOf(
     GoalTypeOption("gain_weight", "Tăng cân")
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoalsScreen(
     navController: NavController,
@@ -56,27 +71,24 @@ fun GoalsScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(AppMutedBackground)) {
-        // Top bar
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(VitalRadius.Pill))
-                    .background(AppSurface)
-                    .clickable { navController.popBackStack() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
-            }
-            Spacer(Modifier.width(12.dp))
-            Text("Mục tiêu của tôi", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Ink900)
-        }
-
-        when {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text("Mục tiêu của tôi", fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Ink900)
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+            )
+        },
+        containerColor = AppSurface
+    ) { padding ->
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            when {
             uiState.isLoading -> LoadingState(modifier = Modifier.weight(1f))
             uiState.error != null && uiState.profile == null -> ErrorState(
                 message = uiState.error!!,
@@ -89,38 +101,43 @@ fun GoalsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 20.dp)
             ) {
-                SectionLabel("LOẠI MỤC TIÊU")
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    goalTypeOptions.forEach { opt ->
-                        val selected = uiState.goalType == opt.value
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(VitalRadius.Pill))
-                                .background(if (selected) Mint500 else AppSurface)
-                                .clickable { viewModel.onGoalType(opt.value) }
-                                .padding(horizontal = 18.dp, vertical = 10.dp)
-                        ) {
-                            Text(
-                                opt.label,
-                                color = if (selected) AppSurface else Ink900,
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 14.sp
-                            )
-                        }
+                SectionHeader(
+                    title = "Loại mục tiêu",
+                    modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
+                )
+                SegmentedPills(
+                    options = goalTypeOptions.map { Pair(it.value, it.label) },
+                    selected = uiState.goalType,
+                    onSelected = { viewModel.onGoalType(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    selectedColor = Mint500
+                )
+
+                Spacer(Modifier.height(28.dp))
+                SectionHeader(
+                    title = "Dinh dưỡng hằng ngày",
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                GoalField("Calo mục tiêu (kcal)", uiState.dailyCaloriesGoal, viewModel::onDailyCalories)
+                Spacer(Modifier.height(12.dp))
+                MacroSliderField("Protein", uiState.proteinGoalG, viewModel::onProtein, 1000f)
+                MacroSliderField("Carbs", uiState.carbsGoalG, viewModel::onCarbs, 1000f)
+                MacroSliderField("Chất béo", uiState.fatGoalG, viewModel::onFat, 500f)
+                Spacer(Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        GoalField("Nước (ml)", uiState.waterGoalMl, viewModel::onWater)
+                    }
+                    Box(modifier = Modifier.weight(1f)) {
+                        GoalField("Bước chân/ngày", uiState.stepGoal, viewModel::onStepGoal)
                     }
                 }
 
-                Spacer(Modifier.height(20.dp))
-                SectionLabel("DINH DƯỠNG HẰNG NGÀY")
-                GoalField("Calo mục tiêu (kcal)", uiState.dailyCaloriesGoal, viewModel::onDailyCalories)
-                GoalField("Protein (g)", uiState.proteinGoalG, viewModel::onProtein)
-                GoalField("Carbs (g)", uiState.carbsGoalG, viewModel::onCarbs)
-                GoalField("Chất béo (g)", uiState.fatGoalG, viewModel::onFat)
-                GoalField("Nước (ml)", uiState.waterGoalMl, viewModel::onWater)
-                GoalField("Bước chân/ngày", uiState.stepGoal, viewModel::onStepGoal)
-
-                Spacer(Modifier.height(20.dp))
-                SectionLabel("CÂN NẶNG")
+                Spacer(Modifier.height(28.dp))
+                SectionHeader(
+                    title = "Cân nặng",
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
                 GoalField("Cân nặng mục tiêu (kg)", uiState.targetWeightKg, viewModel::onTargetWeight)
                 GoalField("Tốc độ thay đổi mỗi tuần (kg)", uiState.weeklyRateKg, viewModel::onWeeklyRate)
 
@@ -129,6 +146,7 @@ fun GoalsScreen(
                     text = if (uiState.isSaving) "Đang lưu..." else "Lưu mục tiêu",
                     onClick = { if (!uiState.isSaving) viewModel.save() },
                     mint = true,
+                    textColor = androidx.compose.material3.MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.fillMaxWidth()
                 )
                 uiState.error?.let {
@@ -137,6 +155,7 @@ fun GoalsScreen(
                 }
                 Spacer(Modifier.height(40.dp))
             }
+        }
         }
     }
 }
@@ -164,4 +183,36 @@ private fun GoalField(label: String, value: String, onValueChange: (String) -> U
             .fillMaxWidth()
             .padding(bottom = 12.dp)
     )
+}
+
+@Composable
+private fun MacroSliderField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    maxValue: Float
+) {
+    val floatValue = value.toFloatOrNull() ?: 0f
+    
+    Column(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, color = Ink500, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Text("${floatValue.toInt()}g", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        androidx.compose.material3.Slider(
+            value = floatValue,
+            onValueChange = { onValueChange(it.toInt().toString()) },
+            valueRange = 0f..maxValue,
+            colors = androidx.compose.material3.SliderDefaults.colors(
+                thumbColor = Mint500,
+                activeTrackColor = Mint500,
+                inactiveTrackColor = Mint100
+            ),
+            modifier = Modifier.fillMaxWidth().height(32.dp)
+        )
+    }
 }

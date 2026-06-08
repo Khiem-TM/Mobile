@@ -152,6 +152,7 @@ fun VitalButton(
     mint: Boolean = false,
     primary: Boolean = false,
     enabled: Boolean = true,
+    textColor: Color? = null,
     leading: (@Composable () -> Unit)? = null
 ) {
     Button(
@@ -161,7 +162,7 @@ fun VitalButton(
         shape = RoundedCornerShape(VitalRadius.Md),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (mint) Mint500 else if (primary) Ink900 else AppSurface2,
-            contentColor = if (mint || primary) Color.White else Ink900,
+            contentColor = textColor ?: (if (mint || primary) Color.White else Ink900),
             disabledContainerColor = Ink200,
             disabledContentColor = Ink500
         ),
@@ -172,7 +173,7 @@ fun VitalButton(
             leading()
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LocalContentColor.current)
     }
 }
 
@@ -225,7 +226,8 @@ fun SegmentedPills(
     options: List<Pair<String, String>>,
     selected: String,
     onSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectedColor: Color = Ink900
 ) {
     Row(
         modifier = modifier
@@ -240,7 +242,7 @@ fun SegmentedPills(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(VitalRadius.Pill))
-                    .background(if (isSelected) Ink900 else Color.Transparent)
+                    .background(if (isSelected) selectedColor else Color.Transparent)
                     .clickable { onSelected(key) }
                     .padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center
