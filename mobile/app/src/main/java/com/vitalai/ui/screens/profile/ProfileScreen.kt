@@ -2,12 +2,23 @@ package com.vitalai.ui.screens.profile
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -21,7 +32,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -37,11 +54,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
 import android.widget.Toast
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import com.vitalai.util.copyUriToCacheFile
 import java.io.File
 import java.util.Locale
+
+/** Chiều cao cố định dùng chung cho các badge nhỏ (PRO, Goal) ở header Hồ sơ. */
+private val ProfileBadgeHeight = 24.dp
+
 @Composable
 fun ProfileScreen(
     navController: NavController,
@@ -51,6 +76,7 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showEditAvatarDialog by remember { mutableStateOf(false) }
     var showEditDisplayNameDialog by remember { mutableStateOf(false) }
+    var showLogoutConfirmDialog by remember { mutableStateOf(false) }
     val avatarPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -110,6 +136,38 @@ fun ProfileScreen(
         )
     }
 
+    if (showLogoutConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirmDialog = false },
+            containerColor = Color.White,
+            title = { Text("Đăng xuất?", color = ForestGreen, fontWeight = FontWeight.Bold) },
+            text = { Text("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này không?", color = Ink700) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutConfirmDialog = false
+                        viewModel.logout {
+                            navController.navigate(Screen.Welcome) {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFEF4444),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Chắc chắn", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirmDialog = false }) {
+                    Text("Hủy", color = Ink500, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -123,18 +181,63 @@ fun ProfileScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink900)
+            Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ForestGreen)
+            val streak = uiState.streaks?.loginStreak ?: 0
+            if (streak > 0) {
+                val strokeWidthPx = with(LocalDensity.current) { 3.5.dp.toPx() }
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(AppSurface)
-                        .border(1.dp, AppLine, CircleShape)
-                        .clickable { /* settings */ },
+                    .wrapContentSize()
+                    .offset(y = (-8).dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Ink900, modifier = Modifier.size(22.dp))
+                    Box(
+                        modifier = Modifier
+                            .height(45.dp)
+                            .aspectRatio(500f / 689f)
+                    ) {
+                        AsyncImage(
+                            model = "file:///android_asset/ic_streak_flame.svg",
+                            contentDescription = "Streak",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .offset(y = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "$streak",
+                            style = TextStyle(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = ForestGreen,
+                                drawStyle = Stroke(
+                                    width = strokeWidthPx,
+                                    join = StrokeJoin.Round,
+                                    cap = StrokeCap.Round
+                                )
+                            ),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+
+                        Text(
+                            text = "$streak",
+                            style = TextStyle(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White,
+                            ),
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
+            }
             }
 
             // User Info Card
@@ -167,7 +270,7 @@ fun ProfileScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 val initial = (uiState.user?.displayName?.firstOrNull() ?: 'U').uppercaseChar()
-                                Text(initial.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = Ink500)
+                                Text(initial.toString(), fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ForestGreen)
                             }
                         }
                         Box(
@@ -186,14 +289,14 @@ fun ProfileScreen(
                                 .border(3.dp, Color(0xFFF2F7F3), CircleShape)
                                 .padding(3.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF0EB67E)),
+                                .background(ForestGreen),
 
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.PhotoCamera,
                                 contentDescription = "Sửa avatar",
-                                tint = AppSurface,
+                                tint = Color.White,
                                 modifier = Modifier.size(15.dp)
                             )
                         }
@@ -208,7 +311,7 @@ fun ProfileScreen(
                                 text = uiState.user?.displayName ?: "Người dùng",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Ink900,
+                                color = ForestGreen,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(end = 36.dp)
@@ -241,14 +344,7 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             // PRO badge
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF0EB67E))
-                                    .padding(horizontal = 15.dp, vertical = 1.dp)
-                            ) {
-                                Text("PRO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
+                            ProBadge()
                             // Goal tag
                             val goalText = when (uiState.healthProfile?.goalType?.lowercase()) {
                                 "lose_weight" -> "Giảm cân"
@@ -262,39 +358,20 @@ fun ProfileScreen(
                             }
                             Row(
                                 modifier = Modifier
+                                    .height(ProfileBadgeHeight)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(MacroWater)
-                                    .padding(horizontal = 10.dp, vertical = 2.dp),
+                                    .background(ForestGreen)
+                                    .padding(horizontal = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.Flag,
                                     contentDescription = "Goal",
                                     tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(goalText, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                            // Streak tag
-                            val streak = uiState.streaks?.loginStreak ?: 0
-                            if (streak > 0) {
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Color(0xFFFF6D00))
-                                        .padding(horizontal = 10.dp, vertical = 2.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.LocalFireDepartment,
-                                        contentDescription = "Goal",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Chuỗi $streak", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
                             }
                         }
                     }
@@ -307,10 +384,10 @@ fun ProfileScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(VitalRadius.Lg),
-                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                border = BorderStroke(1.dp, AppLine)
+                    .padding(horizontal = 20.dp)
+                    .shadow(VitalElevation.Level2, RoundedCornerShape(VitalRadius.Md), clip = false),
+                shape = RoundedCornerShape(VitalRadius.Md),
+                colors = CardDefaults.cardColors(containerColor = AppSurface)
             ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.BarChart, label = "Hồ sơ cơ thể") {
@@ -325,44 +402,11 @@ fun ProfileScreen(
                     ProfileMenuItem(icon = Icons.Default.EmojiEvents, label = "Huy hiệu của tôi") {
                         // navigate to badges
                     }
-                    ProfileMenuItem(icon = Icons.Default.FavoriteBorder, label = "Món của tôi (My Foods)") {
+                    ProfileMenuItem(icon = Icons.Default.RoomService, label = "Món ăn của tôi") {
                         navController.navigate(Screen.SearchFood(initialTab = 2))
                     }
                     ProfileMenuItem(icon = Icons.Default.Article, label = "Bài viết của tôi", showDivider = false) {
                         navController.navigate(Screen.MyBlogs)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Section Title
-            Text(
-                "KHÁM PHÁ THÊM",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Ink500,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
-
-            // Menu Section 2
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                shape = RoundedCornerShape(VitalRadius.Lg),
-                colors = CardDefaults.cardColors(containerColor = AppSurface),
-                border = BorderStroke(1.dp, AppLine)
-            ) {
-                Column {
-                    ProfileMenuItem(icon = Icons.Default.Language, label = "Khám phá (Blog)") {
-                        navController.navigate(Screen.Discover)
-                    }
-                    ProfileMenuItem(icon = Icons.Default.Notifications, label = "Thông báo") {
-                        navController.navigate(Screen.Notifications)
-                    }
-                    ProfileMenuItem(icon = Icons.Default.Settings, label = "Cài đặt", showDivider = false) {
-                        // navigate to settings
                     }
                 }
             }
@@ -374,27 +418,123 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .clip(RoundedCornerShape(VitalRadius.Lg))
+                    .shadow(VitalElevation.Level2, RoundedCornerShape(VitalRadius.Md), clip = false)
+                    .clip(RoundedCornerShape(VitalRadius.Md))
                     .background(AppSurface)
-                    .border(1.dp, AppLine, RoundedCornerShape(VitalRadius.Lg))
-                    .clickable {
-                        viewModel.logout {
-                            navController.navigate(Screen.Welcome) {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        }
+                    .clickable(enabled = !uiState.isLoggingOut) {
+                        showLogoutConfirmDialog = true
                     }
                     .padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color(0xFFEF4444), modifier = Modifier.size(22.dp))
-                Spacer(modifier = Modifier.width(14.dp))
-                Text("Đăng xuất", fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Color(0xFFEF4444))
+                if (uiState.isLoggingOut) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = Color(0xFFEF4444)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text("Đăng xuất", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444))
             }
 
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+
+/** Chip "PRO" cạnh tên người dùng — cùng bộ hiệu ứng glow/shimmer/press như TidePlusBadgeCard,
+ *  thu nhỏ tỉ lệ cho phù hợp kích thước chip. */
+@Composable
+private fun ProBadge(modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(8.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.93f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "proBadgeScale"
+    )
+    val glowAlpha by animateFloatAsState(
+        targetValue = if (isPressed) 0.32f else 0.18f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "proBadgeGlowAlpha"
+    )
+    val infiniteTransition = rememberInfiniteTransition(label = "proBadgeShimmer")
+    val shimmerProgress by infiniteTransition.animateFloat(
+        initialValue = -0.4f,
+        targetValue = 1.4f,
+        animationSpec = infiniteRepeatable(tween(2200, easing = LinearEasing), RepeatMode.Restart),
+        label = "proBadgeShimmerProgress"
+    )
+
+    Box(
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .height(ProfileBadgeHeight)
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(Color(0xFF161616), Color(0xFF090909)),
+                    start = Offset(0f, 0f),
+                    end = Offset(1100f, 500f)
+                )
+            )
+            .clickable(interactionSource = interactionSource, indication = null) { /* TODO: điều hướng tới màn nâng cấp gói */ },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val w = size.width
+            val h = size.height
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Color.White.copy(alpha = glowAlpha), Color.Transparent),
+                    center = Offset(w * 0.5f, h * 0.5f),
+                    radius = w * 0.6f
+                ),
+                radius = w * 0.6f,
+                center = Offset(w * 0.5f, h * 0.5f)
+            )
+
+            val lineColor = Color.White.copy(alpha = 0.05f)
+            val curves = listOf(0.2f to 0.5f, 0.5f to 0.9f)
+            curves.forEach { (startFrac, endFrac) ->
+                val path = Path().apply {
+                    moveTo(-0.1f * w, h * startFrac)
+                    cubicTo(
+                        w * 0.3f, h * (startFrac - 0.18f),
+                        w * 0.65f, h * (endFrac + 0.18f),
+                        w * 1.1f, h * endFrac
+                    )
+                }
+                drawPath(path, color = lineColor, style = Stroke(width = 1.dp.toPx()))
+            }
+
+            val band = h * 1.4f
+            val x0 = -band + shimmerProgress * (w + band)
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        Color.Transparent,
+                        Color.White.copy(alpha = 0.28f),
+                        Color.Transparent
+                    ),
+                    start = Offset(x0, 0f),
+                    end = Offset(x0 + band, h)
+                ),
+                size = size
+            )
+        }
+        Text(
+            "PRO",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(horizontal = 15.dp)
+        )
+    }
+}
 
 @Composable
 private fun ProfileMenuItem(
@@ -412,15 +552,13 @@ private fun ProfileMenuItem(
     ) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(AppSurface2),
+                .size(36.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, contentDescription = label, tint = Ink700, modifier = Modifier.size(18.dp))
+            Icon(icon, contentDescription = label, tint = ForestGreen, modifier = Modifier.size(25.dp))
         }
         Spacer(modifier = Modifier.width(14.dp))
-        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Ink900, modifier = Modifier.weight(1f))
+        Text(text = label, fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Ink700, modifier = Modifier.weight(1f))
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Ink300, modifier = Modifier.size(20.dp))
     }
     if (showDivider) {
@@ -449,7 +587,7 @@ private fun DialogBorderedTextField(
                 topLabel,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Ink500,
+                color = ForestGreen,
                 modifier = Modifier.padding(start = 2.dp, bottom = 6.dp)
             )
         }
@@ -547,7 +685,7 @@ private fun EditAvatarSheet(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đang tải ảnh lên...", color = Ink500, fontSize = 13.sp)
+                            Text("Đang tải ảnh lên...", color = ForestGreen, fontSize = 13.sp)
                         }
                     }
                     if (error != null) {
@@ -866,8 +1004,8 @@ fun ProfileScreenPreview() {
                     ) {}
 
                     ProfileMenuItem(
-                        icon = Icons.Default.FavoriteBorder,
-                        label = "Món của tôi (My Foods)",
+                        icon = Icons.Default.RoomService,
+                        label = "Món ăn của tôi",
                         showDivider = false
                     ) {}
                 }

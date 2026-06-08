@@ -22,6 +22,7 @@ data class ProfileUiState(
     val healthProfile: HealthProfileDto? = null,
     val streaks: StreakDto? = null,
     val isLoading: Boolean = false,
+    val isLoggingOut: Boolean = false,
     val isUpdatingProfile: Boolean = false,
     val isUploadingAvatar: Boolean = false,
     val updateProfileError: String? = null
@@ -71,10 +72,11 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun logout(onSuccess: () -> Unit) {
+        if (_uiState.value.isLoggingOut) return
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoggingOut = true) }
             authRepository.logout()
-            _uiState.update { it.copy(isLoading = false) }
+            _uiState.update { it.copy(isLoggingOut = false) }
             onSuccess()
         }
     }
