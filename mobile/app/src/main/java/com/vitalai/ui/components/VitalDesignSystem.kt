@@ -173,7 +173,7 @@ fun VitalButton(
             leading()
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        Text(text, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = LocalContentColor.current)
     }
 }
 
