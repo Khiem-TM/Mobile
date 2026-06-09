@@ -50,7 +50,7 @@ import com.vitalai.ui.screens.discover.screens.MyBlogsScreen
 import com.vitalai.ui.screens.home.screens.HomeScreen
 import com.vitalai.ui.screens.metrics.screens.MetricsHistoryScreen
 import com.vitalai.ui.screens.metrics.screens.MetricsScreen
-import com.vitalai.ui.screens.goals.GoalsScreen
+import com.vitalai.ui.screens.goals.screens.GoalsScreen
 import com.vitalai.ui.screens.notifications.NotificationsScreen
 import com.vitalai.ui.screens.onboarding.OnboardingScreen
 import com.vitalai.ui.screens.profile.ProfileScreen
