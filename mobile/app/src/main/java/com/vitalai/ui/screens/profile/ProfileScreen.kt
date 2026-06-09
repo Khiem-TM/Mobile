@@ -381,14 +381,16 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Menu Section 1
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .shadow(VitalElevation.Level2, RoundedCornerShape(VitalRadius.Md), clip = false),
-                shape = RoundedCornerShape(VitalRadius.Md),
-                colors = CardDefaults.cardColors(containerColor = AppSurface)
-            ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = VitalElevation.Level1
+            )
+        ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.BarChart, label = "Hồ sơ cơ thể") {
                         navController.navigate(Screen.Metrics)
@@ -414,13 +416,21 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Logout
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(VitalRadius.Md),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            // SỬ DỤNG ELEVATION CHUẨN Ở ĐÂY
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = VitalElevation.Level1
+            )
+        ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .shadow(VitalElevation.Level2, RoundedCornerShape(VitalRadius.Md), clip = false)
-                    .clip(RoundedCornerShape(VitalRadius.Md))
-                    .background(AppSurface)
+                    // Clickable đặt ở đây để vùng bấm ăn trọn vẹn cả khối Card trắng
                     .clickable(enabled = !uiState.isLoggingOut) {
                         showLogoutConfirmDialog = true
                     }
@@ -436,8 +446,15 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text("Đăng xuất", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444))
+
+                Text(
+                    text = if (uiState.isLoggingOut) "Đang đăng xuất..." else "Đăng xuất",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFEF4444)
+                )
             }
+        }
 
             Spacer(modifier = Modifier.height(32.dp))
         }
