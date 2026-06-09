@@ -3,14 +3,12 @@ package com.vitalai.ui.theme
 import android.app.Activity
 import android.graphics.Color.TRANSPARENT
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -58,7 +56,8 @@ private val LightColorScheme = lightColorScheme(
     onSurface = Ink900,
     surfaceVariant = AppSurface2,
     onSurfaceVariant = TextMuted,
-    outline = AppLine,
+    surfaceContainerHigh = Color.White,
+    surfaceContainerLow = Color.White,
     error = MacroProtein,
     errorContainer = ErrorContainerLight,
     onError = Color.White,
@@ -66,7 +65,7 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun VitalAITheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

@@ -7,14 +7,14 @@ import com.vitalai.data.remote.model.SessionExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.data.repository.TrainingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import javax.inject.Inject
 
 data class DayCalorieData(
     val dayLabel: String,
@@ -46,64 +46,32 @@ class WorkoutViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(WorkoutUiState())
     val uiState = _uiState.asStateFlow()
 
+    private var weekSessionsJob: Job? = null
+    private var weekActivityJob: Job? = null
+
     companion object {
         private val ISO_FMT = DateTimeFormatter.ISO_LOCAL_DATE
         private val VN_DAY_LABELS = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
     }
 
     init {
-        loadData()
+        observeData()
+        observeWeek(_uiState.value.selectedWeekStart)
+        refresh()
     }
 
-    fun loadData() {
+    private fun observeData() {
         val today = LocalDate.now()
         val todayStr = today.format(ISO_FMT)
-        val weekStart = _uiState.value.selectedWeekStart
-        val weekRange = weekRange(weekStart)
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            try {
-                val sessionsDeferred = async {
-                    trainingRepository.getSessions(fromDate = weekRange.first, toDate = weekRange.second)
-                }
-                val todaySessionsDeferred = async {
-                    trainingRepository.getSessions(date = todayStr)
-                }
-                val recentSessionsDeferred = async {
-                    trainingRepository.getSessions(limit = 60)
-                }
-                val activityLogDeferred = async {
-                    trainingRepository.getActivityLog(todayStr)
-                }
-                val weeklyLogsDeferred = async {
-                    trainingRepository.getActivityLogRange(weekRange.first, weekRange.second)
-                }
-
-                val sessions = sessionsDeferred.await().getOrElse { emptyList() }
-                val todaySessions = todaySessionsDeferred.await().getOrElse { emptyList() }
-                val historySessions = recentSessionsDeferred.await().getOrElse { emptyList() }
-                val todayActivityLog = activityLogDeferred.await().getOrNull()
-                val weeklyLogs = weeklyLogsDeferred.await().getOrElse { emptyList() }
-
-                // Build current-week chart data in a stable Mon -> Sun order.
-                val sessionsByDate = sessions.groupBy { it.sessionDate }
-
-                val weeklyChartData = buildWeekChartData(weekStart, sessionsByDate)
-
-                // Today's stats
-                val todayCaloriesBurned = todaySessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
-                val todayDurationMinutes = todaySessions.sumOf { it.totalDurationMinutes }
-                val hasSessionToday = todaySessions.isNotEmpty()
-
-                // Recent exercise items — last 3 from most recent session
+            trainingRepository.observeRecentSessions(60).collect { historySessions ->
                 val mostRecentSession = historySessions.maxByOrNull { it.sessionDate }
                 val recentExerciseItems = mostRecentSession?.details?.takeLast(3) ?: emptyList()
                 val recentSessions = historySessions
                     .sortedByDescending { it.sessionDate }
                     .take(4)
 
-                // Compute workout streak (consecutive days with sessions going back from today)
                 val sessionDates = historySessions.map { it.sessionDate }.toSet()
                 val streak = computeStreak(today, sessionDates)
                 val longestStreak = computeLongestStreak(
@@ -115,21 +83,48 @@ class WorkoutViewModel @Inject constructor(
                     it.copy(
                         workoutStreak = streak,
                         longestStreak = longestStreak,
-                        todayCaloriesBurned = todayCaloriesBurned,
-                        todayDurationMinutes = todayDurationMinutes,
-                        hasSessionToday = hasSessionToday,
-                        weeklyChartData = weeklyChartData,
                         recentSessions = recentSessions,
                         recentExerciseItems = recentExerciseItems,
-                        todayActivityLog = todayActivityLog,
-                        weeklyActivityLogs = weeklyLogs,
                         isLoading = false,
                         error = null
                     )
                 }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message ?: "Lỗi tải dữ liệu") }
             }
+        }
+
+        viewModelScope.launch {
+            trainingRepository.observeSessionsByDate(todayStr).collect { todaySessions ->
+                _uiState.update {
+                    it.copy(
+                        todayCaloriesBurned = todaySessions.sumOf { session -> session.totalCaloriesBurned.toDouble() }.toFloat(),
+                        todayDurationMinutes = todaySessions.sumOf { session -> session.totalDurationMinutes },
+                        hasSessionToday = todaySessions.isNotEmpty()
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            trainingRepository.observeActivityLog(todayStr).collect { log ->
+                _uiState.update { it.copy(todayActivityLog = log) }
+            }
+        }
+    }
+
+    fun loadData() {
+        refresh()
+    }
+
+    fun refresh() {
+        val todayStr = LocalDate.now().format(ISO_FMT)
+        val range = weekRange(_uiState.value.selectedWeekStart)
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            runCatching { trainingRepository.refreshRecentSessions(60) }
+            runCatching { trainingRepository.refreshSessions(range.first, range.second) }
+            runCatching { trainingRepository.refreshActivityLog(todayStr) }
+            runCatching { trainingRepository.refreshActivityLogRange(range.first, range.second) }
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
@@ -137,27 +132,20 @@ class WorkoutViewModel @Inject constructor(
         val current = _uiState.value.todayActivityLog?.waterMl ?: 0
         val newVal = (current + deltaMl).coerceAtLeast(0)
         viewModelScope.launch {
-            trainingRepository.updateWater(newVal).onSuccess { log ->
-                _uiState.update { it.copy(todayActivityLog = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
+            runCatching { trainingRepository.enqueueWater(newVal) }
+                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
         }
     }
 
     fun updateSteps(steps: Int) {
         viewModelScope.launch {
-            trainingRepository.updateSteps(steps).onSuccess { log ->
-                _uiState.update { it.copy(todayActivityLog = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
+            runCatching { trainingRepository.enqueueSteps(steps) }
+                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
         }
     }
 
     fun showPreviousWeek() {
-        val weekStart = _uiState.value.selectedWeekStart.minusWeeks(1)
-        loadWeekChart(weekStart)
+        loadWeekChart(_uiState.value.selectedWeekStart.minusWeeks(1))
     }
 
     fun showNextWeek() {
@@ -168,32 +156,44 @@ class WorkoutViewModel @Inject constructor(
         }
     }
 
-    // ── helpers ──────────────────────────────────────────────────────────────
-
     private fun loadWeekChart(weekStart: LocalDate) {
         val range = weekRange(weekStart)
+        _uiState.update { it.copy(selectedWeekStart = weekStart, error = null) }
+        observeWeek(weekStart)
         viewModelScope.launch {
-            trainingRepository.getSessions(fromDate = range.first, toDate = range.second).fold(
-                onSuccess = { sessions ->
-                    val chartData = buildWeekChartData(weekStart, sessions.groupBy { it.sessionDate })
-                    _uiState.update {
-                        it.copy(
-                            selectedWeekStart = weekStart,
-                            weeklyChartData = chartData,
-                            error = null
-                        )
-                    }
-                },
-                onFailure = { e ->
-                    _uiState.update { it.copy(error = e.message ?: "Lỗi tải dữ liệu tuần") }
-                }
-            )
+            runCatching { trainingRepository.refreshSessions(range.first, range.second) }
+            runCatching { trainingRepository.refreshActivityLogRange(range.first, range.second) }
         }
     }
 
-    private fun weekRange(weekStart: LocalDate): Pair<String, String> {
-        return weekStart.format(ISO_FMT) to weekStart.plusDays(6).format(ISO_FMT)
+    private fun observeWeek(weekStart: LocalDate) {
+        val range = weekRange(weekStart)
+        weekSessionsJob?.cancel()
+        weekActivityJob?.cancel()
+
+        weekSessionsJob = viewModelScope.launch {
+            trainingRepository.observeSessionsBetween(range.first, range.second).collect { sessions ->
+                _uiState.update {
+                    it.copy(
+                        weeklyChartData = buildWeekChartData(
+                            weekStart,
+                            sessions.groupBy { session -> session.sessionDate }
+                        ),
+                        error = null
+                    )
+                }
+            }
+        }
+
+        weekActivityJob = viewModelScope.launch {
+            trainingRepository.observeActivityLogsBetween(range.first, range.second).collect { logs ->
+                _uiState.update { it.copy(weeklyActivityLogs = logs) }
+            }
+        }
     }
+
+    private fun weekRange(weekStart: LocalDate): Pair<String, String> =
+        weekStart.format(ISO_FMT) to weekStart.plusDays(6).format(ISO_FMT)
 
     private fun buildWeekChartData(
         weekStart: LocalDate,

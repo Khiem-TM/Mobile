@@ -58,7 +58,6 @@ internal fun UpdateBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = Color.White,
         contentWindowInsets = { WindowInsets(0) },
         dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) }
     ) {

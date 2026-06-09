@@ -280,7 +280,6 @@ fun BlogComposerScreen(
         ModalBottomSheet(
             onDismissRequest = { viewModel.setShowAddBlockSheet(false) },
             sheetState = sheetState,
-            containerColor = Color.White,
             dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) },
             contentWindowInsets = { WindowInsets(0) }
         ) {
@@ -449,8 +448,7 @@ private fun CancelComposerDialog(
             TextButton(onClick = onDismiss) {
                 Text("Tiếp tục viết", color = Mint700, fontWeight = FontWeight.Bold)
             }
-        },
-        containerColor = AppSurface
+        }
     )
 }
 
@@ -643,8 +641,7 @@ private fun ImageSourceSheet(
     onDevice: () -> Unit
 ) {
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = AppSurface
+        onDismissRequest = onDismiss
     ) {
         Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp)) {
             Text("Thêm ảnh", color = Ink900, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
@@ -735,8 +732,7 @@ private fun UrlImageDialog(
             TextButton(onClick = onDismiss) {
                 Text("Hủy", color = Ink500)
             }
-        },
-        containerColor = AppSurface
+        }
     )
 }
 

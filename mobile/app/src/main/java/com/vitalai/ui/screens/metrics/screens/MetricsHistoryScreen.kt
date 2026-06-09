@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -157,21 +156,26 @@ fun MetricsHistoryScreen(
                         if (w % 1f == 0f) "${w.toInt()} kg" else String.format(java.util.Locale.US, "%.1f kg", w)
                     } else "--"
 
-                    Row(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                            .shadow(4.dp, RoundedCornerShape(VitalRadius.Lg), clip = false)
-                            .clip(RoundedCornerShape(VitalRadius.Lg))
-                            .background(AppSurface)
-                            .padding(vertical = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        shape = RoundedCornerShape(VitalRadius.Lg),
+                        colors = CardDefaults.cardColors(containerColor = AppSurface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = VitalElevation.Level1)
                     ) {
-                        StatCell(label = "Cân nặng hiện tại", value = currentWeight, color = ForestGreen)
-                        Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
-                        StatCell(label = "Tổng thay đổi", value = changeText, color = changeColor)
-                        Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
-                        StatCell(label = "Số bản ghi", value = "${filteredEvents.size}", color = ForestGreen)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            StatCell(label = "Cân nặng hiện tại", value = currentWeight, color = ForestGreen)
+                            Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
+                            StatCell(label = "Tổng thay đổi", value = changeText, color = changeColor)
+                            Box(modifier = Modifier.width(1.dp).height(40.dp).background(AppLine).align(Alignment.CenterVertically))
+                            StatCell(label = "Số bản ghi", value = "${filteredEvents.size}", color = ForestGreen)
+                        }
                     }
                 }
 

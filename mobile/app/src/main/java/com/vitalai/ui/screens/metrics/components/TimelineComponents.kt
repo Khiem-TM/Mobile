@@ -108,7 +108,7 @@ internal fun TimelineEventCard(
                 .clickable(onClick = onDoubleClick),
             shape = RoundedCornerShape(VitalRadius.Lg),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = VitalElevation.Level1)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Row(

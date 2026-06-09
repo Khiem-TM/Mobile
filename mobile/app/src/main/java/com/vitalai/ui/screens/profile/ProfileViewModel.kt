@@ -9,7 +9,6 @@ import com.vitalai.data.repository.AuthRepository
 import com.vitalai.data.repository.DashboardRepository
 import com.vitalai.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -54,20 +53,20 @@ class ProfileViewModel @Inject constructor(
                 _uiState.update { it.copy(healthProfile = profile) }
             }
         }
+        viewModelScope.launch {
+            dashboardRepository.observeStreaks().collect { streaks ->
+                _uiState.update { it.copy(streaks = streaks) }
+            }
+        }
     }
 
     private fun loadData() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val streaksDeferred = async { dashboardRepository.getStreaks() }
             userRepository.refreshCurrentUser()
             userRepository.refreshHealthProfile()
-            _uiState.update {
-                it.copy(
-                    streaks = streaksDeferred.await().getOrNull(),
-                    isLoading = false
-                )
-            }
+            dashboardRepository.refreshStreaks()
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 

@@ -32,98 +32,100 @@ class ExerciseLibraryViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     init {
-        loadExercises()
-        loadFavorites()
+        observeExercises()
+        refreshInBackground()
+    }
+
+    private fun observeExercises() {
+        viewModelScope.launch {
+            trainingRepository.observeExercises().collect { allExercises ->
+                _uiState.update { state ->
+                    val favorites = allExercises.filter { it.isFavorite }.map { it.id }.toSet()
+                    val newState = state.copy(exercises = allExercises, favorites = favorites)
+                    newState.copy(filteredExercises = applyLocalFilters(newState))
+                }
+            }
+        }
+    }
+
+    private fun refreshInBackground() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            trainingRepository.refreshExercises()
+            trainingRepository.refreshFavoriteExercises()
+            _uiState.update { it.copy(isLoading = false) }
+        }
     }
 
     fun loadExercises() {
-        viewModelScope.launch {
-            val state = _uiState.value
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            trainingRepository.getExercises(
-                type = state.selectedType,
-                name = state.searchQuery.takeIf { it.isNotBlank() },
-                muscleGroup = state.selectedMuscleGroup,
-                difficultyLevel = state.selectedIntensity
-            ).fold(
-                onSuccess = { list ->
-                    _uiState.update { s ->
-                        s.copy(exercises = list, isLoading = false).let { updated ->
-                            updated.copy(filteredExercises = applyLocalFilters(updated))
-                        }
-                    }
-                },
-                onFailure = { e -> _uiState.update { it.copy(error = e.message, isLoading = false) } }
-            )
+        _uiState.update { state ->
+            state.copy(filteredExercises = applyLocalFilters(state))
         }
     }
 
     fun selectType(type: String?) {
-        _uiState.update { it.copy(selectedType = type) }
-        loadExercises()
+        _uiState.update { state ->
+            val newState = state.copy(selectedType = type)
+            newState.copy(filteredExercises = applyLocalFilters(newState))
+        }
     }
 
     fun setMuscleFilter(group: String?) {
-        _uiState.update { it.copy(selectedMuscleGroup = group) }
-        loadExercises()
+        _uiState.update { state ->
+            val newState = state.copy(selectedMuscleGroup = group)
+            newState.copy(filteredExercises = applyLocalFilters(newState))
+        }
     }
 
     fun setIntensityFilter(intensity: String?) {
-        _uiState.update { it.copy(selectedIntensity = intensity) }
-        loadExercises()
+        _uiState.update { state ->
+            val newState = state.copy(selectedIntensity = intensity)
+            newState.copy(filteredExercises = applyLocalFilters(newState))
+        }
     }
 
     fun setSearchQuery(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-        loadExercises()
+        _uiState.update { state ->
+            val newState = state.copy(searchQuery = query)
+            newState.copy(filteredExercises = applyLocalFilters(newState))
+        }
     }
 
     fun toggleFavorite(exerciseId: String) {
         viewModelScope.launch {
             val isCurrentlyFavorite = exerciseId in _uiState.value.favorites
+            // Optimistic update
             _uiState.update { state ->
-                val newFavorites = if (isCurrentlyFavorite) {
-                    state.favorites - exerciseId
-                } else {
-                    state.favorites + exerciseId
-                }
+                val newFavorites = if (isCurrentlyFavorite) state.favorites - exerciseId
+                                   else state.favorites + exerciseId
                 state.copy(favorites = newFavorites)
             }
-
-            val result = if (isCurrentlyFavorite) {
-                trainingRepository.removeFavorite(exerciseId)
-            } else {
-                trainingRepository.addFavorite(exerciseId)
-            }
-
+            val result = if (isCurrentlyFavorite) trainingRepository.removeFavorite(exerciseId)
+                         else trainingRepository.addFavorite(exerciseId)
             result.onFailure { e ->
+                // Revert on failure
                 _uiState.update { state ->
-                    val revertedFavorites = if (isCurrentlyFavorite) {
-                        state.favorites + exerciseId
-                    } else {
-                        state.favorites - exerciseId
-                    }
-                    state.copy(
-                        favorites = revertedFavorites,
-                        error = e.message ?: "Lỗi cập nhật yêu thích"
-                    )
+                    val reverted = if (isCurrentlyFavorite) state.favorites + exerciseId
+                                   else state.favorites - exerciseId
+                    state.copy(favorites = reverted, error = e.message ?: "Lỗi cập nhật yêu thích")
                 }
             }
         }
     }
 
-    private fun loadFavorites() {
-        viewModelScope.launch {
-            trainingRepository.getFavorites().onSuccess { favorites ->
-                _uiState.update { state ->
-                    state.copy(favorites = favorites.map { it.id }.toSet())
-                }
-            }
-        }
-    }
-
-    // Server handles type/name/muscle/difficulty; keep local sort for stable UI.
     private fun applyLocalFilters(state: ExerciseLibraryUiState): List<ExerciseDto> {
-        return state.exercises.sortedByDescending { it.favoritesCount }
+        return state.exercises
+            .filter { ex ->
+                (state.selectedType == null || ex.exerciseType.equals(state.selectedType, ignoreCase = true)
+                    || ex.category.equals(state.selectedType, ignoreCase = true))
+                && (state.selectedMuscleGroup == null
+                    || ex.primaryMuscleGroup.equals(state.selectedMuscleGroup, ignoreCase = true)
+                    || ex.muscleGroupRaw.equals(state.selectedMuscleGroup, ignoreCase = true))
+                && (state.selectedIntensity == null
+                    || ex.difficultyLevel.equals(state.selectedIntensity, ignoreCase = true))
+                && (state.searchQuery.isBlank()
+                    || ex.name.contains(state.searchQuery, ignoreCase = true))
+            }
+            .sortedByDescending { it.favoritesCount }
     }
 }

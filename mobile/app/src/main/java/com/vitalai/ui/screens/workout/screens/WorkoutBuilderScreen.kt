@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.ExerciseDto
+import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.BottomSheetGrabber
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -75,7 +77,8 @@ fun WorkoutBuilderScreen(
         onShowExercisePicker = viewModel::setShowExercisePicker,
         onAddExercise = viewModel::addExercise,
         onUpdateSport = viewModel::updateSportEntry,
-        onUpdateCardio = viewModel::updateCardioEntry
+        onUpdateCardio = viewModel::updateCardioEntry,
+        onExerciseInfo = { navController.navigate(Screen.ExerciseDetail(it.id)) }
     )
 }
 
@@ -93,7 +96,8 @@ fun WorkoutBuilderScreenContent(
     onShowExercisePicker: (Boolean) -> Unit,
     onAddExercise: (ExerciseDto) -> Unit,
     onUpdateSport: (Int, Int?, String?) -> Unit = { _, _, _ -> },
-    onUpdateCardio: (Int, Float?, Float?) -> Unit = { _, _, _ -> }
+    onUpdateCardio: (Int, Float?, Float?) -> Unit = { _, _, _ -> },
+    onExerciseInfo: (ExerciseDto) -> Unit = {}
 ) {
     val dateFormatted = remember {
         LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM", Locale("vi")))
@@ -231,7 +235,8 @@ fun WorkoutBuilderScreenContent(
                 isLoading = uiState.isLoadingExercises,
                 exercises = uiState.availableExercises,
                 onDismiss = { onShowExercisePicker(false) },
-                onAddExercise = onAddExercise
+                onAddExercise = onAddExercise,
+                onExerciseInfo = onExerciseInfo
             )
         }
     }
@@ -448,11 +453,11 @@ private fun ExercisePickerSheet(
     isLoading: Boolean,
     exercises: List<ExerciseDto>,
     onDismiss: () -> Unit,
-    onAddExercise: (ExerciseDto) -> Unit
+    onAddExercise: (ExerciseDto) -> Unit,
+    onExerciseInfo: (ExerciseDto) -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
         contentWindowInsets = { WindowInsets(0) },
         dragHandle = {
             Box(Modifier.padding(top = 10.dp).size(width = 40.dp, height = 5.dp).clip(CircleShape).background(BottomSheetGrabber))
@@ -482,8 +487,12 @@ private fun ExercisePickerSheet(
                                     Text(exercise.name, color = TrainColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Text(exercise.muscleGroup, color = TrainColors.Charcoal, fontSize = 12.sp)
                                 }
-                                Box(Modifier.size(32.dp).clip(CircleShape).background(TrainColors.Forest), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Add, contentDescription = null, tint = TrainColors.Cream, modifier = Modifier.size(18.dp))
+                                Box(
+                                    Modifier.size(32.dp).clip(CircleShape).background(TrainColors.Forest)
+                                        .clickable { onExerciseInfo(exercise) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Info, contentDescription = "Chi tiết bài tập", tint = TrainColors.Cream, modifier = Modifier.size(18.dp))
                                 }
                             }
                         }

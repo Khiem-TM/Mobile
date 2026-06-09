@@ -399,8 +399,7 @@ private fun SortCenterDialog(
             TextButton(onClick = onDismiss) {
                 Text("Đóng", color = Ink500, fontWeight = FontWeight.SemiBold)
             }
-        },
-        containerColor = AppSurface
+        }
     )
 }
 
@@ -470,8 +469,7 @@ private fun FilterCenterDialog(
             TextButton(onClick = onClearFilters) {
                 Text("Xóa lọc", color = Ink500, fontWeight = FontWeight.SemiBold)
             }
-        },
-        containerColor = AppSurface
+        }
     )
 }
 

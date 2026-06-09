@@ -10,6 +10,7 @@ import com.vitalai.data.worker.handler.BodyMetricSyncHandler
 import com.vitalai.data.worker.handler.MealSyncHandler
 import com.vitalai.data.worker.handler.SyncActionHandler
 import com.vitalai.data.worker.handler.TrainingSyncHandler
+import com.vitalai.data.worker.handler.WorkoutSyncHandler
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 
@@ -21,12 +22,14 @@ class SyncWorker @AssistedInject constructor(
     mealSyncHandler: MealSyncHandler,
     trainingSyncHandler: TrainingSyncHandler,
     bodyMetricSyncHandler: BodyMetricSyncHandler,
+    workoutSyncHandler: WorkoutSyncHandler,
 ) : CoroutineWorker(context, params) {
 
     private val handlers: List<SyncActionHandler> = listOf(
         mealSyncHandler,
         trainingSyncHandler,
         bodyMetricSyncHandler,
+        workoutSyncHandler,
     )
 
     override suspend fun doWork(): Result {

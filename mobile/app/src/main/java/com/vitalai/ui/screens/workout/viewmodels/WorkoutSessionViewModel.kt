@@ -5,11 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.data.repository.TrainingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class WorkoutSessionUiState(
     val session: WorkoutSessionDto? = null,
@@ -27,10 +28,12 @@ class WorkoutSessionViewModel @Inject constructor(
 
     private var sessionId: String = ""
     private var sessionDate: String = ""
+    private var observeJob: Job? = null
 
     fun load(id: String, date: String) {
         sessionId = id
         sessionDate = date
+        observe()
         reload()
     }
 
@@ -41,21 +44,25 @@ class WorkoutSessionViewModel @Inject constructor(
         }
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            trainingRepository.getSessions(date = sessionDate).fold(
-                onSuccess = { sessions ->
-                    val match = sessions.firstOrNull { it.id == sessionId }
-                    _uiState.update {
-                        it.copy(
-                            session = match,
-                            isLoading = false,
-                            error = if (match == null) "Không tìm thấy buổi tập" else null
-                        )
-                    }
-                },
-                onFailure = { e ->
-                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Lỗi tải buổi tập") }
+            runCatching { trainingRepository.refreshSessions(sessionDate, sessionDate) }
+                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
+            _uiState.update { it.copy(isLoading = false) }
+        }
+    }
+
+    private fun observe() {
+        observeJob?.cancel()
+        observeJob = viewModelScope.launch {
+            trainingRepository.observeSessionsByDate(sessionDate).collect { sessions ->
+                val match = sessions.firstOrNull { it.id == sessionId }
+                _uiState.update {
+                    it.copy(
+                        session = match,
+                        isLoading = false,
+                        error = if (match == null) "Không tìm thấy buổi tập" else null
+                    )
                 }
-            )
+            }
         }
     }
 }

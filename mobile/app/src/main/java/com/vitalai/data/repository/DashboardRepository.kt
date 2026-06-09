@@ -1,6 +1,9 @@
 package com.vitalai.data.repository
 
 import com.vitalai.data.local.room.dao.PendingSyncActionDao
+import com.vitalai.data.local.room.dao.StreakDao
+import com.vitalai.data.mapper.toDto
+import com.vitalai.data.mapper.toEntity
 import com.vitalai.data.remote.DashboardApi
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.UpdateStepsRequest
@@ -10,6 +13,8 @@ import com.vitalai.data.remote.model.DashboardMonthlyDto
 import com.vitalai.data.remote.model.DashboardWeeklyDto
 import com.vitalai.data.remote.model.StreakDto
 import com.vitalai.data.remote.model.DailyDashboardResponse
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -19,7 +24,8 @@ class DashboardRepository @Inject constructor(
     private val dashboardApi: DashboardApi,
     private val trainingApi: TrainingApi,
     private val userRepository: UserRepository,
-    private val pendingSyncActionDao: PendingSyncActionDao
+    private val pendingSyncActionDao: PendingSyncActionDao,
+    private val streakDao: StreakDao
 ) {
     suspend fun getDashboard(date: String? = null): Result<DashboardDto> {
         return try {
@@ -67,21 +73,36 @@ class DashboardRepository @Inject constructor(
     private suspend fun pendingSteps(date: String): Int? =
         pendingSyncActionDao.getByActionType("UPDATE_STEPS:$date")?.payload?.toIntOrNull()
 
+    fun observeStreaks(): Flow<StreakDto?> = streakDao.observe().map { it?.toDto() }
+
+    suspend fun refreshStreaks() {
+        runCatching { dashboardApi.getStreaks() }
+            .onSuccess { res ->
+                val list = res.body()?.data ?: return@onSuccess
+                fun current(type: String) = list.firstOrNull { it.streakType == type }?.currentStreak ?: 0
+                streakDao.upsert(
+                    StreakDto(
+                        loginStreak = current("login"),
+                        mealLogStreak = current("calorie_goal"),
+                        workoutStreak = current("workout")
+                    ).toEntity()
+                )
+            }
+    }
+
     suspend fun getStreaks(): Result<StreakDto> {
         return try {
             val response = dashboardApi.getStreaks()
             val list = response.body()?.data
             if (response.isSuccessful && list != null) {
-                // Backend sends a list of per-type streaks (login/calorie_goal/workout);
-                // flatten to the object the UI consumes.
                 fun current(type: String) = list.firstOrNull { it.streakType == type }?.currentStreak ?: 0
-                Result.success(
-                    StreakDto(
-                        loginStreak = current("login"),
-                        mealLogStreak = current("calorie_goal"),
-                        workoutStreak = current("workout")
-                    )
+                val dto = StreakDto(
+                    loginStreak = current("login"),
+                    mealLogStreak = current("calorie_goal"),
+                    workoutStreak = current("workout")
                 )
+                streakDao.upsert(dto.toEntity())
+                Result.success(dto)
             } else Result.failure(Exception("Lỗi tải streak (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)

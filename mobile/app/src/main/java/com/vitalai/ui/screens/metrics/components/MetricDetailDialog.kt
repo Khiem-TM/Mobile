@@ -31,7 +31,6 @@ internal fun MetricDetailDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
         title = { Text("Chi tiết chỉ số", fontWeight = FontWeight.Bold, color = ForestGreen) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

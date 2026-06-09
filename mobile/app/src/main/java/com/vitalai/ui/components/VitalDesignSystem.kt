@@ -81,6 +81,7 @@ fun VitalCard(
     borderColor: Color = Color.Transparent,
     radius: Dp = VitalRadius.Md,
     contentPadding: PaddingValues = PaddingValues(VitalSpacing.Card),
+    elevation: Dp = VitalElevation.Level2,
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -90,7 +91,7 @@ fun VitalCard(
         shape = shape,
         color = color,
         tonalElevation = 0.dp,
-        shadowElevation = VitalElevation.Level2
+        shadowElevation = elevation
     ) {
         Column(modifier = Modifier.padding(contentPadding), content = content)
     }

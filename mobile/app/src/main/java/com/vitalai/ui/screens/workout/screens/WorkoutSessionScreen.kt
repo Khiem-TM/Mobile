@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.data.remote.model.SessionExerciseDto
 import com.vitalai.data.remote.model.WorkoutSessionDto
+import com.vitalai.navigation.Screen
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -62,14 +63,22 @@ fun WorkoutSessionScreen(
                         fontSize = 14.sp
                     )
                 }
-                else -> SessionDetailContent(uiState.session!!)
+                else -> SessionDetailContent(
+                    session = uiState.session!!,
+                    onExerciseClick = { exerciseId ->
+                        if (exerciseId.isNotBlank()) navController.navigate(Screen.ExerciseDetail(exerciseId))
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun SessionDetailContent(session: WorkoutSessionDto) {
+private fun SessionDetailContent(
+    session: WorkoutSessionDto,
+    onExerciseClick: (String) -> Unit
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 28.dp),
@@ -111,15 +120,15 @@ private fun SessionDetailContent(session: WorkoutSessionDto) {
             }
         } else {
             items(session.details) { item ->
-                SessionExerciseRow(item)
+                SessionExerciseRow(item, onClick = { onExerciseClick(item.exerciseId) })
             }
         }
     }
 }
 
 @Composable
-private fun SessionExerciseRow(item: SessionExerciseDto) {
-    TrainCard(tone = TrainTone.Cream, padding = PaddingValues(14.dp)) {
+private fun SessionExerciseRow(item: SessionExerciseDto, onClick: () -> Unit) {
+    TrainCard(tone = TrainTone.Cream, padding = PaddingValues(14.dp), onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
             item.exercise?.let { TrainExerciseThumb(it, size = 46.dp, radius = 12.dp) } ?: Box(
                 modifier = Modifier.size(46.dp),

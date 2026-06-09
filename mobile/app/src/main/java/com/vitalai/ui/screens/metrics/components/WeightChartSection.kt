@@ -89,7 +89,7 @@ internal fun PeriodChartSection(
         }
     }
 
-    VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+    VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp), elevation = VitalElevation.Level1) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(title = "Biểu đồ cân nặng", color = ForestGreen)
             Spacer(Modifier.height(10.dp))

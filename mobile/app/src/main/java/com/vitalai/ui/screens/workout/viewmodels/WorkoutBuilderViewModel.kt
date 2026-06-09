@@ -60,7 +60,18 @@ class WorkoutBuilderViewModel @Inject constructor(
 
     private var timerJob: kotlinx.coroutines.Job? = null
 
-    init { startTimer() }
+    init {
+        startTimer()
+        observeExercises()
+    }
+
+    private fun observeExercises() {
+        viewModelScope.launch {
+            trainingRepository.observeExercises().collect { exercises ->
+                _uiState.update { it.copy(availableExercises = exercises) }
+            }
+        }
+    }
 
     fun startTimer() {
         _uiState.update { it.copy(isRunning = true) }
@@ -168,32 +179,8 @@ class WorkoutBuilderViewModel @Inject constructor(
 
     fun setShowExercisePicker(show: Boolean) {
         _uiState.update { it.copy(showExercisePicker = show) }
-        if (show && _uiState.value.availableExercises.isEmpty()) {
-            loadAvailableExercises()
-        }
-    }
-
-    private fun loadAvailableExercises() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingExercises = true, error = null) }
-            trainingRepository.getExercises().fold(
-                onSuccess = { exercises ->
-                    _uiState.update {
-                        it.copy(
-                            availableExercises = exercises,
-                            isLoadingExercises = false
-                        )
-                    }
-                },
-                onFailure = { e ->
-                    _uiState.update {
-                        it.copy(
-                            isLoadingExercises = false,
-                            error = e.message ?: "Lỗi tải bài tập"
-                        )
-                    }
-                }
-            )
+        if (show) {
+            viewModelScope.launch { trainingRepository.refreshExercises() }
         }
     }
 
@@ -244,7 +231,7 @@ class WorkoutBuilderViewModel @Inject constructor(
                 notes = state.sessionNotes.trim().ifBlank { null },
                 details = details
             )
-            trainingRepository.createSession(request).fold(
+            trainingRepository.enqueueSession(request).fold(
                 onSuccess = { session ->
                     timerJob?.cancel()
                     _uiState.update { it.copy(isSaving = false, savedSessionId = session.id, isRunning = false) }

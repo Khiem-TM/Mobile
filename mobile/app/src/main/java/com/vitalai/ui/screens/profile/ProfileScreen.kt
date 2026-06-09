@@ -2,6 +2,9 @@ package com.vitalai.ui.screens.profile
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.RepeatMode
@@ -25,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -139,7 +143,6 @@ fun ProfileScreen(
     if (showLogoutConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutConfirmDialog = false },
-            containerColor = Color.White,
             title = { Text("Đăng xuất?", color = ForestGreen, fontWeight = FontWeight.Bold) },
             text = { Text("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này không?", color = Ink700) },
             confirmButton = {
@@ -183,7 +186,11 @@ fun ProfileScreen(
         ) {
             Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ForestGreen)
             val streak = uiState.streaks?.loginStreak ?: 0
-            if (streak > 0) {
+            AnimatedVisibility(
+                visible = streak > 0,
+                enter = fadeIn(animationSpec = tween(300)),
+                exit = fadeOut(animationSpec = tween(150))
+            ) {
                 val strokeWidthPx = with(LocalDensity.current) { 3.5.dp.toPx() }
                 Box(
                     modifier = Modifier
@@ -647,6 +654,7 @@ private fun EditAvatarSheet(
     var avatarUrlDraft by remember(avatarUrl) {
         mutableStateOf(avatarUrl)
     }
+    var step by remember { mutableStateOf(AvatarSheetStep.Choice) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     ModalBottomSheet(
@@ -654,7 +662,6 @@ private fun EditAvatarSheet(
             if (!isSaving && !isUploading) onDismiss()
         },
         sheetState = sheetState,
-        containerColor = Color.White,
         contentWindowInsets = { WindowInsets(0) },
         dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) }
     ) {
@@ -669,74 +676,166 @@ private fun EditAvatarSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (step != AvatarSheetStep.Choice) {
+                            IconButton(
+                                onClick = { step = AvatarSheetStep.Choice },
+                                enabled = !isSaving && !isUploading,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Quay lại",
+                                    tint = ForestGreen,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
                         Text(
                             "Cập nhật ảnh đại diện",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = ForestGreen
                         )
-                        IconButton(
-                            onClick = onUpload,
-                            enabled = !isSaving && !isUploading
-                        ) {
-                            Icon(
-                                Icons.Default.FileUpload,
-                                contentDescription = "Tải ảnh avatar",
-                                tint = ForestGreen,
-                                modifier = Modifier.size(22.dp)
+                    }
+
+                    when (step) {
+                        AvatarSheetStep.Choice -> {
+                            AvatarOptionRow(
+                                icon = Icons.Default.Link,
+                                label = "Link ảnh",
+                                onClick = { step = AvatarSheetStep.Link }
+                            )
+                            AvatarOptionRow(
+                                icon = Icons.Default.PhotoLibrary,
+                                label = "Tải ảnh lên",
+                                onClick = { step = AvatarSheetStep.Upload }
                             )
                         }
-                    }
-                    DialogBorderedTextField(
-                        value = avatarUrlDraft,
-                        onValueChange = { avatarUrlDraft = it },
-                        topLabel = "Link ảnh",
-                        enabled = !isSaving && !isUploading,
-                        placeholder = { Text("https://example.com/avatar.jpg") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (isUploading) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Đang tải ảnh lên...", color = ForestGreen, fontSize = 13.sp)
-                        }
-                    }
-                    if (error != null) {
-                        Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                    }
-                    Button(
-                        onClick = { onSave(avatarUrlDraft) },
-                        enabled = !isSaving && !isUploading && avatarUrlDraft.trim().isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(VitalRadius.Md),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ForestGreen,
-                            disabledContainerColor = ForestGreen.copy(alpha = 0.5f),
-                            contentColor = Color.White,
-                            disabledContentColor = Color.White.copy(alpha = 0.6f)
-                        )
-                    ) {
-                        if (isSaving) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = Color.White
+
+                        AvatarSheetStep.Link -> {
+                            DialogBorderedTextField(
+                                value = avatarUrlDraft,
+                                onValueChange = { avatarUrlDraft = it },
+                                topLabel = "Link ảnh",
+                                enabled = !isSaving,
+                                placeholder = { Text("https://example.com/avatar.jpg") },
+                                modifier = Modifier.fillMaxWidth()
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            if (error != null) {
+                                Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                            }
+                            Button(
+                                onClick = { onSave(avatarUrlDraft) },
+                                enabled = !isSaving && avatarUrlDraft.trim().isNotBlank(),
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(VitalRadius.Md),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ForestGreen,
+                                    disabledContainerColor = ForestGreen.copy(alpha = 0.5f),
+                                    contentColor = Color.White,
+                                    disabledContentColor = Color.White.copy(alpha = 0.6f)
+                                )
+                            ) {
+                                if (isSaving) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = "Lưu",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
                         }
-                        Text(
-                            text = "Lưu",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold
-                        )
+
+                        AvatarSheetStep.Upload -> {
+                            Button(
+                                onClick = onUpload,
+                                enabled = !isUploading,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(VitalRadius.Md),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ForestGreen,
+                                    disabledContainerColor = ForestGreen.copy(alpha = 0.5f),
+                                    contentColor = Color.White,
+                                    disabledContentColor = Color.White.copy(alpha = 0.6f)
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.PhotoLibrary,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Chọn ảnh từ thư viện",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            if (isUploading) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Đang tải ảnh lên...", color = ForestGreen, fontSize = 13.sp)
+                                }
+                            }
+                            if (error != null) {
+                                Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+private enum class AvatarSheetStep { Choice, Link, Upload }
+
+@Composable
+private fun AvatarOptionRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(VitalRadius.Md))
+            .border(1.dp, Color(0xFFDDDDDD), RoundedCornerShape(VitalRadius.Md))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = ForestGreen,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            label,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Ink700,
+            modifier = Modifier.weight(1f)
+        )
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = Ink400,
+            modifier = Modifier.size(22.dp)
+        )
     }
 }
 
@@ -755,7 +854,6 @@ private fun EditDisplayNameSheet(
     ModalBottomSheet(
         onDismissRequest = { if (!isSaving) onDismiss() },
         sheetState = sheetState,
-        containerColor = Color.White,
         contentWindowInsets = { WindowInsets(0) },
         dragHandle = { BottomSheetDefaults.DragHandle(color = BottomSheetGrabber) }
     ) {

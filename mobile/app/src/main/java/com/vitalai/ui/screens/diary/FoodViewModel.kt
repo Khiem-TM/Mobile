@@ -46,6 +46,29 @@ class FoodViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
+    init {
+        observeRoomFlows()
+        refreshCaches()
+    }
+
+    private fun observeRoomFlows() {
+        viewModelScope.launch {
+            foodRepository.observeFavorites().collect { list ->
+                _uiState.update { it.copy(favorites = list) }
+            }
+        }
+        viewModelScope.launch {
+            foodRepository.observeCustomFoods().collect { list ->
+                _uiState.update { it.copy(customFoods = list) }
+            }
+        }
+    }
+
+    private fun refreshCaches() {
+        viewModelScope.launch { foodRepository.refreshFavorites() }
+        viewModelScope.launch { foodRepository.refreshCustomFoods() }
+    }
+
     fun search(query: String) {
         _uiState.update { it.copy(query = query) }
         searchJob?.cancel()
@@ -85,19 +108,11 @@ class FoodViewModel @Inject constructor(
     }
 
     fun loadCustomFoods() {
-        viewModelScope.launch {
-            foodRepository.getCustomFoods(limit = 50).onSuccess { page ->
-                _uiState.update { it.copy(customFoods = page.items) }
-            }
-        }
+        viewModelScope.launch { foodRepository.refreshCustomFoods() }
     }
 
     fun loadFavorites() {
-        viewModelScope.launch {
-            foodRepository.getFavorites().onSuccess { list ->
-                _uiState.update { it.copy(favorites = list) }
-            }
-        }
+        viewModelScope.launch { foodRepository.refreshFavorites() }
     }
 
     fun loadFoodById(id: String) {
@@ -163,8 +178,7 @@ class FoodViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             foodRepository.createFood(request, imageFile, imageMimeType).onSuccess {
-                // Refresh "Món của tôi" so the new food shows up immediately.
-                loadCustomFoods()
+                // Room Flow tự emit, không cần loadCustomFoods()
                 _uiState.update { it.copy(isLoading = false, createSuccess = true) }
             }.onFailure { err ->
                 _uiState.update { it.copy(isLoading = false, error = err.message ?: "Lỗi tạo món ăn") }
@@ -190,7 +204,7 @@ class FoodViewModel @Inject constructor(
             }
 
             foodRepository.toggleFavorite(foodId, !isCurrentlyFavorite).onSuccess {
-                loadFavorites()
+                // Room Flow tự emit, không cần loadFavorites()
                 _uiState.update { it.copy(isFavoriteUpdating = false) }
             }.onFailure { err ->
                 _uiState.update { state ->
