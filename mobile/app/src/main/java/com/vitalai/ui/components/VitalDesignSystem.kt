@@ -361,32 +361,38 @@ fun VitalScreenHeader(
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {}
 ) {
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .background(AppSurface)
             .statusBarsPadding()
-            .padding(horizontal = 4.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        if (onBackClick != null) {
-            IconButton(
-                onClick = onBackClick,
-                modifier = Modifier.padding(end = 4.dp)
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onBackClick != null) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier.padding(end = 4.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+                }
+            } else {
+                Spacer(Modifier.width(12.dp))
             }
-        } else {
-            Spacer(Modifier.width(12.dp))
-        }
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Ink900)
-            if (subtitle != null) {
-                Text(subtitle, color = Ink700, fontSize = 14.sp)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Ink900)
+                if (subtitle != null) {
+                    Text(subtitle, color = Ink700, fontSize = 14.sp)
+                }
             }
-        }
 
-        actions()
+            actions()
+        }
+        Divider(color = Ink100, thickness = 1.dp)
     }
 }
