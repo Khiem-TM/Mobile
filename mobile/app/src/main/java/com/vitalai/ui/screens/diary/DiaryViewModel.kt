@@ -18,11 +18,13 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
-
+import com.vitalai.data.remote.model.HealthProfileDto
+import com.vitalai.data.repository.UserRepository
 data class DiaryUiState(
     val mealLogs: List<MealLogDto> = emptyList(),
     val summary: MealLogSummaryDto? = null,
     val selectedDate: String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
+    val healthProfile: HealthProfileDto? = null,
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -35,10 +37,12 @@ data class DiaryUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DiaryViewModel @Inject constructor(
-    private val mealLogRepository: MealLogRepository
+    private val mealLogRepository: MealLogRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _selectedDate = MutableStateFlow(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
+    private val _healthProfile = MutableStateFlow<HealthProfileDto?>(null)
     private val _isLoading = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
 
@@ -47,18 +51,24 @@ class DiaryViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<DiaryUiState> = combine(
-        _selectedDate, mealLogsFlow, _isLoading, _error
-    ) { date, logs, loading, error ->
+        _selectedDate, mealLogsFlow, _healthProfile, _isLoading, _error
+    ) { date, logs, healthProfile, loading, error ->
         DiaryUiState(
             mealLogs = logs,
             summary = computeSummary(logs),
             selectedDate = date,
+            healthProfile = healthProfile,
             isLoading = loading,
             error = error
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiaryUiState())
 
-    init { refresh() }
+    init {
+        viewModelScope.launch {
+            userRepository.observeHealthProfile().collect { p -> _healthProfile.value = p }
+        }
+        refresh()
+    }
 
     private fun refresh() {
         val date = _selectedDate.value

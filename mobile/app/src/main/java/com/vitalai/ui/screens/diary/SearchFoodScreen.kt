@@ -135,7 +135,7 @@ fun SearchFoodScreen(
                     navController.navigate(Screen.FoodDetail(id = food.id, mealType = mealType, date = date))
                 },
                 onQuickAdd = { food ->
-                    if (canQuickAdd) viewModel.addToMealLog(mealType, date, food.id, 1f, "1 phần")
+                    if (canQuickAdd) viewModel.addToMealLog(mealType, date, food.id, 1f, "phần")
                     else navController.navigate(Screen.FoodDetail(id = food.id))
                 },
                 modifier = Modifier.clickable(

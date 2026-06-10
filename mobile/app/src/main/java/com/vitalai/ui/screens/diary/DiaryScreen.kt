@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -56,17 +57,20 @@ import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.SwipeToDeleteRow
+import com.vitalai.ui.theme.Mint400
+import com.vitalai.ui.theme.Mint500
+import com.vitalai.ui.theme.Mint600
 import com.vitalai.ui.theme.VitalDisplayFontFamily
 import com.vitalai.ui.theme.VitalFontFamily
+import com.vitalai.ui.theme.MacroProtein
+import com.vitalai.ui.theme.MacroCarbs
+import com.vitalai.ui.theme.MacroFat
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private const val DailyCalorieGoal = 2200f
-private const val ProteinGoal = 140f
-private const val CarbGoal = 248f
-private const val FatGoal = 73f
+import com.vitalai.data.remote.model.HealthProfileDto
 
 @Composable
 fun DiaryScreen(
@@ -80,7 +84,6 @@ fun DiaryScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(FoodModule.Cream)
     ) {
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
@@ -93,6 +96,7 @@ fun DiaryScreen(
                 selectedDate = uiState.selectedDate,
                 mealLogs = uiState.mealLogs,
                 summary = uiState.summary,
+                healthProfile = uiState.healthProfile,
                 onPrevDate = {
                     val prev = LocalDate.parse(uiState.selectedDate).minusDays(1)
                     viewModel.selectDate(prev.format(DateTimeFormatter.ISO_LOCAL_DATE))
@@ -160,6 +164,7 @@ private fun DiaryContent(
     selectedDate: String,
     mealLogs: List<MealLogDto>,
     summary: MealLogSummaryDto?,
+    healthProfile: HealthProfileDto?,
     onPrevDate: () -> Unit,
     onNextDate: () -> Unit,
     onAddMeal: (String) -> Unit,
@@ -176,8 +181,7 @@ private fun DiaryContent(
 
     LazyColumn(
         modifier = Modifier
-            .fillMaxSize()
-            .background(FoodModule.Cream),
+            .fillMaxSize(),
         contentPadding = PaddingValues(start = 21.dp, end = 21.dp, top = 28.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(21.dp)
     ) {
@@ -189,10 +193,10 @@ private fun DiaryContent(
             )
         }
         item {
-            DiarySummaryCard(summary = summary)
+            DiarySummaryCard(summary = summary, healthProfile = healthProfile)
         }
         item {
-            CoachNudgeCard(summary = summary, onClick = onOpenCoach)
+            CoachNudgeCard(summary = summary, healthProfile = healthProfile, onClick = onOpenCoach)
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -220,130 +224,211 @@ private fun DiaryDateHeader(
     val date = LocalDate.parse(selectedDate)
     val today = LocalDate.now()
     val label = if (date == today) {
-        "Hôm nay, ${date.format(DateTimeFormatter.ofPattern("d MMM", Locale("vi")))}"
+        "Hôm nay, ${date.format(DateTimeFormatter.ofPattern("d MMMM", Locale("vi")))}"
     } else {
-        date.format(DateTimeFormatter.ofPattern("d MMM, yyyy", Locale("vi")))
+        date.format(DateTimeFormatter.ofPattern("d MMMM, yyyy", Locale("vi")))
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = "Nhật ký dinh dưỡng",
-                color = FoodModule.Charcoal,
-                fontSize = 12.sp,
-                fontFamily = VitalFontFamily
-            )
-            Spacer(Modifier.height(3.dp))
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "Nhật ký dinh dưỡng",
+            color = FoodModule.Forest,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
+        
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onPrevDate, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Default.ChevronLeft, contentDescription = "Ngày trước", tint = FoodModule.Charcoal.copy(alpha = 0.5f), modifier = Modifier.size(24.dp))
+            }
+            
             Text(
                 text = label,
-                color = FoodModule.Forest,
-                fontSize = 27.sp,
-                lineHeight = 30.sp,
-                fontFamily = VitalDisplayFontFamily,
-                fontWeight = FontWeight.Normal
+                color = FoodModule.Charcoal,
+                fontSize = 16.sp,
+                fontFamily = VitalFontFamily,
+                fontWeight = FontWeight.Medium
             )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RoundOutlineIconButton(onClick = onPrevDate) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "Ngày trước", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
-            }
-            RoundOutlineIconButton(onClick = onNextDate) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "Ngày sau", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
+            
+            IconButton(onClick = onNextDate, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Default.ChevronRight, contentDescription = "Ngày sau", tint = FoodModule.Charcoal.copy(alpha = 0.5f), modifier = Modifier.size(24.dp))
             }
         }
     }
 }
 
 @Composable
-private fun DiarySummaryCard(summary: MealLogSummaryDto?) {
+private fun DiarySummaryCard(summary: MealLogSummaryDto?, healthProfile: HealthProfileDto?) {
+    val hp = healthProfile
+    val dailyCalorieGoal = hp?.dailyCaloriesGoal?.toFloat() ?: 2200f
+    val proteinGoal = hp?.proteinGoalG?.toFloat() ?: 140f
+    val carbGoal = hp?.carbsGoalG?.toFloat() ?: 248f
+    val fatGoal = hp?.fatGoalG?.toFloat() ?: 73f
+
     val consumed = summary?.totalCalories ?: 0f
-    Card(
-        shape = RoundedCornerShape(FoodModule.CardRadius),
-        colors = CardDefaults.cardColors(containerColor = FoodModule.Keylime),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(21.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                CalorieRing(consumed = consumed, goal = DailyCalorieGoal)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(11.dp)
-                ) {
-                    SummaryRow("Mục tiêu", DailyCalorieGoal.roundToInt())
-                    Hairline()
-                    SummaryRow("Đã nạp", consumed.roundToInt())
-                }
-            }
-            Spacer(Modifier.height(18.dp))
-            Hairline()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                MacroChip("Protein", summary?.totalProtein ?: 0f, ProteinGoal, Modifier.weight(1f))
-                MacroChip("Carbs", summary?.totalCarbs ?: 0f, CarbGoal, Modifier.weight(1f))
-                MacroChip("Fat", summary?.totalFat ?: 0f, FatGoal, Modifier.weight(1f))
-            }
-        }
-    }
-}
+    val proteinConsumed = summary?.totalProtein ?: 0f
+    val carbsConsumed = summary?.totalCarbs ?: 0f
+    val fatConsumed = summary?.totalFat ?: 0f
 
-@Composable
-private fun SummaryRow(label: String, value: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom
-    ) {
-        Text(label, color = FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
-        Text(
-            text = "$value kcal",
-            color = FoodModule.Forest,
-            fontSize = 16.sp,
-            fontFamily = VitalFontFamily
-        )
-    }
-}
-
-@Composable
-private fun Hairline() {
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(1.dp)
-            .background(FoodModule.Forest.copy(alpha = 0.12f))
-    )
-}
-
-@Composable
-private fun MacroChip(label: String, value: Float, goal: Float, modifier: Modifier = Modifier) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, color = FoodModule.Charcoal, fontSize = 11.sp, fontFamily = VitalFontFamily)
-        Spacer(Modifier.height(3.dp))
-        Text(
-            text = "${value.roundToInt()}/${goal.roundToInt()}g",
-            color = FoodModule.Forest,
-            fontSize = 16.sp,
-            fontFamily = VitalFontFamily
-        )
-        Spacer(Modifier.height(6.dp))
-        FoodProgressBar(progress = value / goal, height = 5.dp)
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // 1. Circular Progress Chart
+        CalorieProgressChart(consumed = consumed, goal = dailyCalorieGoal)
+        
+        Spacer(Modifier.height(28.dp))
+            
+            // 2. Summary Metrics
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MetricColumn(label = "Mục tiêu", value = dailyCalorieGoal.roundToInt())
+                Box(modifier = Modifier.width(1.dp).height(40.dp).background(FoodModule.Border))
+                MetricColumn(label = "Đã nạp", value = consumed.roundToInt())
+            }
+            
+            Spacer(Modifier.height(28.dp))
+        
+        // 3. Macronutrients Progress Bars
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            MacroLinearBar(label = "Protein", consumed = proteinConsumed, goal = proteinGoal, color = Mint600)
+            MacroLinearBar(label = "Carbs", consumed = carbsConsumed, goal = carbGoal, color = Mint500)
+            MacroLinearBar(label = "Fat", consumed = fatConsumed, goal = fatGoal, color = Mint400)
+        }
     }
 }
 
 @Composable
-private fun CoachNudgeCard(summary: MealLogSummaryDto?, onClick: () -> Unit) {
-    val proteinLeft = (ProteinGoal - (summary?.totalProtein ?: 0f)).coerceAtLeast(0f).roundToInt()
+private fun MetricColumn(label: String, value: Int) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, color = FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "%,d kcal".format(value),
+            color = FoodModule.Ink,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = VitalFontFamily
+        )
+    }
+}
+
+@Composable
+private fun MacroLinearBar(label: String, consumed: Float, goal: Float, color: androidx.compose.ui.graphics.Color) {
+    val safeGoal = goal.takeIf { it > 0f } ?: 1f
+    val progress = (consumed / safeGoal).coerceIn(0f, 1f)
+    
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, color = FoodModule.Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = VitalFontFamily)
+            Text(
+                text = "${consumed.roundToInt()}/${goal.roundToInt()}g",
+                color = FoodModule.Charcoal,
+                fontSize = 13.sp,
+                fontFamily = VitalFontFamily
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(color.copy(alpha = 0.15f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(color)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CalorieProgressChart(consumed: Float, goal: Float) {
+    val safeGoal = goal.takeIf { it > 0f } ?: 1f
+    val progress = (consumed / safeGoal).coerceIn(0f, 1f)
+    val left = (goal - consumed).roundToInt()
+    val isOver = left < 0
+    val displayValue = if (isOver) -left else left
+    
+    Box(modifier = Modifier.size(180.dp), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+            val stroke = 16.dp.toPx()
+            val radius = (this.size.minDimension - stroke) / 2f
+            val centerOffset = this.center
+            val arcTopLeft = androidx.compose.ui.geometry.Offset(
+                centerOffset.x - radius,
+                centerOffset.y - radius
+            )
+            val arcSize = androidx.compose.ui.geometry.Size(radius * 2, radius * 2)
+
+            drawCircle(
+                color = FoodModule.Forest.copy(alpha = 0.1f),
+                radius = radius,
+                center = centerOffset,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke)
+            )
+            drawArc(
+                color = FoodModule.Forest,
+                startAngle = -90f,
+                sweepAngle = 360f * progress,
+                useCenter = false,
+                topLeft = arcTopLeft,
+                size = arcSize,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = if (isOver) "Vượt" else "Còn",
+                color = FoodModule.Charcoal,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = VitalFontFamily
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "%,d".format(displayValue),
+                color = FoodModule.Forest,
+                fontSize = 44.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = VitalDisplayFontFamily
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "kcal",
+                color = FoodModule.Charcoal,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = VitalFontFamily
+            )
+        }
+    }
+}
+
+@Composable
+private fun CoachNudgeCard(summary: MealLogSummaryDto?, healthProfile: HealthProfileDto?, onClick: () -> Unit) {
+    val proteinGoal = healthProfile?.proteinGoalG?.toFloat() ?: 140f
+    val proteinLeft = (proteinGoal - (summary?.totalProtein ?: 0f)).coerceAtLeast(0f).roundToInt()
     Row(
         modifier = Modifier
             .fillMaxWidth()
