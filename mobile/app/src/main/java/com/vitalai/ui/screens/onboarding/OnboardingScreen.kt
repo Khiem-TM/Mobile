@@ -6,7 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,13 +18,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Female
+import androidx.compose.material.icons.filled.Male
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.TrackChanges
+import androidx.compose.material.icons.filled.SportsMartialArts
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,7 +39,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.*
-import kotlin.math.roundToInt
 
 @Composable
 fun OnboardingScreen(
@@ -85,7 +84,7 @@ fun OnboardingScreen(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Ink100)
+                        .background(ForestGreen)
                         .clickable(enabled = !isLoading) {
                             if (step > 1) {
                                 step--
@@ -98,7 +97,7 @@ fun OnboardingScreen(
                     Icon(
                         imageVector = Icons.Default.ChevronLeft,
                         contentDescription = "Back",
-                        tint = Ink900
+                        tint = Color.White
                     )
                 }
 
@@ -133,16 +132,16 @@ fun OnboardingScreen(
 
             // Title & Subtitle based on step
             val title = when (step) {
-                1 -> "Bạn là?"
+                1 -> "Cho chúng tôi biết thêm về bạn"
                 2 -> "Số đo cơ thể"
                 3 -> "Mục tiêu chính của bạn?"
                 4 -> "Mức độ vận động"
                 else -> ""
             }
             val subtitle = when (step) {
-                1 -> "Giúp chúng tôi cá nhân hóa kế hoạch dinh dưỡng phù hợp với bạn"
+                1 -> "Dữ liệu này sẽ được dùng để xây dựng kế hoạch dinh dưỡng cá nhân hóa cho bạn"
                 2 -> "Chiều cao và cân nặng hiện tại của bạn"
-                3 -> "Chúng tôi sẽ điều chỉnh kế hoạch calo theo mục tiêu này"
+                3 -> ""
                 4 -> "Tần suất bạn tập luyện trong tuần"
                 else -> ""
             }
@@ -154,12 +153,14 @@ fun OnboardingScreen(
                 color = Ink900,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            Text(
-                text = subtitle,
-                fontSize = 15.sp,
-                color = Ink500,
-                modifier = Modifier.padding(bottom = 28.dp)
-            )
+            if (subtitle.isNotBlank()) {
+                Text(
+                    text = subtitle,
+                    fontSize = 15.sp,
+                    color = Ink500,
+                    modifier = Modifier.padding(bottom = 28.dp)
+                )
+            }
 
             // Scrollable Content with Animation
             Box(
@@ -206,16 +207,10 @@ fun OnboardingScreen(
                             )
                             3 -> Step3Goal(
                                 goalType = viewModel.goalType,
-                                weightKg = viewModel.weightKg,
                                 onGoalChange = { viewModel.goalType = it }
                             )
                             4 -> Step4Activity(
                                 activityLevel = viewModel.activityLevel,
-                                birthDate = viewModel.birthDate,
-                                gender = viewModel.gender,
-                                heightCm = viewModel.heightCm,
-                                weightKg = viewModel.weightKg,
-                                goalType = viewModel.goalType,
                                 onActivityChange = { viewModel.activityLevel = it }
                             )
                         }
@@ -290,39 +285,48 @@ fun Step1Gender(
     onGenderChange: (String) -> Unit,
     onBirthYearChange: (Int) -> Unit
 ) {
+    data class GenderOption(
+        val id: String,
+        val label: String,
+        val icon: androidx.compose.ui.graphics.vector.ImageVector,
+        val selectedColor: Color
+    )
+
     val options = listOf(
-        Triple("male", "Nam", "👨"),
-        Triple("female", "Nữ", "👩")
+        GenderOption("male", "Nam", Icons.Default.Male, ForestGreen),
+        GenderOption("female", "Nữ", Icons.Default.Female, ForestGreen)
     )
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        options.forEach { (id, label, emoji) ->
-            val isSelected = gender == id
+        options.forEach { option ->
+            val isSelected = gender == option.id
+            val bg = if (isSelected) option.selectedColor else Color(0xFFF3F4F6)
+            val fg = if (isSelected) Color.White else Ink500
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(VitalRadius.Lg))
-                    .background(if (isSelected) Mint50 else AppSurface2)
-                    .border(
-                        2.dp,
-                        if (isSelected) Mint500 else Color.Transparent,
-                        RoundedCornerShape(VitalRadius.Lg)
-                    )
-                    .clickable { onGenderChange(id) }
+                    .background(bg)
+                    .clickable { onGenderChange(option.id) }
                     .padding(vertical = 28.dp, horizontal = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = emoji, fontSize = 48.sp)
+                    Icon(
+                        imageVector = option.icon,
+                        contentDescription = option.label,
+                        tint = fg,
+                        modifier = Modifier.size(48.dp)
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = label,
+                        text = option.label,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Ink900
+                        color = fg
                     )
                 }
             }
@@ -344,7 +348,7 @@ fun Step1Gender(
             .fillMaxWidth()
             .padding(top = 8.dp)
             .clip(RoundedCornerShape(VitalRadius.Md))
-            .background(AppSurface2)
+            .background(Color(0xFFF3F4F6))
             .padding(18.dp, 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -373,7 +377,7 @@ fun Step1Gender(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Ink900)
+                    .background(ForestGreen)
                     .clickable { if (birthYear < 2020) onBirthYearChange(birthYear + 1) },
                 contentAlignment = Alignment.Center
             ) {
@@ -511,76 +515,42 @@ fun Step2BodyMetrics(
 @Composable
 fun Step3Goal(
     goalType: String,
-    weightKg: Float,
     onGoalChange: (String) -> Unit
 ) {
     val goals = listOf(
-        Triple("lose_weight", "Giảm cân", "🎯" to "Burn fat, get lean"),
-        Triple("maintain", "Duy trì", "⚖️" to "Stay healthy & balanced"),
-        Triple("gain_muscle", "Tăng cơ", "💪" to "Build strength & muscle")
+        Triple("lose_weight", "Giảm cân", "Đốt mỡ, giảm cân nặng"),
+        Triple("gain_weight", "Tăng cân", "Tăng cân nặng tổng thể"),
+        Triple("gain_muscle", "Tăng cơ", "Xây dựng cơ bắp, tăng sức mạnh"),
+        Triple("improve_endurance", "Tăng sức bền", "Cải thiện thể lực và sức bền"),
+        Triple("bulking", "Xả cơ", "Tăng cơ kèm tăng cân"),
+        Triple("cutting", "Siết cơ", "Giảm mỡ, giữ cơ bắp"),
+        Triple("maintain", "Giữ cân", "Duy trì vóc dáng cân đối")
     )
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        goals.forEach { (id, title, extra) ->
-            val (emoji, sub) = extra
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        goals.forEach { (id, title, sub) ->
             val isSelected = goalType == id
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(VitalRadius.Lg))
-                    .background(if (isSelected) Mint50 else AppSurface2)
-                    .border(
-                        2.dp,
-                        if (isSelected) Mint500 else Color.Transparent,
-                        RoundedCornerShape(VitalRadius.Lg)
-                    )
+                    .background(if (isSelected) ForestGreen else Color(0xFFF3F4F6))
                     .clickable { onGoalChange(id) }
-                    .padding(18.dp)
+                    .padding(vertical = 12.dp, horizontal = 16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = emoji, fontSize = 38.sp)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                        Text(text = sub, fontSize = 13.sp, color = Ink500)
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, if (isSelected) Mint500 else AppLine, CircleShape)
-                            .background(if (isSelected) Mint500 else Color.Transparent),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isSelected) {
-                            Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
-                        }
-                    }
+                Column {
+                    Text(
+                        text = title,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) Color.White else Ink900
+                    )
+                    Text(
+                        text = sub,
+                        fontSize = 12.sp,
+                        color = if (isSelected) Color.White else Ink500
+                    )
                 }
-            }
-        }
-
-        Card(
-            shape = RoundedCornerShape(VitalRadius.Lg),
-            colors = CardDefaults.cardColors(containerColor = AppSurface2),
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.TrackChanges,
-                    contentDescription = null,
-                    tint = Mint600,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = "Cân nặng mục tiêu: ${targetWeightKg(weightKg, goalType)} kg · trong 12 tuần",
-                    fontSize = 13.sp,
-                    color = Ink700
-                )
             }
         }
     }
@@ -589,11 +559,6 @@ fun Step3Goal(
 @Composable
 fun Step4Activity(
     activityLevel: String,
-    birthDate: String,
-    gender: String,
-    heightCm: Float,
-    weightKg: Float,
-    goalType: String,
     onActivityChange: (String) -> Unit
 ) {
     data class ActivityOption(
@@ -607,144 +572,53 @@ fun Step4Activity(
         ActivityOption("sedentary", "Ít vận động", "Văn phòng, ít đi lại", Icons.Default.Person),
         ActivityOption("lightly_active", "Vận động nhẹ", "1-2 buổi tập / tuần", Icons.AutoMirrored.Filled.DirectionsWalk),
         ActivityOption("moderately_active", "Vừa phải", "3-5 buổi tập / tuần", Icons.AutoMirrored.Filled.DirectionsRun),
-        ActivityOption("very_active", "Cao", "6+ buổi tập / tuần", Icons.Default.FitnessCenter)
+        ActivityOption("very_active", "Cao", "6+ buổi tập / tuần", Icons.Default.FitnessCenter),
+        ActivityOption("extra_active", "Cực cao", "Vận động viên / Lao động nặng", Icons.Default.SportsMartialArts)
     )
 
-    Column {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            opts.forEach { option ->
-                val isSelected = activityLevel == option.id
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(VitalRadius.Lg))
-                        .background(if (isSelected) Mint50 else AppSurface2)
-                        .border(
-                            2.dp,
-                            if (isSelected) Mint500 else Color.Transparent,
-                            RoundedCornerShape(VitalRadius.Lg)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        opts.forEach { option ->
+            val isSelected = activityLevel == option.id
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(VitalRadius.Lg))
+                    .background(if (isSelected) ForestGreen else Color(0xFFF3F4F6))
+                    .clickable { onActivityChange(option.id) }
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = option.icon,
+                        contentDescription = null,
+                        tint = if (isSelected) Color.White else Ink500,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = option.title,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color.White else Ink900
                         )
-                        .clickable { onActivityChange(option.id) }
-                        .padding(16.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) Mint500 else AppSurface),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = option.icon,
-                                contentDescription = null,
-                                tint = if (isSelected) Color.White else Ink700,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = option.title, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                            Text(text = option.subtitle, fontSize = 12.sp, color = Ink500)
-                        }
+                        Text(
+                            text = option.subtitle,
+                            fontSize = 12.sp,
+                            color = if (isSelected) Color.White else Ink500
+                        )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // Recommendation Card
-        Card(
-            shape = RoundedCornerShape(VitalRadius.Lg),
-            colors = CardDefaults.cardColors(containerColor = Mint50),
-            border = BorderStroke(1.dp, Mint200),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "KẾ HOẠCH ĐỀ XUẤT",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Mint700,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("${recommendedCalories(birthDate, gender, heightCm, weightKg, activityLevel, goalType)}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Mint700)
-                        Text("kcal / ngày", fontSize = 12.sp, color = Mint700)
-                    }
-                    Column {
-                        Text("${recommendedProtein(weightKg, goalType)}g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Mint700)
-                        Text("protein", fontSize = 12.sp, color = Mint700)
-                    }
-                    Column {
-                        Text("${recommendedCarbs(birthDate, gender, heightCm, weightKg, activityLevel, goalType)}g", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Mint700)
-                        Text("carbs", fontSize = 12.sp, color = Mint700)
-                    }
-                }
-            }
-        }
+        Text(
+            text = "Lưu ý: Bạn vẫn có thể chỉnh sửa những thông tin trên bất kỳ lúc nào!",
+            fontSize = 12.sp,
+            color = Ink500,
+            modifier = Modifier.padding(top = 15.dp)
+        )
     }
-}
-
-private fun recommendedCalories(
-    birthDate: String,
-    gender: String,
-    heightCm: Float,
-    weightKg: Float,
-    activityLevel: String,
-    goalType: String
-): Int {
-    val age = birthDate.take(4).toIntOrNull()?.let { (java.time.LocalDate.now().year - it).coerceIn(14, 90) } ?: 30
-    val bmr = if (gender == "female") {
-        10f * weightKg + 6.25f * heightCm - 5f * age - 161f
-    } else {
-        10f * weightKg + 6.25f * heightCm - 5f * age + 5f
-    }
-    val activityFactor = when (activityLevel) {
-        "sedentary" -> 1.2f
-        "lightly_active" -> 1.375f
-        "moderately_active" -> 1.55f
-        "very_active" -> 1.725f
-        else -> 1.45f
-    }
-    val goalAdjustment = when (goalType) {
-        "lose_weight" -> -350
-        "gain_muscle" -> 250
-        else -> 0
-    }
-    return ((bmr * activityFactor) + goalAdjustment).roundToInt().coerceIn(1200, 4200)
-}
-
-private fun recommendedProtein(weightKg: Float, goalType: String): Int {
-    val multiplier = if (goalType == "gain_muscle") 1.8f else 1.6f
-    return (weightKg * multiplier).roundToInt().coerceAtLeast(40)
-}
-
-private fun recommendedCarbs(
-    birthDate: String,
-    gender: String,
-    heightCm: Float,
-    weightKg: Float,
-    activityLevel: String,
-    goalType: String
-): Int {
-    return ((recommendedCalories(birthDate, gender, heightCm, weightKg, activityLevel, goalType) * 0.45f) / 4f)
-        .roundToInt()
-        .coerceAtLeast(80)
-}
-
-private fun targetWeightKg(weightKg: Float, goalType: String): Int {
-    val adjustment = when (goalType) {
-        "lose_weight" -> -6
-        "gain_muscle" -> 4
-        else -> 0
-    }
-    return (weightKg + adjustment).roundToInt().coerceIn(40, 150)
 }
 
 fun birthYearFromDate(birthDate: String): Int {

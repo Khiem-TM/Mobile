@@ -118,7 +118,7 @@ class OnboardingViewModel @Inject constructor(
     fun isStepValid(step: Int): Boolean = when (step) {
         1 -> gender in setOf("male", "female", "other") && birthDate.take(4).toIntOrNull() in 1900..2020
         2 -> heightCm in 50f..300f && weightKg in 20f..500f
-        3 -> goalType in setOf("lose_weight", "maintain", "gain_muscle")
+        3 -> goalType in setOf("lose_weight", "gain_weight", "gain_muscle", "improve_endurance", "bulking", "cutting", "maintain")
         4 -> activityLevel in setOf("sedentary", "lightly_active", "moderately_active", "very_active", "extra_active")
         else -> false
     }

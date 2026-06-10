@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vitalai.ui.theme.AppBackground
 import com.vitalai.ui.theme.AppSurface2
-import com.vitalai.ui.theme.Ink100
+import com.vitalai.ui.theme.ForestGreen
 import com.vitalai.ui.theme.Ink500
 import com.vitalai.ui.theme.Ink900
 import com.vitalai.ui.theme.Mint500
@@ -105,7 +105,6 @@ fun OnboardingStep3Preview() {
         ) {
             Step3Goal(
                 goalType = goalType,
-                weightKg = 68f,
                 onGoalChange = { goalType = it }
             )
         }
@@ -126,11 +125,6 @@ fun OnboardingStep4Preview() {
         ) {
             Step4Activity(
                 activityLevel = activityLevel,
-                birthDate = "1996-01-01",
-                gender = "male",
-                heightCm = 172f,
-                weightKg = 68f,
-                goalType = "lose_weight",
                 onActivityChange = { activityLevel = it }
             )
         }
@@ -162,13 +156,13 @@ private fun OnboardingPreviewShell(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Ink100),
+                    .background(ForestGreen),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.ChevronLeft,
                     contentDescription = "Back",
-                    tint = Ink900
+                    tint = Color.White
                 )
             }
 
