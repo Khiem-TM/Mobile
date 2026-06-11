@@ -22,6 +22,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.AppLine
+import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.AppSurface2
 import com.vitalai.ui.theme.Ink900
 import com.vitalai.ui.theme.Mint500
@@ -105,9 +106,8 @@ fun MealOverviewCard(
     Card(
         modifier = modifier.height(height),
         shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface2),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, AppLine.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (imageUrl != null) {

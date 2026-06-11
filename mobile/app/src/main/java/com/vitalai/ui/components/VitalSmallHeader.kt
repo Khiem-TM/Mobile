@@ -36,20 +36,13 @@ fun VitalSmallHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .drawBehind {
-                val alpha = textAlphaProvider()
-                val extraHeight = 4.dp.toPx() * alpha
-                drawRect(
-                    color = AppSurface,
-                    size = size.copy(height = size.height + extraHeight)
-                )
-            }
+            .background(AppSurface)
     ) {
         Spacer(modifier = Modifier.statusBarsPadding())
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(32.dp)
+                .height(44.dp)
                 .padding(horizontal = 16.dp)
                 .graphicsLayer { alpha = textAlphaProvider() }
         ) {

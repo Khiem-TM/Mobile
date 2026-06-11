@@ -207,7 +207,7 @@ fun VitalNavGraph(
         // Home/Diary/Profile không có TopAppBar nên tự chừa status bar tại đây
         // (inset cố định theo từng màn -> không bị đẩy khi chuyển route).
         composable<Screen.Home> {
-            WithStatusBarInset { HomeScreen(navController) }
+            HomeScreen(navController)
         }
         composable<Screen.Diary> {
             DiaryScreen(navController)
@@ -217,7 +217,7 @@ fun VitalNavGraph(
             CoachScreen(navController, onOpenDrawer = onOpenCoachDrawer)
         }
         composable<Screen.Profile> {
-            WithStatusBarInset { ProfileScreen(navController) }
+            ProfileScreen(navController)
         }
 
         // ── Food / Diary sub-screens ──────────────────────────

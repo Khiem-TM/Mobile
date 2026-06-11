@@ -100,7 +100,7 @@ fun DailyActivitySummaryCard(
             .clickable(onClick = onOpenActivityLog),
         shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -192,7 +192,7 @@ fun ActivityWeekSummaryCard(
             .padding(horizontal = 24.dp, vertical = 10.dp),
         shape = RoundedCornerShape(VitalRadius.Lg),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
             Text("7 ngày gần đây", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)

@@ -40,9 +40,9 @@ fun VitalMainHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 21.dp, end = 21.dp, top = 4.dp, bottom = 16.dp)
+                .padding(start = 21.dp, end = 21.dp, top = 12.dp, bottom = 16.dp)
                 .graphicsLayer { alpha = textAlphaProvider() },
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(

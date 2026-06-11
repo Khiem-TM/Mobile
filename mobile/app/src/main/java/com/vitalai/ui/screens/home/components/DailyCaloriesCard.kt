@@ -94,7 +94,7 @@ fun DailyCaloriesCard(uiState: HomeUiState) {
             .padding(horizontal = 24.dp, vertical = 8.dp),
         shape = RoundedCornerShape(VitalRadius.Xl),
         colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(

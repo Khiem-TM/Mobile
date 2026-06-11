@@ -120,19 +120,6 @@ fun HomeHeader(navController: NavController, uiState: HomeUiState) {
                     )
                 }
             }
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Ink900),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add, 
-                    contentDescription = "Add", 
-                    tint = AppSurface
-                )
-            }
         }
     }
 }

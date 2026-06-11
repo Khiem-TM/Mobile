@@ -84,7 +84,7 @@ fun DiscoverScreen(
             } else 1f
         }
     }
-    val headerActions: @Composable RowScope.() -> Unit = {
+    val mainHeaderActions: @Composable RowScope.() -> Unit = {
         if (showBackButton) {
             IconButton(onClick = { navController.popBackStack() }) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
@@ -96,9 +96,30 @@ fun DiscoverScreen(
         VitalIconButton(
             onClick = { navController.navigate(Screen.BlogComposer()) },
             modifier = Modifier.padding(end = 12.dp),
-            containerColor = Mint500
+            containerColor = Mint500,
+            shape = androidx.compose.foundation.shape.CircleShape
         ) {
             Icon(Icons.Default.Add, contentDescription = "Viết bài", tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+    }
+
+    val smallHeaderActions: @Composable RowScope.() -> Unit = {
+        if (showBackButton) {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+            }
+        }
+        IconButton(onClick = { navController.navigate(Screen.Notifications) }) {
+            Icon(Icons.Default.Notifications, contentDescription = "Thông báo", tint = Ink700)
+        }
+        VitalIconButton(
+            onClick = { navController.navigate(Screen.BlogComposer()) },
+            modifier = Modifier.padding(end = 12.dp),
+            containerColor = Mint500,
+            shape = androidx.compose.foundation.shape.CircleShape,
+            size = 32.dp
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Viết bài", tint = Color.White, modifier = Modifier.size(16.dp))
         }
     }
 
@@ -137,11 +158,11 @@ fun DiscoverScreen(
     }
 
     var showQuickReturnState by remember { mutableStateOf(true) }
-    LaunchedEffect(isScrollingUp, listState.isScrollInProgress) {
-        if (!isScrollingUp) {
-            showQuickReturnState = false
-        } else if (!listState.isScrollInProgress) {
+    LaunchedEffect(isScrollingUp) {
+        if (isScrollingUp) {
             showQuickReturnState = true
+        } else {
+            showQuickReturnState = false
         }
     }
 
@@ -212,11 +233,13 @@ fun DiscoverScreen(
                             VitalMainHeader(
                                 title = "Khám phá",
                                 textAlphaProvider = { 1f - scrollProgressProvider() },
-                                actions = headerActions
+                                actions = mainHeaderActions
                             )
                         }
-                        Spacer(modifier = Modifier.height(with(LocalDensity.current) { searchBarHeightPx.toDp() }))
                     }
+                }
+                item {
+                    Spacer(modifier = Modifier.height(with(LocalDensity.current) { searchBarHeightPx.toDp() }))
                 }
 
                 when {
@@ -355,7 +378,7 @@ fun DiscoverScreen(
                         .fillMaxWidth()
                         .background(AppSurface)
                         .padding(horizontal = 20.dp)
-                        .padding(top = 8.dp, bottom = 16.dp)
+                        .padding(top = 0.dp, bottom = 16.dp)
                         .clickable { navController.navigate(Screen.BlogSearch) }
                 ) {
                     BlogSearchBar(
@@ -380,7 +403,7 @@ fun DiscoverScreen(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .onGloballyPositioned { smallHeaderHeightPx = it.size.height.toFloat() },
-                actions = headerActions
+                actions = smallHeaderActions
             )
         }
     }
