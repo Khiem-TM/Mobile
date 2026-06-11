@@ -1,6 +1,7 @@
 package com.vitalai.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,12 +30,20 @@ fun VitalSmallHeader(
     title: String,
     modifier: Modifier = Modifier,
     textAlphaProvider: () -> Float = { 1f },
-    actions: @Composable RowScope.() -> Unit = {}
+    actions: @Composable RowScope.() -> Unit = {},
+    bottomContent: @Composable () -> Unit = {}
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(AppSurface)
+            .drawBehind {
+                val alpha = textAlphaProvider()
+                val extraHeight = 4.dp.toPx() * alpha
+                drawRect(
+                    color = AppSurface,
+                    size = size.copy(height = size.height + extraHeight)
+                )
+            }
     ) {
         Spacer(modifier = Modifier.statusBarsPadding())
         Box(
@@ -60,5 +69,6 @@ fun VitalSmallHeader(
                 actions()
             }
         }
+        bottomContent()
     }
 }
