@@ -177,14 +177,14 @@ fun MealOverviewCard(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(if (isSmall) 8.dp else 12.dp))
                         .background(Color.White.copy(alpha = 0.2f))
-                        .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = if (isSmall) 6.dp else 10.dp, vertical = if (isSmall) 4.dp else 6.dp),
+                        .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(if (isSmall) 8.dp else 12.dp))
+                        .padding(horizontal = if (isSmall) 6.dp else 10.dp, vertical = if (isSmall) 2.dp else 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.LocalFireDepartment, contentDescription = "Kcal", tint = Color(0xFFFFD54F), modifier = Modifier.size(if (isSmall) 12.dp else 16.dp))
+                        Icon(Icons.Default.LocalFireDepartment, contentDescription = "Kcal", tint = Mint500, modifier = Modifier.size(if (isSmall) 12.dp else 16.dp))
                         Text(
                             text = "$calories kcal",
                             fontSize = if (isSmall) 10.sp else 14.sp,

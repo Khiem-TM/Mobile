@@ -26,6 +26,20 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -215,11 +229,10 @@ private fun DiaryContent(
         state = listState,
         modifier = Modifier
             .fillMaxSize(),
-        contentPadding = PaddingValues(top = 0.dp, bottom = 150.dp),
-        verticalArrangement = Arrangement.spacedBy(21.dp)
+        contentPadding = PaddingValues(top = 0.dp, bottom = 40.dp)
     ) {
         item {
-            androidx.compose.foundation.layout.Column(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(color = com.vitalai.ui.theme.AppSurface)
@@ -229,16 +242,16 @@ private fun DiaryContent(
                     title = "Nhật ký dinh dưỡng",
                     textAlphaProvider = { 1f - scrollProgressProvider() }
                 )
-                Box(modifier = Modifier.padding(horizontal = 21.dp)) {
+                Box(modifier = Modifier.padding(horizontal = 19.dp)) {
                     DiaryDateHeader(
                         selectedDate = selectedDate,
                         onPrevDate = onPrevDate,
                         onNextDate = onNextDate
                     )
                 }
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(21.dp))
+                Spacer(modifier = Modifier.height(21.dp))
                 if (summary != null) {
-                    Box(modifier = Modifier.padding(horizontal = 21.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = 19.dp)) {
                         DiarySummaryCard(summary = summary, healthProfile = healthProfile)
                     }
                 } else {
@@ -249,25 +262,34 @@ private fun DiaryContent(
             }
         }
         item {
-            Box(modifier = Modifier.padding(horizontal = 21.dp)) {
-                CoachNudgeCard(summary = summary, healthProfile = healthProfile, onClick = onOpenCoach)
+            Box(modifier = Modifier.padding(horizontal = 19.dp).height(16.dp)) {
+                Box(modifier = Modifier.width(68.dp), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.fillMaxHeight().width(2.dp).background(FoodModule.Border))
+                }
             }
         }
         item {
             Column(
-                modifier = Modifier.padding(horizontal = 21.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.padding(horizontal = 19.dp)
             ) {
                 mealTypes.forEach { meal ->
                     val log = mealLogs.find { it.mealType.equals(meal.key, ignoreCase = true) }
-                    FoodMealSection(
+                    TimelineMealSection(
                         meal = meal,
                         mealLog = log,
                         onAdd = { onAddMeal(meal.key) },
                         onOpenItem = onOpenItem,
-                        onDeleteItem = onDeleteItem
+                        onDeleteItem = onDeleteItem,
+                        isFirst = meal == mealTypes.first(),
+                        isLast = meal == mealTypes.last()
                     )
                 }
+            }
+        }
+        item {
+            Spacer(modifier = Modifier.height(16.dp))
+            Box(modifier = Modifier.padding(horizontal = 19.dp)) {
+                CoachNudgeCard(summary = summary, healthProfile = healthProfile, onClick = onOpenCoach)
             }
         }
     }
@@ -376,7 +398,7 @@ private fun MetricColumn(label: String, value: Int) {
 }
 
 @Composable
-private fun MacroLinearBar(label: String, consumed: Float, goal: Float, color: androidx.compose.ui.graphics.Color) {
+private fun MacroLinearBar(label: String, consumed: Float, goal: Float, color: Color) {
     val safeGoal = goal.takeIf { it > 0f } ?: 1f
     val progress = (consumed / safeGoal).coerceIn(0f, 1f)
     
@@ -501,70 +523,134 @@ private fun CoachNudgeCard(summary: MealLogSummaryDto?, healthProfile: HealthPro
 }
 
 @Composable
-private fun FoodMealSection(
+private fun TimelineMealSection(
     meal: MealSpec,
     mealLog: MealLogDto?,
     onAdd: () -> Unit,
     onOpenItem: (String, MealLogItemDto) -> Unit,
-    onDeleteItem: (String, String) -> Unit
+    onDeleteItem: (String, String) -> Unit,
+    isFirst: Boolean,
+    isLast: Boolean
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(FoodModule.CardRadius),
-        colors = CardDefaults.cardColors(containerColor = FoodModule.Cream),
-        border = BorderStroke(1.dp, FoodModule.Border)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Column {
+        // Timeline Column (Trục thời gian)
+        Box(
+            modifier = Modifier.width(68.dp),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            // Đường kẻ dọc
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxHeight().width(2.dp)) {
+                val strokeWidth = 2.dp.toPx()
+                val x = size.width / 2
+                
+                // Kéo dài đường thẳng xuyên suốt
+                val startY = 0f
+                val endY = size.height
+                
+                drawLine(
+                    color = FoodModule.Border,
+                    start = androidx.compose.ui.geometry.Offset(x, startY),
+                    end = androidx.compose.ui.geometry.Offset(x, endY),
+                    strokeWidth = strokeWidth
+                )
+            }
+
+            // Mốc giờ chính
+            Box(
+                modifier = Modifier.height(48.dp), // Căn giữa với header bên phải (12 + 24 + 12 = 48)
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(68.dp)
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(Color(0xFFEAEFEB)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = meal.label,
+                        color = Color(0xFF1A3329),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        fontFamily = VitalFontFamily
+                    )
+                }
+            }
+        }
+
+        // Right Column
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = 24.dp)
+        ) {
+            // Time Block Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 15.dp, bottom = 13.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(top = 12.dp, bottom = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(meal.label, color = FoodModule.Ink, fontSize = 16.sp, fontFamily = VitalFontFamily)
-                    if ((mealLog?.items?.size ?: 0) > 0) {
-                        Text(
-                            text = " · ${mealLog!!.totalCalories.roundToInt()} kcal",
-                            color = FoodModule.Charcoal.copy(alpha = 0.72f),
-                            fontSize = 12.sp,
-                            fontFamily = VitalFontFamily
-                        )
-                    }
-                }
+                // Add Button
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
-                        .border(1.dp, FoodModule.Forest, CircleShape)
+                        .background(Color(0xFFEAEFEB))
                         .clickable(onClick = onAdd),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Thêm món", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add",
+                        tint = Color(0xFF1A3329),
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+
+                // Macros Summary
+                val cals = mealLog?.totalCalories?.roundToInt() ?: 0
+                val p = mealLog?.totalProtein?.roundToInt() ?: 0
+                val f = mealLog?.totalFat?.roundToInt() ?: 0
+                val c = mealLog?.totalCarbs?.roundToInt() ?: 0
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    MacroCircleItem(icon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = Color(0xFF1A3329), modifier = Modifier.size(14.dp)) }, value = cals.toString())
+                    MacroCircleItem(text = "P", value = p.toString())
+                    MacroCircleItem(text = "F", value = f.toString())
+                    MacroCircleItem(text = "C", value = c.toString())
                 }
             }
 
-            if (mealLog == null || mealLog.items.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .border(0.dp, FoodModule.Border)
-                        .clickable(onClick = onAdd)
-                        .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Text("Thêm món đầu tiên...", color = FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
-                }
-            } else {
-                mealLog.items.forEach { item ->
-                    MealFoodRow(
-                        mealLogId = mealLog.id,
-                        item = item,
-                        onOpenItem = onOpenItem,
-                        onDeleteItem = onDeleteItem
-                    )
+            // Food Item Cards
+            if (mealLog != null && mealLog.items.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    mealLog?.items?.forEach { item ->
+                        androidx.compose.runtime.key(item.id) {
+                            TimelineMealFoodRow(
+                                modifier = Modifier.layout { measurable, constraints ->
+                                    val shift = 3.dp.roundToPx()
+                                    val placeable = measurable.measure(
+                                        constraints.copy(maxWidth = constraints.maxWidth + shift)
+                                    )
+                                    layout(constraints.maxWidth, placeable.height) {
+                                        placeable.place(-shift, 0)
+                                    }
+                                },
+                                mealLogId = mealLog.id,
+                                item = item,
+                                onOpenItem = onOpenItem,
+                                onDeleteItem = onDeleteItem
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -572,51 +658,150 @@ private fun FoodMealSection(
 }
 
 @Composable
-private fun MealFoodRow(
+private fun MacroCircleItem(icon: (@Composable () -> Unit)? = null, text: String? = null, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFEAEFEB)),
+            contentAlignment = Alignment.Center
+        ) {
+            icon?.invoke()
+            if (text != null) {
+                Text(
+                    text = text, 
+                    color = Color(0xFF1A3329), 
+                    fontSize = 11.sp, 
+                    fontWeight = FontWeight.Bold, 
+                    fontFamily = VitalFontFamily,
+                    modifier = Modifier.offset(y = (-1).dp)
+                )
+            }
+        }
+        Text(value, color = FoodModule.Charcoal, fontSize = 12.sp, fontWeight = FontWeight.Medium, fontFamily = VitalFontFamily)
+    }
+}
+
+@Composable
+private fun TimelineMealFoodRow(
     mealLogId: String,
     item: MealLogItemDto,
     onOpenItem: (String, MealLogItemDto) -> Unit,
-    onDeleteItem: (String, String) -> Unit
+    onDeleteItem: (String, String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    SwipeToDeleteRow(
+    SwipeToRevealStartRow(
         onDelete = { onDeleteItem(mealLogId, item.id) },
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(0.dp, FoodModule.Border),
-        shape = RoundedCornerShape(0.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
-        Row(
+        Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(FoodModule.Cream)
-                .clickable { onOpenItem(mealLogId, item) }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .clickable { onOpenItem(mealLogId, item) },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            FoodThumb(name = item.foodName.ifBlank { "Món ăn" }, imageUrl = item.imageUrl, size = 36.dp)
-            Column(Modifier.weight(1f)) {
-                Text(
-                    item.foodName.ifBlank { "Món ăn" },
-                    color = FoodModule.Ink,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontFamily = VitalFontFamily
-                )
-                Text(
-                    "${item.quantity.cleanNumber()} ${item.servingUnit}",
-                    color = FoodModule.Charcoal.copy(alpha = 0.75f),
-                    fontSize = 12.sp,
-                    fontFamily = VitalFontFamily
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                FoodThumb(name = item.foodName.ifBlank { "Món ăn" }, imageUrl = item.imageUrl, size = 48.dp)
+                
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        item.foodName.ifBlank { "Món ăn" },
+                        color = FoodModule.Ink,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontFamily = VitalFontFamily
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "${item.quantity.cleanNumber()} ${item.servingUnit} · ${item.calories.roundToInt()} kcal · ${item.proteinG.roundToInt()}P · ${item.fatG.roundToInt()}F · ${item.carbsG.roundToInt()}C",
+                        color = FoodModule.Charcoal,
+                        fontSize = 12.sp,
+                        fontFamily = VitalFontFamily
+                    )
+                }
             }
-            Text(
-                text = "${item.calories.roundToInt()} kcal",
-                color = FoodModule.Forest,
-                fontSize = 14.sp,
-                fontFamily = VitalFontFamily
-            )
+        }
+    }
+}
+
+private enum class SwipeStartValue { Closed, Revealed }
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SwipeToRevealStartRow(
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+    actionWidth: androidx.compose.ui.unit.Dp = 64.dp,
+    content: @Composable () -> Unit
+) {
+    val density = LocalDensity.current
+    val actionWidthPx = with(density) { actionWidth.toPx() }
+    val anchors = remember(actionWidthPx) {
+        DraggableAnchors {
+            SwipeStartValue.Closed at 0f
+            SwipeStartValue.Revealed at actionWidthPx
+        }
+    }
+    val state = remember(density, anchors) {
+        AnchoredDraggableState(
+            initialValue = SwipeStartValue.Closed,
+            anchors = anchors,
+            positionalThreshold = { distance: Float -> distance * 0.45f },
+            velocityThreshold = { with(density) { 120.dp.toPx() } },
+            snapAnimationSpec = spring(),
+            decayAnimationSpec = exponentialDecay()
+        )
+    }
+
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Transparent),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                modifier = Modifier
+                    .width(actionWidth)
+                    .fillMaxHeight()
+                    .clickable(onClick = onDelete),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(FoodModule.Mint),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Xóa",
+                        tint = FoodModule.Forest,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .offset { androidx.compose.ui.unit.IntOffset(x = state.requireOffset().roundToInt(), y = 0) }
+                .anchoredDraggable(state = state, orientation = Orientation.Horizontal)
+        ) {
+            content()
         }
     }
 }
