@@ -88,63 +88,78 @@ fun DailyCaloriesCard(uiState: HomeUiState) {
     val progress = if (goal > 0) (consumed.toFloat() / goal).coerceIn(0f, 1f) else 0f
     val isOnTrack = consumed <= goal
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(VitalRadius.Xl),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
-    ) {
-        Column(modifier = Modifier.padding(24.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column {
-                    Text("Calo hôm nay", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink900)
-                    Text("Mục tiêu: $goal kcal", fontSize = 13.sp, color = Ink500)
-                }
-                val statusContainerColor = if (isOnTrack) Mint100 else MaterialTheme.colorScheme.errorContainer
-                val statusContentColor = if (isOnTrack) Mint500 else MaterialTheme.colorScheme.error
+    val statusContainerColor = if (isOnTrack) Mint100 else MaterialTheme.colorScheme.errorContainer
+    val statusContentColor = if (isOnTrack) Mint500 else MaterialTheme.colorScheme.error
+
+    Column(modifier = Modifier.padding(top = 20.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Calo hôm nay", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink900)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(VitalRadius.Xl),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
                 Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(100))
-                        .background(statusContainerColor)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.TrendingUp, contentDescription = null, tint = statusContentColor, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isOnTrack) "Đúng kế hoạch" else "Vượt mức", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = statusContentColor)
+                    Column {
+                        Text("Mục tiêu hôm nay", fontSize = 13.sp, color = Ink500, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("$goal kcal", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink900)
+                    }
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(100))
+                            .background(statusContainerColor)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.TrendingUp, contentDescription = null, tint = statusContentColor, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(if (isOnTrack) "Đúng kế hoạch" else "Vượt mức", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = statusContentColor)
+                    }
                 }
-            }
+                
+                HorizontalDivider(color = AppSurface2)
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(30.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ArcGauge(
+                        value = progress,
+                        label = "%,d".format(consumed),
+                        sublabel = "kcal · $remaining còn lại",
+                        size = 200.dp,
+                        stroke = 18.dp
+                    )
+                }
 
-            Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                ArcGauge(
-                    value = progress,
-                    label = "%,d".format(consumed),
-                    sublabel = "kcal · $remaining còn lại",
-                    size = 200.dp,
-                    stroke = 18.dp
-                )
-            }
+                Spacer(modifier = Modifier.height(20.dp))
 
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                val carbsG = d?.carbsG ?: 0f; val carbsGoal = (d?.carbsGoal ?: 1f).coerceAtLeast(1f)
-                val proteinG = d?.proteinG ?: 0f; val proteinGoal = (d?.proteinGoal ?: 1f).coerceAtLeast(1f)
-                val fatG = d?.fatG ?: 0f; val fatGoal = (d?.fatGoal ?: 1f).coerceAtLeast(1f)
-                MacroBar("Carbs", "${carbsG.toInt()}/${carbsGoal.toInt()}g", carbsG / carbsGoal, MacroCarbs)
-                MacroBar("Protein", "${proteinG.toInt()}/${proteinGoal.toInt()}g", proteinG / proteinGoal, MacroProtein)
-                MacroBar("Fat", "${fatG.toInt()}/${fatGoal.toInt()}g", fatG / fatGoal, MacroFat)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    val carbsG = d?.carbsG ?: 0f; val carbsGoal = (d?.carbsGoal ?: 1f).coerceAtLeast(1f)
+                    val proteinG = d?.proteinG ?: 0f; val proteinGoal = (d?.proteinGoal ?: 1f).coerceAtLeast(1f)
+                    val fatG = d?.fatG ?: 0f; val fatGoal = (d?.fatGoal ?: 1f).coerceAtLeast(1f)
+                    MacroBar("Carbs", "${carbsG.toInt()}/${carbsGoal.toInt()}g", carbsG / carbsGoal, MacroCarbs)
+                    MacroBar("Protein", "${proteinG.toInt()}/${proteinGoal.toInt()}g", proteinG / proteinGoal, MacroProtein)
+                    MacroBar("Fat", "${fatG.toInt()}/${fatGoal.toInt()}g", fatG / fatGoal, MacroFat)
+                }
             }
         }
     }
@@ -163,4 +178,4 @@ fun MacroBar(label: String, value: String, progress: Float, color: Color) {
         Spacer(modifier = Modifier.height(6.dp))
         Text(value, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink900)
     }
-}
+}

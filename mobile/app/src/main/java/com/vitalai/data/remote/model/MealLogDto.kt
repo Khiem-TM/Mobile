@@ -43,6 +43,9 @@ data class MealLogDto(
     @Json(name = "items") val items: List<MealLogItemDto>
 ) {
     val totalCalories: Float get() = items.sumOf { it.calories.toDouble() }.toFloat()
+    val totalProtein: Float get() = items.sumOf { it.proteinG.toDouble() }.toFloat()
+    val totalFat: Float get() = items.sumOf { it.fatG.toDouble() }.toFloat()
+    val totalCarbs: Float get() = items.sumOf { it.carbsG.toDouble() }.toFloat()
 }
 
 @JsonClass(generateAdapter = true)

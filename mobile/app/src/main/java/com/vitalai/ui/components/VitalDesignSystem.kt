@@ -185,12 +185,14 @@ fun VitalIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     containerColor: Color = AppSurface2,
+    shape: androidx.compose.ui.graphics.Shape = CircleShape,
+    size: androidx.compose.ui.unit.Dp = 40.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(
         modifier = modifier
-            .size(40.dp)
-            .clip(CircleShape)
+            .size(size)
+            .clip(shape)
             .background(containerColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,

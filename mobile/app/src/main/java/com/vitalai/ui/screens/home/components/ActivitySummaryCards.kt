@@ -93,32 +93,50 @@ fun DailyActivitySummaryCard(
     val stepGoal = (d?.stepGoal ?: 10000).coerceAtLeast(1)
     val stepsProgress = (steps.toFloat() / stepGoal).coerceIn(0f, 1f)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp)
-            .clickable(onClick = onOpenActivityLog),
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column {
-                    Text("Hoạt động hôm nay", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text("Chạm để cập nhật nhật ký", color = Ink500, fontSize = 12.sp)
+    Column(modifier = Modifier.padding(top = 36.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Hoạt động hôm nay", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .clickable(onClick = onOpenActivityLog),
+            shape = RoundedCornerShape(VitalRadius.Lg),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Nhật ký hoạt động", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("Chạm để cập nhật", color = Ink500, fontSize = 13.sp)
+                    }
+                    Box(modifier = Modifier.size(42.dp).clip(CircleShape).background(Mint100), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.DirectionsRun, contentDescription = null, tint = Mint500, modifier = Modifier.size(24.dp))
+                    }
                 }
-                Box(modifier = Modifier.size(38.dp).clip(CircleShape).background(Mint100), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.DirectionsRun, contentDescription = null, tint = Mint500, modifier = Modifier.size(21.dp))
-                }
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                HorizontalDivider(color = AppSurface2)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 ActivityMiniMetric("Calories", "$burnedKcal", "kcal", MacroCarbs, AmberTint, Modifier.weight(1f))
                 ActivityMiniMetric("Bước chân", "%,d".format(steps), "/%,d".format(stepGoal), Mint500, Mint100, Modifier.weight(1f))
                 ActivityMiniMetric("Nước", "${waterMl}ml", "/${waterGoalMl}ml", WaterBlue, WaterBlueTint, Modifier.weight(1f))
             }
             DualProgressRow("Bước chân", stepsProgress, Mint500, "Nước", waterProgress, WaterBlue)
         }
+    }
     }
 }
 
@@ -186,18 +204,27 @@ fun ActivityWeekSummaryCard(
     }
     val labels = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 10.dp),
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
-            Text("7 ngày gần đây", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(14.dp))
-            Row(
+    Column(modifier = Modifier.padding(top = 36.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("7 ngày gần đây", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(VitalRadius.Lg),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(130.dp),
@@ -261,6 +288,7 @@ fun ActivityWeekSummaryCard(
                 LegendDot(Mint500, "Bước chân")
             }
         }
+    }
     }
 }
 

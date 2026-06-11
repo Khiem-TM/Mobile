@@ -103,7 +103,7 @@ fun TrainFoodCarouselCard(uiState: HomeUiState, navController: NavController) {
                 .clickable { navController.navigate(if (train) Screen.Workout else Screen.Diary) },
             shape = RoundedCornerShape(VitalRadius.Lg),
             colors = CardDefaults.cardColors(containerColor = tone),
-            border = BorderStroke(1.dp, AppLine)
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),

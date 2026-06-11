@@ -21,6 +21,11 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,8 +55,11 @@ import com.vitalai.navigation.BottomNavReselectBus
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
+import androidx.compose.ui.platform.LocalDensity
 import com.vitalai.ui.components.SectionHeader
 import com.vitalai.ui.components.VitalIconButton
+import com.vitalai.ui.components.VitalMainHeader
+import com.vitalai.ui.components.VitalSmallHeader
 import com.vitalai.ui.screens.discover.components.BlogCover
 import com.vitalai.ui.screens.discover.components.BlogSearchBar
 import com.vitalai.ui.screens.discover.components.formatBlogTime
@@ -62,9 +76,110 @@ fun DiscoverScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val maxOffsetPx = with(LocalDensity.current) { 100.dp.toPx() }
+    val scrollProgressProvider = remember {
+        {
+            if (listState.firstVisibleItemIndex == 0) {
+                (listState.firstVisibleItemScrollOffset / maxOffsetPx).coerceIn(0f, 1f)
+            } else 1f
+        }
+    }
+    val mainHeaderActions: @Composable RowScope.() -> Unit = {
+        if (showBackButton) {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+            }
+        }
+        IconButton(onClick = { navController.navigate(Screen.Notifications) }) {
+            Icon(Icons.Default.Notifications, contentDescription = "Thông báo", tint = Ink700)
+        }
+        VitalIconButton(
+            onClick = { navController.navigate(Screen.BlogComposer()) },
+            modifier = Modifier.padding(end = 12.dp),
+            containerColor = Mint500,
+            shape = androidx.compose.foundation.shape.CircleShape
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Viết bài", tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+    }
+
+    val smallHeaderActions: @Composable RowScope.() -> Unit = {
+        if (showBackButton) {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
+            }
+        }
+        IconButton(onClick = { navController.navigate(Screen.Notifications) }) {
+            Icon(Icons.Default.Notifications, contentDescription = "Thông báo", tint = Ink700)
+        }
+        VitalIconButton(
+            onClick = { navController.navigate(Screen.BlogComposer()) },
+            modifier = Modifier.padding(end = 12.dp),
+            containerColor = Mint500,
+            shape = androidx.compose.foundation.shape.CircleShape,
+            size = 32.dp
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Viết bài", tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+    }
+
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.isRefreshing,
         onRefresh = viewModel::refresh
+    )
+
+    var smallHeaderHeightPx by remember { mutableFloatStateOf(100f) }
+    val initialSearchBarHeight = with(LocalDensity.current) { 80.dp.toPx() }
+    var searchBarHeightPx by remember { mutableFloatStateOf(initialSearchBarHeight) }
+    var mainHeaderHeightPx by remember { mutableFloatStateOf(200f) }
+
+    val mainHeaderBottomY = remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex == 0) {
+                mainHeaderHeightPx - listState.firstVisibleItemScrollOffset
+            } else {
+                0f
+            }
+        }
+    }
+
+    var isScrollingUp by remember { mutableStateOf(false) }
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                if (available.y > 5f) {
+                    isScrollingUp = true
+                } else if (available.y < -5f) {
+                    isScrollingUp = false
+                }
+                return androidx.compose.ui.geometry.Offset.Zero
+            }
+        }
+    }
+
+    var showQuickReturnState by remember { mutableStateOf(true) }
+    LaunchedEffect(isScrollingUp) {
+        if (isScrollingUp) {
+            showQuickReturnState = true
+        } else {
+            showQuickReturnState = false
+        }
+    }
+
+    val targetSearchBarOffset = remember(showQuickReturnState, mainHeaderBottomY.value) {
+        if (mainHeaderBottomY.value > smallHeaderHeightPx) {
+            0f
+        } else if (showQuickReturnState) {
+            0f
+        } else {
+            -searchBarHeightPx
+        }
+    }
+
+    val animatedSearchBarOffset by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = targetSearchBarOffset,
+        animationSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow),
+        label = "searchBarOffset"
     )
 
     LaunchedEffect(Unit) {
@@ -95,73 +210,58 @@ fun DiscoverScreen(
     val recommendedPagerState = rememberPagerState(pageCount = { recommendedBlogs.size.coerceAtLeast(1) })
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { navController.navigate(Screen.BlogSearch) }
-                    ) {
-                        BlogSearchBar(
-                            value = "",
-                            onValueChange = {},
-                            enabled = false,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (showBackButton) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
-                        }
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { navController.navigate(Screen.Notifications) }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Thông báo", tint = Ink700)
-                    }
-                    VitalIconButton(
-                        onClick = { navController.navigate(Screen.BlogComposer()) },
-                        modifier = Modifier.padding(end = 12.dp),
-                        containerColor = Mint500
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Viết bài", tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
-            )
-        },
         containerColor = AppMutedBackground
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(bottom = padding.calculateBottomPadding())
+                .nestedScroll(nestedScrollConnection)
                 .pullRefresh(pullRefreshState)
         ) {
-            when {
-                uiState.isLoading -> LoadingState()
-                uiState.error != null -> ErrorState(message = uiState.error!!, onRetry = viewModel::loadBlogs)
-                searchedBlogs.isEmpty() -> Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("📰", fontSize = 40.sp)
-                        Spacer(Modifier.height(8.dp))
-                        Text("Chưa có bài viết nào", color = Ink500)
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(top = 0.dp, bottom = 28.dp)
+            ) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(color = AppSurface)
+                    ) {
+                        Box(modifier = Modifier.onGloballyPositioned { mainHeaderHeightPx = it.size.height.toFloat() }) {
+                            VitalMainHeader(
+                                title = "Khám phá",
+                                textAlphaProvider = { 1f - scrollProgressProvider() },
+                                actions = mainHeaderActions
+                            )
+                        }
                     }
                 }
-                else -> LazyColumn(
-                    state = listState,
-                    contentPadding = PaddingValues(bottom = 28.dp)
-                ) {
-                    item {
-                        Text(
-                            "Đề xuất",
-                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp),
+                item {
+                    Spacer(modifier = Modifier.height(with(LocalDensity.current) { searchBarHeightPx.toDp() }))
+                }
+
+                when {
+                    uiState.isLoading -> item { LoadingState() }
+                    uiState.error != null -> item { ErrorState(message = uiState.error!!, onRetry = viewModel::loadBlogs) }
+                    searchedBlogs.isEmpty() -> item {
+                        Box(
+                            Modifier.fillMaxWidth().height(400.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("📰", fontSize = 40.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Chưa có bài viết nào", color = Ink500)
+                            }
+                        }
+                    }
+                    else -> {
+                        item {
+                            Text(
+                                "Đề xuất",
+                                modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 12.dp),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = Ink900
@@ -265,11 +365,45 @@ fun DiscoverScreen(
                     }
                 }
             }
+            }
+            Box(
+                modifier = Modifier
+                    .offset { 
+                        IntOffset(0, maxOf(smallHeaderHeightPx + animatedSearchBarOffset, mainHeaderBottomY.value).roundToInt())
+                    }
+                    .onGloballyPositioned { searchBarHeightPx = it.size.height.toFloat() }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(AppSurface)
+                        .padding(horizontal = 20.dp)
+                        .padding(top = 0.dp, bottom = 16.dp)
+                        .clickable { navController.navigate(Screen.BlogSearch) }
+                ) {
+                    BlogSearchBar(
+                        value = "",
+                        onValueChange = {},
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             PullRefreshIndicator(
                 refreshing = uiState.isRefreshing,
                 state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter),
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp),
                 contentColor = Mint500
+            )
+
+            VitalSmallHeader(
+                title = "Khám phá",
+                textAlphaProvider = scrollProgressProvider,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .onGloballyPositioned { smallHeaderHeightPx = it.size.height.toFloat() },
+                actions = smallHeaderActions
             )
         }
     }

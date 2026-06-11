@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -35,18 +36,27 @@ fun DashboardTrendCard(uiState: HomeUiState) {
     val monthly = uiState.monthlyDashboard
     if (weekly == null && monthly == null) return
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface),
-        border = BorderStroke(1.dp, AppLine)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Xu hướng", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Ink900)
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(modifier = Modifier.padding(top = 36.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Xu hướng", color = Ink900, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            shape = RoundedCornerShape(VitalRadius.Lg),
+            colors = CardDefaults.cardColors(containerColor = AppSurface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 weekly?.let {
                     TrendMiniMetric(
                         label = "Tuần này",
@@ -80,6 +90,7 @@ fun DashboardTrendCard(uiState: HomeUiState) {
                 )
             }
         }
+    }
     }
 }
 

@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import com.vitalai.util.copyUriToCacheFile
 import java.io.File
 import java.util.Locale
+import com.vitalai.ui.components.VitalMainHeader
 
 /** Chiều cao cố định dùng chung cho các badge nhỏ (PRO, Goal) ở header Hồ sơ. */
 private val ProfileBadgeHeight = 24.dp
@@ -176,17 +177,17 @@ fun ProfileScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Top bar
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .background(AppSurface)
+                .padding(bottom = 24.dp)
         ) {
-            Text("Hồ sơ", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = ForestGreen)
             val streak = uiState.streaks?.loginStreak ?: 0
-            AnimatedVisibility(
+            VitalMainHeader(
+                title = "Hồ sơ",
+                actions = {
+                    AnimatedVisibility(
                 visible = streak > 0,
                 enter = fadeIn(animationSpec = tween(300)),
                 exit = fadeOut(animationSpec = tween(150))
@@ -245,7 +246,8 @@ fun ProfileScreen(
                     }
                 }
             }
-            }
+                }
+            )
 
             // User Info Card
             Column(
@@ -381,22 +383,21 @@ fun ProfileScreen(
                                 Text(goalText, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
-                    }
                 }
             }
+        }
+        }
 
-            Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-            // Menu Section 1
+        // Menu Section 1
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(VitalRadius.Md),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = VitalElevation.Level1
-            )
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.BarChart, label = "Hồ sơ cơ thể") {
@@ -420,7 +421,7 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Logout
         Card(
@@ -430,9 +431,7 @@ fun ProfileScreen(
             shape = RoundedCornerShape(VitalRadius.Md),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
             // SỬ DỤNG ELEVATION CHUẨN Ở ĐÂY
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = VitalElevation.Level1
-            )
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
                 modifier = Modifier

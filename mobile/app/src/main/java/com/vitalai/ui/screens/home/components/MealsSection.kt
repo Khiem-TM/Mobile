@@ -22,6 +22,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.AppLine
+import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.AppSurface2
 import com.vitalai.ui.theme.Ink900
 import com.vitalai.ui.theme.Mint500
@@ -29,7 +30,7 @@ import com.vitalai.ui.theme.VitalRadius
 
 @Composable
 fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navController: NavController, selectedDate: String) {
-    Column(modifier = Modifier.padding(top = 16.dp)) {
+    Column(modifier = Modifier.padding(top = 36.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -53,7 +54,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
             val snack = mealLogs.find { it.mealType.equals("snack", ignoreCase = true) }
 
             MealOverviewCard(
-                mealType = "Breakfast",
+                mealType = "Sáng",
                 imageUrl = breakfast?.items?.firstOrNull()?.imageUrl,
                 description = breakfast?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                 time = "Bữa sáng",
@@ -68,7 +69,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 MealOverviewCard(
-                    mealType = "Lunch",
+                    mealType = "Trưa",
                     imageUrl = lunch?.items?.firstOrNull()?.imageUrl,
                     description = lunch?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
@@ -77,7 +78,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                     isSmall = true
                 )
                 MealOverviewCard(
-                    mealType = "Snack",
+                    mealType = "Phụ",
                     imageUrl = snack?.items?.firstOrNull()?.imageUrl,
                     description = snack?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
@@ -105,9 +106,8 @@ fun MealOverviewCard(
     Card(
         modifier = modifier.height(height),
         shape = RoundedCornerShape(VitalRadius.Lg),
-        colors = CardDefaults.cardColors(containerColor = AppSurface2),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, AppLine.copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = AppSurface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             if (imageUrl != null) {
@@ -177,14 +177,14 @@ fun MealOverviewCard(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(if (isSmall) 8.dp else 12.dp))
                         .background(Color.White.copy(alpha = 0.2f))
-                        .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                        .padding(horizontal = if (isSmall) 6.dp else 10.dp, vertical = if (isSmall) 4.dp else 6.dp),
+                        .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(if (isSmall) 8.dp else 12.dp))
+                        .padding(horizontal = if (isSmall) 6.dp else 10.dp, vertical = if (isSmall) 2.dp else 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.LocalFireDepartment, contentDescription = "Kcal", tint = Color(0xFFFFD54F), modifier = Modifier.size(if (isSmall) 12.dp else 16.dp))
+                        Icon(Icons.Default.LocalFireDepartment, contentDescription = "Kcal", tint = Mint500, modifier = Modifier.size(if (isSmall) 12.dp else 16.dp))
                         Text(
                             text = "$calories kcal",
                             fontSize = if (isSmall) 10.sp else 14.sp,
