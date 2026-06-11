@@ -181,8 +181,7 @@ fun VitalBottomNavBar(navController: NavController) {
                 .fillMaxWidth()
                 .height(90.dp)
                 .align(Alignment.BottomCenter)
-                .shadow(elevation = VitalElevation.Level3, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .shadow(elevation = VitalElevation.Level3)
                 .background(AppSurface.copy(alpha = 0.96f))
         ) {
             HorizontalDivider(color = AppLine, thickness = 1.dp, modifier = Modifier.align(Alignment.TopCenter))

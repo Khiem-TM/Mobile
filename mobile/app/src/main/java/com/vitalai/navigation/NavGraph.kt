@@ -210,7 +210,7 @@ fun VitalNavGraph(
             WithStatusBarInset { HomeScreen(navController) }
         }
         composable<Screen.Diary> {
-            WithStatusBarInset { DiaryScreen(navController) }
+            DiaryScreen(navController)
         }
         composable<Screen.Coach> {
             // Coach tự chừa status bar bằng TopAppBar của nó.

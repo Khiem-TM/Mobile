@@ -35,12 +35,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +65,8 @@ import com.vitalai.navigation.Screen
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.components.SwipeToDeleteRow
+import com.vitalai.ui.components.VitalMainHeader
+import com.vitalai.ui.components.VitalSmallHeader
 import com.vitalai.ui.theme.Mint400
 import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.Mint600
@@ -81,6 +91,18 @@ fun DiaryScreen(
     var editingItem by remember { mutableStateOf<Triple<String, MealLogItemDto, String>?>(null) }
     var showCoach by remember { mutableStateOf(false) }
 
+    val listState = rememberLazyListState()
+    
+    val density = LocalDensity.current
+    val maxOffsetPx = with(density) { 32.dp.toPx() }
+    val scrollProgressProvider = remember {
+        {
+            if (listState.firstVisibleItemIndex == 0) {
+                (listState.firstVisibleItemScrollOffset / maxOffsetPx).coerceIn(0f, 1f)
+            } else 1f
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -93,30 +115,38 @@ fun DiaryScreen(
                 modifier = Modifier.fillMaxSize()
             )
             else -> DiaryContent(
+                listState = listState,
+                scrollProgressProvider = scrollProgressProvider,
                 selectedDate = uiState.selectedDate,
-                mealLogs = uiState.mealLogs,
-                summary = uiState.summary,
-                healthProfile = uiState.healthProfile,
-                onPrevDate = {
-                    val prev = LocalDate.parse(uiState.selectedDate).minusDays(1)
-                    viewModel.selectDate(prev.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                },
-                onNextDate = {
-                    val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
-                    viewModel.selectDate(next.format(DateTimeFormatter.ISO_LOCAL_DATE))
-                },
-                onAddMeal = { mealType ->
-                    navController.navigate(Screen.SearchFood(mealType = mealType, date = uiState.selectedDate))
-                },
-                onOpenItem = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
-                onDeleteItem = viewModel::deleteItem,
-                onOpenCoach = { showCoach = true }
-            )
-        }
+                    mealLogs = uiState.mealLogs,
+                    summary = uiState.summary,
+                    healthProfile = uiState.healthProfile,
+                    onPrevDate = {
+                        val prev = LocalDate.parse(uiState.selectedDate).minusDays(1)
+                        viewModel.selectDate(prev.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    },
+                    onNextDate = {
+                        val next = LocalDate.parse(uiState.selectedDate).plusDays(1)
+                        viewModel.selectDate(next.format(DateTimeFormatter.ISO_LOCAL_DATE))
+                    },
+                    onAddMeal = { mealType ->
+                        navController.navigate(Screen.SearchFood(mealType = mealType, date = uiState.selectedDate))
+                    },
+                    onOpenItem = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
+                    onDeleteItem = viewModel::deleteItem,
+                    onOpenCoach = { showCoach = true }
+                )
+            }
 
-        if (showCoach) {
-            CoachTipModal(onClose = { showCoach = false })
-        }
+            if (showCoach) {
+                CoachTipModal(onClose = { showCoach = false })
+            }
+
+        VitalSmallHeader(
+            title = "Nhật ký dinh dưỡng",
+            textAlphaProvider = scrollProgressProvider,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 
     editingItem?.let { (mealLogId, item, _) ->
@@ -161,6 +191,8 @@ fun DiaryScreen(
 
 @Composable
 private fun DiaryContent(
+    listState: LazyListState,
+    scrollProgressProvider: () -> Float,
     selectedDate: String,
     mealLogs: List<MealLogDto>,
     summary: MealLogSummaryDto?,
@@ -180,26 +212,52 @@ private fun DiaryContent(
     )
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize(),
-        contentPadding = PaddingValues(start = 21.dp, end = 21.dp, top = 28.dp, bottom = 150.dp),
+        contentPadding = PaddingValues(top = 0.dp, bottom = 150.dp),
         verticalArrangement = Arrangement.spacedBy(21.dp)
     ) {
         item {
-            DiaryDateHeader(
-                selectedDate = selectedDate,
-                onPrevDate = onPrevDate,
-                onNextDate = onNextDate
-            )
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(color = com.vitalai.ui.theme.AppSurface)
+                    .padding(bottom = 24.dp)
+            ) {
+                VitalMainHeader(
+                    title = "Nhật ký dinh dưỡng",
+                    textAlphaProvider = { 1f - scrollProgressProvider() }
+                )
+                Box(modifier = Modifier.padding(horizontal = 21.dp)) {
+                    DiaryDateHeader(
+                        selectedDate = selectedDate,
+                        onPrevDate = onPrevDate,
+                        onNextDate = onNextDate
+                    )
+                }
+                androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(21.dp))
+                if (summary != null) {
+                    Box(modifier = Modifier.padding(horizontal = 21.dp)) {
+                        DiarySummaryCard(summary = summary, healthProfile = healthProfile)
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxWidth().height(150.dp)) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    }
+                }
+            }
         }
         item {
-            DiarySummaryCard(summary = summary, healthProfile = healthProfile)
+            Box(modifier = Modifier.padding(horizontal = 21.dp)) {
+                CoachNudgeCard(summary = summary, healthProfile = healthProfile, onClick = onOpenCoach)
+            }
         }
         item {
-            CoachNudgeCard(summary = summary, healthProfile = healthProfile, onClick = onOpenCoach)
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = 21.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 mealTypes.forEach { meal ->
                     val log = mealLogs.find { it.mealType.equals(meal.key, ignoreCase = true) }
                     FoodMealSection(
@@ -229,36 +287,25 @@ private fun DiaryDateHeader(
         date.format(DateTimeFormatter.ofPattern("d MMMM, yyyy", Locale("vi")))
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(onClick = onPrevDate, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Default.ChevronLeft, contentDescription = "Ngày trước", tint = FoodModule.Charcoal, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.width(16.dp))
         Text(
-            text = "Nhật ký dinh dưỡng",
-            color = FoodModule.Forest,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
+            text = label,
+            color = FoodModule.Ink,
+            fontSize = 15.sp,
+            fontFamily = VitalFontFamily,
+            fontWeight = FontWeight.SemiBold
         )
-        
-        Spacer(Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onPrevDate, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "Ngày trước", tint = FoodModule.Charcoal.copy(alpha = 0.5f), modifier = Modifier.size(24.dp))
-            }
-            
-            Text(
-                text = label,
-                color = FoodModule.Charcoal,
-                fontSize = 16.sp,
-                fontFamily = VitalFontFamily,
-                fontWeight = FontWeight.Medium
-            )
-            
-            IconButton(onClick = onNextDate, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "Ngày sau", tint = FoodModule.Charcoal.copy(alpha = 0.5f), modifier = Modifier.size(24.dp))
-            }
+        Spacer(Modifier.width(16.dp))
+        IconButton(onClick = onNextDate, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Default.ChevronRight, contentDescription = "Ngày sau", tint = FoodModule.Charcoal, modifier = Modifier.size(24.dp))
         }
     }
 }
@@ -279,32 +326,35 @@ private fun DiarySummaryCard(summary: MealLogSummaryDto?, healthProfile: HealthP
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 4.dp)
+            .padding(bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Circular Progress Chart
-        CalorieProgressChart(consumed = consumed, goal = dailyCalorieGoal)
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            MetricColumn(label = "Mục tiêu", value = dailyCalorieGoal.roundToInt())
+            CalorieProgressChart(consumed = consumed, goal = dailyCalorieGoal)
+            MetricColumn(label = "Đã nạp", value = consumed.roundToInt())
+        }
         
-        Spacer(Modifier.height(28.dp))
-            
-            // 2. Summary Metrics
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MetricColumn(label = "Mục tiêu", value = dailyCalorieGoal.roundToInt())
-                Box(modifier = Modifier.width(1.dp).height(40.dp).background(FoodModule.Border))
-                MetricColumn(label = "Đã nạp", value = consumed.roundToInt())
+        Spacer(Modifier.height(32.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(Modifier.weight(1f)) {
+                MacroLinearBar(label = "Protein", consumed = proteinConsumed, goal = proteinGoal, color = Mint600)
             }
-            
-            Spacer(Modifier.height(28.dp))
-        
-        // 3. Macronutrients Progress Bars
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            MacroLinearBar(label = "Protein", consumed = proteinConsumed, goal = proteinGoal, color = Mint600)
-            MacroLinearBar(label = "Carbs", consumed = carbsConsumed, goal = carbGoal, color = Mint500)
-            MacroLinearBar(label = "Fat", consumed = fatConsumed, goal = fatGoal, color = Mint400)
+            Box(Modifier.weight(1f)) {
+                MacroLinearBar(label = "Carbs", consumed = carbsConsumed, goal = carbGoal, color = Mint500)
+            }
+            Box(Modifier.weight(1f)) {
+                MacroLinearBar(label = "Fat", consumed = fatConsumed, goal = fatGoal, color = Mint400)
+            }
         }
     }
 }
@@ -315,12 +365,13 @@ private fun MetricColumn(label: String, value: Int) {
         Text(label, color = FoodModule.Charcoal, fontSize = 13.sp, fontFamily = VitalFontFamily)
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "%,d kcal".format(value),
+            text = "%,d".format(value),
             color = FoodModule.Ink,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = VitalFontFamily
         )
+        Text("kcal", color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
     }
 }
 
@@ -330,31 +381,26 @@ private fun MacroLinearBar(label: String, consumed: Float, goal: Float, color: a
     val progress = (consumed / safeGoal).coerceIn(0f, 1f)
     
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(label, color = FoodModule.Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, fontFamily = VitalFontFamily)
-            Text(
-                text = "${consumed.roundToInt()}/${goal.roundToInt()}g",
-                color = FoodModule.Charcoal,
-                fontSize = 13.sp,
-                fontFamily = VitalFontFamily
-            )
-        }
-        Spacer(Modifier.height(8.dp))
+        Text(label, color = FoodModule.Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, fontFamily = VitalFontFamily)
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = "${consumed.roundToInt()}/${goal.roundToInt()}g",
+            color = FoodModule.Charcoal,
+            fontSize = 11.sp,
+            fontFamily = VitalFontFamily
+        )
+        Spacer(Modifier.height(6.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
+                .height(6.dp)
                 .clip(RoundedCornerShape(999.dp))
                 .background(color.copy(alpha = 0.15f))
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(progress)
-                    .height(8.dp)
+                    .height(6.dp)
                     .clip(RoundedCornerShape(999.dp))
                     .background(color)
             )
@@ -370,9 +416,9 @@ private fun CalorieProgressChart(consumed: Float, goal: Float) {
     val isOver = left < 0
     val displayValue = if (isOver) -left else left
     
-    Box(modifier = Modifier.size(180.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.size(120.dp), contentAlignment = Alignment.Center) {
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-            val stroke = 16.dp.toPx()
+            val stroke = 6.dp.toPx()
             val radius = (this.size.minDimension - stroke) / 2f
             val centerOffset = this.center
             val arcTopLeft = androidx.compose.ui.geometry.Offset(
@@ -399,25 +445,17 @@ private fun CalorieProgressChart(consumed: Float, goal: Float) {
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = if (isOver) "Vượt" else "Còn",
-                color = FoodModule.Charcoal,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = VitalFontFamily
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
                 text = "%,d".format(displayValue),
-                color = FoodModule.Forest,
-                fontSize = 44.sp,
+                color = FoodModule.Ink,
+                fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = VitalDisplayFontFamily
             )
             Spacer(Modifier.height(2.dp))
             Text(
-                text = "kcal",
+                text = if (isOver) "Vượt quá" else "Còn lại",
                 color = FoodModule.Charcoal,
-                fontSize = 15.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 fontFamily = VitalFontFamily
             )
