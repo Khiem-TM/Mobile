@@ -33,12 +33,6 @@ import com.vitalai.ui.screens.home.viewmodels.HomeUiState
 fun HomeHeader(navController: NavController, uiState: HomeUiState) {
     val userName = uiState.user?.displayName ?: "Bạn"
     val avatarUrl = uiState.user?.avatarUrl
-    val dateLabel = remember(uiState.selectedDate) {
-        try {
-            val d = java.time.LocalDate.parse(uiState.selectedDate)
-            d.format(java.time.format.DateTimeFormatter.ofPattern("EEE, dd MMMM", java.util.Locale("vi")))
-        } catch (e: Exception) { uiState.selectedDate }
-    }
 
     Row(
         modifier = Modifier
@@ -74,23 +68,13 @@ fun HomeHeader(navController: NavController, uiState: HomeUiState) {
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = dateLabel, 
-                    fontSize = 13.sp, 
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = "Xin chào, $userName 👋", 
-                    fontSize = 20.sp, 
-                    fontWeight = FontWeight.Bold, 
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Text(
+                text = "Xin chào, $userName 👋", 
+                fontSize = 20.sp, 
+                fontWeight = FontWeight.Bold, 
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f)
+            )
         }
         
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

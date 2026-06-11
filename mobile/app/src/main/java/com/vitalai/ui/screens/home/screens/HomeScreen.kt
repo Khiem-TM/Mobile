@@ -26,6 +26,11 @@ import com.vitalai.ui.theme.AppSurface
 import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.screens.home.viewmodels.HomeViewModel
 import com.vitalai.ui.screens.home.components.*
+import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
@@ -39,6 +44,13 @@ fun HomeScreen(
         onRefresh = { viewModel.refresh() }
     )
 
+    val dateLabel = remember(uiState.selectedDate) {
+        try {
+            val d = java.time.LocalDate.parse(uiState.selectedDate)
+            d.format(java.time.format.DateTimeFormatter.ofPattern("EEE, dd MMMM", java.util.Locale("vi")))
+        } catch (e: Exception) { uiState.selectedDate }
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -50,6 +62,7 @@ fun HomeScreen(
 
     val listState = rememberLazyListState()
     val fadeOutOffsetPx = with(LocalDensity.current) { 100.dp.toPx() }
+    val fastFadeOutOffsetPx = with(LocalDensity.current) { 50.dp.toPx() } // Mờ nhanh gấp đôi
     val fadeInOffsetPx = with(LocalDensity.current) { 200.dp.toPx() } // Chậm hơn 2 lần
     
     val fadeOutProgressProvider = remember {
@@ -60,6 +73,15 @@ fun HomeScreen(
         }
     }
     
+    val fastFadeOutProgressProvider = remember {
+        {
+            if (listState.firstVisibleItemIndex == 0) {
+                (listState.firstVisibleItemScrollOffset / fastFadeOutOffsetPx).coerceIn(0f, 1f)
+            } else 1f
+        }
+    }
+    
+
     val fadeInProgressProvider = remember {
         {
             if (listState.firstVisibleItemIndex == 0) {
@@ -144,6 +166,32 @@ fun HomeScreen(
                     textAlphaProvider = fadeInProgressProvider,
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                ) {
+                    Spacer(Modifier.statusBarsPadding())
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .padding(horizontal = 24.dp)
+                            .graphicsLayer { alpha = 1f - fastFadeOutProgressProvider() },
+                        contentAlignment = Alignment.BottomStart
+                    ) {
+                        Text(
+                            text = dateLabel,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+
             }
         }
 
