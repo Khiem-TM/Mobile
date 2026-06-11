@@ -388,7 +388,7 @@ fun ProfileScreen(
         }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
         // Menu Section 1
         Card(
@@ -397,9 +397,7 @@ fun ProfileScreen(
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(VitalRadius.Md),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = VitalElevation.Level1
-            )
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.BarChart, label = "Hồ sơ cơ thể") {
@@ -423,7 +421,7 @@ fun ProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Logout
         Card(
@@ -433,9 +431,7 @@ fun ProfileScreen(
             shape = RoundedCornerShape(VitalRadius.Md),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
             // SỬ DỤNG ELEVATION CHUẨN Ở ĐÂY
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = VitalElevation.Level1
-            )
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Row(
                 modifier = Modifier

@@ -124,17 +124,17 @@ fun HomeScreen(
                             ) {
                                 HomeHeader(navController, uiState)
                             }
-                            Spacer(Modifier.height(4.dp))
+                            
                             Box(
                                 modifier = Modifier
                                     .graphicsLayer { alpha = 1f - fadeInProgressProvider() }
                             ) {
                                 WeekStrip(uiState.selectedDate) { date -> viewModel.selectDate(date) }
                             }
-                            Spacer(Modifier.height(8.dp))
+                            Spacer(Modifier.height(4.dp))
                         }
                     }
-                    item { Spacer(Modifier.height(16.dp)) }
+                    
                     item { DailyCaloriesCard(uiState) }
                     item {
                         DailyActivitySummaryCard(

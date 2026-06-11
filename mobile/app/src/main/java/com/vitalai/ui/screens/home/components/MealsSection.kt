@@ -30,7 +30,7 @@ import com.vitalai.ui.theme.VitalRadius
 
 @Composable
 fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navController: NavController, selectedDate: String) {
-    Column(modifier = Modifier.padding(top = 16.dp)) {
+    Column(modifier = Modifier.padding(top = 36.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -54,7 +54,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
             val snack = mealLogs.find { it.mealType.equals("snack", ignoreCase = true) }
 
             MealOverviewCard(
-                mealType = "Breakfast",
+                mealType = "Sáng",
                 imageUrl = breakfast?.items?.firstOrNull()?.imageUrl,
                 description = breakfast?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                 time = "Bữa sáng",
@@ -69,7 +69,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 MealOverviewCard(
-                    mealType = "Lunch",
+                    mealType = "Trưa",
                     imageUrl = lunch?.items?.firstOrNull()?.imageUrl,
                     description = lunch?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
@@ -78,7 +78,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                     isSmall = true
                 )
                 MealOverviewCard(
-                    mealType = "Snack",
+                    mealType = "Phụ",
                     imageUrl = snack?.items?.firstOrNull()?.imageUrl,
                     description = snack?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
