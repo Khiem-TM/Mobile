@@ -60,6 +60,7 @@ import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.VitalDisplayFontFamily
 import com.vitalai.ui.theme.VitalFontFamily
+import com.vitalai.ui.components.VitalButton
 import kotlin.math.roundToInt
 
 @Composable
@@ -253,8 +254,9 @@ private fun FoodDetailContent(
                     CircularProgressIndicator(color = FoodModule.Forest)
                 }
             } else {
-                FoodPrimaryButton(
+                VitalButton(
                     text = cta,
+                    mint = true,
                     enabled = canAddToMeal && grams > 0f,
                     modifier = Modifier.fillMaxWidth(),
                     onClick = {

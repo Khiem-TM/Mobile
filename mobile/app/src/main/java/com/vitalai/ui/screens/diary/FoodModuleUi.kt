@@ -94,35 +94,6 @@ internal fun FoodPill(
     }
 }
 
-@Composable
-internal fun FoodPrimaryButton(
-    text: String,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    onClick: () -> Unit
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier.height(56.dp),
-        shape = RoundedCornerShape(FoodModule.CardRadius),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = FoodModule.Forest,
-            contentColor = FoodModule.Cream,
-            disabledContainerColor = FoodModule.Forest.copy(alpha = 0.35f),
-            disabledContentColor = FoodModule.Cream.copy(alpha = 0.8f)
-        )
-    ) {
-        Text(
-            text = text,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Normal,
-            fontFamily = VitalFontFamily,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
 
 @Composable
 internal fun FoodThumb(

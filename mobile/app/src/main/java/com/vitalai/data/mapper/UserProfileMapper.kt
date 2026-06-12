@@ -9,7 +9,9 @@ fun UserProfileEntity.toDto() = UserDto(
     id = userId,
     email = email,
     displayName = displayName,
-    avatarUrlRaw = avatarUrlRaw,
+    avatarUrlRaw = avatarUrlRaw?.let { url -> 
+        if (url.contains("?")) "$url&v=$cachedAt" else "$url?v=$cachedAt" 
+    },
     role = role,
     isVerified = true
 )

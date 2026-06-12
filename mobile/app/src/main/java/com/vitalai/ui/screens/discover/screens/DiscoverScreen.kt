@@ -215,7 +215,6 @@ fun DiscoverScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = padding.calculateBottomPadding())
                 .nestedScroll(nestedScrollConnection)
                 .pullRefresh(pullRefreshState)
         ) {

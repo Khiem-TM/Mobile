@@ -129,9 +129,14 @@ class UserRepository @Inject constructor(
             )
             val response = userApi.uploadAvatar(part)
             if (response.isSuccessful) {
-                val result = getCurrentUser()
-                result.onSuccess { userProfileDao.upsert(it.toEntity()) }
-                result
+                val fetchResponse = userApi.getMe()
+                val body = fetchResponse.body()?.data
+                if (fetchResponse.isSuccessful && body != null) {
+                    userProfileDao.upsert(body.toEntity())
+                    Result.success(body)
+                } else {
+                    getCurrentUser()
+                }
             } else {
                 val message = response.errorBody()?.string()
                     ?.takeIf { it.isNotBlank() }
