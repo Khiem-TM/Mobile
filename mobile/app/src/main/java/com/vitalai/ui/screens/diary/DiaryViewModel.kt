@@ -26,6 +26,7 @@ data class DiaryUiState(
     val selectedDate: String = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE),
     val healthProfile: HealthProfileDto? = null,
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 )
 
@@ -44,6 +45,7 @@ class DiaryViewModel @Inject constructor(
     private val _selectedDate = MutableStateFlow(LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
     private val _healthProfile = MutableStateFlow<HealthProfileDto?>(null)
     private val _isLoading = MutableStateFlow(false)
+    private val _isRefreshing = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
 
     private val mealLogsFlow = _selectedDate.flatMapLatest { date ->
@@ -51,15 +53,17 @@ class DiaryViewModel @Inject constructor(
     }
 
     val uiState: StateFlow<DiaryUiState> = combine(
-        _selectedDate, mealLogsFlow, _healthProfile, _isLoading, _error
-    ) { date, logs, healthProfile, loading, error ->
+        _selectedDate, mealLogsFlow, _healthProfile,
+        combine(_isLoading, _isRefreshing, _error) { l, r, e -> Triple(l, r, e) }
+    ) { date, logs, healthProfile, state ->
         DiaryUiState(
             mealLogs = logs,
             summary = computeSummary(logs),
             selectedDate = date,
             healthProfile = healthProfile,
-            isLoading = loading,
-            error = error
+            isLoading = state.first,
+            isRefreshing = state.second,
+            error = state.third
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiaryUiState())
 
@@ -70,16 +74,17 @@ class DiaryViewModel @Inject constructor(
         refresh()
     }
 
-    private fun refresh() {
+    private fun refresh(isPullToRefresh: Boolean = false) {
         val date = _selectedDate.value
         viewModelScope.launch {
-            _isLoading.value = true
+            if (isPullToRefresh) _isRefreshing.value = true else _isLoading.value = true
             mealLogRepository.refreshMealLogs(date)
-            _isLoading.value = false
+            if (isPullToRefresh) _isRefreshing.value = false else _isLoading.value = false
         }
     }
 
-    fun loadMealLogs() = refresh()
+    fun loadMealLogs() = refresh(isPullToRefresh = false)
+    fun refreshPull() = refresh(isPullToRefresh = true)
 
     fun selectDate(date: String) {
         _selectedDate.value = date
