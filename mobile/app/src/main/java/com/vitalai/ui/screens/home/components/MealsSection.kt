@@ -1,5 +1,7 @@
 package com.vitalai.ui.screens.home.components
 
+import kotlin.math.roundToInt
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,7 +60,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 imageUrl = breakfast?.items?.firstOrNull()?.imageUrl,
                 description = breakfast?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                 time = "Bữa sáng",
-                calories = breakfast?.totalCalories?.toInt() ?: 0,
+                calories = breakfast?.totalCalories?.roundToInt() ?: 0,
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -73,7 +75,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                     imageUrl = lunch?.items?.firstOrNull()?.imageUrl,
                     description = lunch?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
-                    calories = lunch?.totalCalories?.toInt() ?: 0,
+                    calories = lunch?.totalCalories?.roundToInt() ?: 0,
                     modifier = Modifier.weight(1f),
                     isSmall = true
                 )
@@ -82,7 +84,7 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                     imageUrl = snack?.items?.firstOrNull()?.imageUrl,
                     description = snack?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
-                    calories = snack?.totalCalories?.toInt() ?: 0,
+                    calories = snack?.totalCalories?.roundToInt() ?: 0,
                     modifier = Modifier.weight(1f),
                     isSmall = true
                 )

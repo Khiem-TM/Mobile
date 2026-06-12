@@ -191,7 +191,7 @@ fun VitalButton(
             disabledContainerColor = Ink200,
             disabledContentColor = Ink500
         ),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = if (mint) VitalElevation.Level2 else 0.dp),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)
     ) {
         if (leading != null) {

@@ -1,5 +1,7 @@
 package com.vitalai.ui.screens.home.components
 
+import kotlin.math.roundToInt
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -88,37 +90,39 @@ fun TrainFoodCarouselCard(uiState: HomeUiState, navController: NavController) {
             showTrain = !showTrain
         }
     }
-    Crossfade(targetState = showTrain, animationSpec = tween(450)) { train ->
-        val calories = uiState.dashboard?.caloriesBurned?.toInt() ?: 0
-        val foodKcal = uiState.dashboard?.caloriesConsumed ?: uiState.mealLogs.sumOf { it.totalCalories.toDouble() }.toFloat()
-        val title = if (train) "Train" else "Food"
-        val subtitle = if (train) "$calories kcal đã đốt hôm nay" else "${foodKcal.toInt()} kcal đã nạp hôm nay"
-        val icon = if (train) Icons.Default.FitnessCenter else Icons.Default.Restaurant
-        val tone = if (train) Mint100 else AmberContainer
-        val tint = if (train) Mint500 else AmberOnContainer
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 8.dp)
-                .clickable { navController.navigate(if (train) Screen.Workout else Screen.Diary) },
-            shape = RoundedCornerShape(VitalRadius.Lg),
-            colors = CardDefaults.cardColors(containerColor = tone),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+    Column(modifier = Modifier.padding(top = 36.dp)) {
+        Crossfade(targetState = showTrain, animationSpec = tween(450), label = "TrainFood") { train ->
+            val calories = uiState.dashboard?.caloriesBurned?.roundToInt() ?: 0
+            val foodKcal = uiState.dashboard?.caloriesConsumed ?: uiState.mealLogs.sumOf { it.totalCalories.toDouble() }.toFloat()
+            val title = if (train) "Train" else "Food"
+            val subtitle = if (train) "$calories kcal đã đốt hôm nay" else "${foodKcal.roundToInt()} kcal đã nạp hôm nay"
+            val icon = if (train) Icons.Default.FitnessCenter else Icons.Default.Restaurant
+            val tone = if (train) Mint100 else AmberContainer
+            val tint = if (train) Mint500 else AmberOnContainer
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .clickable { navController.navigate(if (train) Screen.Workout else Screen.Diary) },
+                shape = RoundedCornerShape(VitalRadius.Lg),
+                colors = CardDefaults.cardColors(containerColor = tone),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
-                Box(Modifier.size(46.dp).clip(CircleShape).background(AppSurface.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Box(Modifier.size(46.dp).clip(CircleShape).background(AppSurface.copy(alpha = 0.8f)), contentAlignment = Alignment.Center) {
+                        Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(title, color = Ink900, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text(subtitle, color = Ink700, fontSize = 13.sp)
+                    }
+                    Text(if (train) "Tập ngay" else "Xem bữa ăn", color = tint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
-                Column(Modifier.weight(1f)) {
-                    Text(title, color = Ink900, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text(subtitle, color = Ink700, fontSize = 13.sp)
-                }
-                Text(if (train) "Tập ngay" else "Xem bữa ăn", color = tint, fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
-}
+}

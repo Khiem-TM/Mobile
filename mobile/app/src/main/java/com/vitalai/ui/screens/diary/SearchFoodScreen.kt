@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,8 +36,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,6 +59,7 @@ import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.BottomSheetGrabber
 import com.vitalai.ui.theme.VitalDisplayFontFamily
 import com.vitalai.ui.theme.VitalFontFamily
+import com.vitalai.ui.components.VitalButton
 import kotlin.math.roundToInt
 
 @Composable
@@ -287,21 +289,29 @@ private fun SearchInputRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(Icons.Default.Search, contentDescription = null, tint = FoodModule.Forest, modifier = Modifier.size(20.dp))
-        TextField(
+        BasicTextField(
             value = query,
             onValueChange = onQueryChange,
-            modifier = Modifier.weight(1f),
-            placeholder = {
-                Text("Tìm món ăn, thương hiệu...", color = FoodModule.Charcoal.copy(alpha = 0.68f), fontSize = 15.sp)
-            },
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 14.dp),
             singleLine = true,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                cursorColor = FoodModule.Forest
-            )
+            textStyle = TextStyle(color = FoodModule.Charcoal, fontSize = 15.sp),
+            cursorBrush = SolidColor(FoodModule.Forest),
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) {
+                        Text(
+                            "Tìm món ăn, thương hiệu...",
+                            color = FoodModule.Charcoal.copy(alpha = 0.68f),
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    innerTextField()
+                }
+            }
         )
         Box(
             modifier = Modifier
@@ -416,7 +426,7 @@ private fun CustomFoodsEmpty(onCreateCustom: () -> Unit, modifier: Modifier = Mo
             fontFamily = VitalFontFamily
         )
         Spacer(Modifier.height(20.dp))
-        FoodPrimaryButton(text = "Tạo món mới", modifier = Modifier.width(180.dp), onClick = onCreateCustom)
+        VitalButton(text = "Tạo món mới", mint = true, modifier = Modifier.width(180.dp), onClick = onCreateCustom)
     }
 }
 
