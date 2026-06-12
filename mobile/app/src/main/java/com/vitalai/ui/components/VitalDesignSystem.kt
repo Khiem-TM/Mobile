@@ -98,6 +98,28 @@ fun VitalCard(
 }
 
 @Composable
+fun VitalBorderCard(
+    modifier: Modifier = Modifier,
+    color: Color = Color.White,
+    borderColor: Color = AppLine,
+    radius: Dp = 14.dp,
+    contentPadding: PaddingValues = PaddingValues(16.dp),
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+        shape = RoundedCornerShape(radius),
+        color = color,
+        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Column(modifier = Modifier.padding(contentPadding), content = content)
+    }
+}
+
+@Composable
 fun VitalFlatCard(
     modifier: Modifier = Modifier,
     color: Color = AppSurface2,

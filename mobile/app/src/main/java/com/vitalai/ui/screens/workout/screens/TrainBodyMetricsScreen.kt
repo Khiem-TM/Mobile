@@ -105,12 +105,12 @@ private fun TrainBodyMetricsContent(
 ) {
     TrainScreen {
         Column(Modifier.fillMaxSize()) {
-            TrainHeader(
+            com.vitalai.ui.components.VitalScreenHeader(
                 title = "Chỉ số cơ thể",
-                large = true,
-                onBack = onBack,
-                right = {
+                onBackClick = onBack,
+                actions = {
                     TrainBodyUpdateButton(onClick = onUpdate)
+                    androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.width(14.dp))
                 }
             )
 
