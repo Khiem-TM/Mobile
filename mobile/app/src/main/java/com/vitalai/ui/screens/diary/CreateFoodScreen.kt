@@ -43,11 +43,12 @@ import com.vitalai.util.copyUriToCacheFile
 @Composable
 fun CreateFoodScreen(
     navController: NavController,
+    prefillName: String = "",
     viewModel: FoodViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    var name by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf(prefillName) }
     var brand by remember { mutableStateOf("") }
     var servingSize by remember { mutableStateOf("") }
     var calories by remember { mutableStateOf("") }

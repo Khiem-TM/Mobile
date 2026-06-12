@@ -15,12 +15,14 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Pool
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +31,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.airbnb.lottie.LottieProperty
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.airbnb.lottie.compose.rememberLottieDynamicProperties
+import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.vitalai.data.remote.model.ExerciseDto
 import com.vitalai.ui.theme.VitalDisplayFontFamily
 import kotlin.math.max
@@ -330,7 +339,23 @@ fun TrainExerciseThumb(
             .background(bg),
         contentAlignment = Alignment.Center
     ) {
-        if (exercise.displayImageUrl != null) {
+        if (exercise.lottieAsset != null) {
+            val composition by rememberLottieComposition(LottieCompositionSpec.Asset(exercise.lottieAsset))
+            val dynamicProperties = rememberLottieDynamicProperties(
+                rememberLottieDynamicProperty(
+                    property = LottieProperty.COLOR,
+                    value = TrainColors.Cream.toArgb(),
+                    keyPath = arrayOf("**", "White Solid 1")
+                )
+            )
+            LottieAnimation(
+                composition = composition,
+                iterations = LottieConstants.IterateForever,
+                contentScale = ContentScale.Crop,
+                dynamicProperties = dynamicProperties,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (exercise.displayImageUrl != null) {
             AsyncImage(
                 model = exercise.displayImageUrl,
                 contentDescription = exercise.name,

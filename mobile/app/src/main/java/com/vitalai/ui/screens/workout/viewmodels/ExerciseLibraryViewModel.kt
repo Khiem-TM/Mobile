@@ -39,9 +39,10 @@ class ExerciseLibraryViewModel @Inject constructor(
     private fun observeExercises() {
         viewModelScope.launch {
             trainingRepository.observeExercises().collect { allExercises ->
+                val combined = listOf(LOTTIE_TEST_EXERCISE) + allExercises
                 _uiState.update { state ->
-                    val favorites = allExercises.filter { it.isFavorite }.map { it.id }.toSet()
-                    val newState = state.copy(exercises = allExercises, favorites = favorites)
+                    val favorites = combined.filter { it.isFavorite }.map { it.id }.toSet()
+                    val newState = state.copy(exercises = combined, favorites = favorites)
                     newState.copy(filteredExercises = applyLocalFilters(newState))
                 }
             }

@@ -53,6 +53,14 @@ import android.os.Looper
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.compose.ui.graphics.toArgb
+import com.airbnb.lottie.LottieProperty
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
+import com.airbnb.lottie.compose.rememberLottieDynamicProperties
+import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import coil.compose.AsyncImage
 import com.vitalai.core.network.ImageUrlResolver
 import com.vitalai.data.remote.model.AddExerciseRequest
@@ -272,15 +280,19 @@ private fun ExerciseDetailSkeleton(onBackClick: () -> Unit) {
     }
 }
 
-private enum class ExerciseMediaType { Video, Image }
+private enum class ExerciseMediaType { Video, Image, Lottie }
 
 private data class ExerciseMediaItem(
     val type: ExerciseMediaType,
     val url: String?,
-    val previewUrl: String?
+    val previewUrl: String?,
+    val lottieAsset: String? = null
 )
 
 private fun exerciseMediaItems(exercise: ExerciseDto): List<ExerciseMediaItem> {
+    if (exercise.lottieAsset != null) {
+        return listOf(ExerciseMediaItem(ExerciseMediaType.Lottie, null, null, exercise.lottieAsset))
+    }
     val images = exercise.imageUrl.orEmpty()
         .mapNotNull { ImageUrlResolver.resolve(it) }
         .ifEmpty { listOfNotNull(exercise.displayImageUrl) }
@@ -401,7 +413,23 @@ private fun ExerciseHeroPage(
             .background(Color(0xFFC8DCC8)),
         contentAlignment = Alignment.Center
     ) {
-        if (!item.previewUrl.isNullOrBlank()) {
+        if (item.type == ExerciseMediaType.Lottie && item.lottieAsset != null) {
+            val composition by rememberLottieComposition(LottieCompositionSpec.Asset(item.lottieAsset))
+            val dynamicProperties = rememberLottieDynamicProperties(
+                rememberLottieDynamicProperty(
+                    property = LottieProperty.COLOR,
+                    value = TrainColors.Cream.toArgb(),
+                    keyPath = arrayOf("**", "White Solid 1")
+                )
+            )
+            LottieAnimation(
+                composition = composition,
+                iterations = LottieConstants.IterateForever,
+                contentScale = ContentScale.Crop,
+                dynamicProperties = dynamicProperties,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (!item.previewUrl.isNullOrBlank()) {
             AsyncImage(
                 model = item.previewUrl,
                 contentDescription = exercise.name,

@@ -234,8 +234,9 @@ fun VitalNavGraph(
             val route: Screen.FoodDetail = backStackEntry.toRoute()
             FoodDetailScreen(foodId = route.id, mealType = route.mealType, date = route.date, navController = navController)
         }
-        composable<Screen.CreateFood> {
-            CreateFoodScreen(navController)
+        composable<Screen.CreateFood> { backStackEntry ->
+            val route: Screen.CreateFood = backStackEntry.toRoute()
+            CreateFoodScreen(navController, prefillName = route.prefillName)
         }
         composable<Screen.MealHistory> {
             MealHistoryScreen(navController)

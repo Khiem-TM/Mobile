@@ -397,7 +397,7 @@ fun ProfileScreen(
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(VitalRadius.Md),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
                 Column {
                     ProfileMenuItem(icon = Icons.Default.BarChart, label = "Hồ sơ cơ thể") {
@@ -431,7 +431,7 @@ fun ProfileScreen(
             shape = RoundedCornerShape(VitalRadius.Md),
             colors = CardDefaults.cardColors(containerColor = AppSurface),
             // SỬ DỤNG ELEVATION CHUẨN Ở ĐÂY
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
             Row(
                 modifier = Modifier

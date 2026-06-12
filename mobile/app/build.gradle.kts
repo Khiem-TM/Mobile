@@ -127,6 +127,9 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-svg:2.6.0")
 
+    // Lottie
+    implementation("com.airbnb.android:lottie-compose:6.4.0")
+
     // Firebase. Yêu cầu app/google-services.json (xem backend/FIREBASE_SETUP.md).
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging")

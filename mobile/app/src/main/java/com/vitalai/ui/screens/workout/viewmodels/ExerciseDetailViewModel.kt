@@ -33,6 +33,10 @@ class ExerciseDetailViewModel @Inject constructor(
     private var observeExerciseJob: Job? = null
 
     fun loadExercise(id: String) {
+        if (id == LOTTIE_TEST_EXERCISE_ID) {
+            _uiState.value = ExerciseDetailUiState(exercise = LOTTIE_TEST_EXERCISE, isLoading = false)
+            return
+        }
         _uiState.value = ExerciseDetailUiState(isLoading = true)
         observeExerciseJob?.cancel()
         observeExerciseJob = viewModelScope.launch {

@@ -16,7 +16,7 @@ sealed class Screen {
     @Serializable object Profile
     @Serializable data class SearchFood(val mealType: String = "", val date: String = "", val initialTab: Int = 0)
     @Serializable data class FoodDetail(val id: String, val mealType: String = "", val date: String = "")
-    @Serializable object CreateFood
+    @Serializable data class CreateFood(val prefillName: String = "")
     @Serializable object MealHistory
     @Serializable object Workout
     @Serializable object WorkoutHistory

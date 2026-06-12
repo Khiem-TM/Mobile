@@ -35,7 +35,8 @@ data class ExerciseDto(
     @Json(name = "defaultDurationMinutes") val defaultDurationMinutes: Int? = null,
     @Json(name = "defaultIntensityLevel") val defaultIntensityLevel: String? = null,
     @Json(name = "movementType") val movementType: String? = null,
-    @Json(name = "exerciseType") val exerciseType: String = "SPORT"
+    @Json(name = "exerciseType") val exerciseType: String = "SPORT",
+    @Json(name = "lottieAsset") val lottieAsset: String? = null
 ) {
     val displayImageUrl: String? get() =
         ImageUrlResolver.resolveFirst(thumbnailUrl, imageAvtUrl)

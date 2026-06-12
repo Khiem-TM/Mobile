@@ -99,6 +99,7 @@ internal fun FoodPrimaryButton(
     text: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentColor: Color = FoodModule.Cream,
     onClick: () -> Unit
 ) {
     Button(
@@ -108,15 +109,16 @@ internal fun FoodPrimaryButton(
         shape = RoundedCornerShape(FoodModule.CardRadius),
         colors = ButtonDefaults.buttonColors(
             containerColor = FoodModule.Forest,
-            contentColor = FoodModule.Cream,
+            contentColor = contentColor,
             disabledContainerColor = FoodModule.Forest.copy(alpha = 0.35f),
-            disabledContentColor = FoodModule.Cream.copy(alpha = 0.8f)
+            disabledContentColor = contentColor.copy(alpha = 0.8f)
         )
     ) {
         Text(
             text = text,
+            color = contentColor,
             fontSize = 16.sp,
-            fontWeight = FontWeight.Normal,
+            fontWeight = FontWeight.SemiBold,
             fontFamily = VitalFontFamily,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis

@@ -23,6 +23,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +35,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +49,7 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.Mint500
 import com.vitalai.util.ClassificationResult
 import java.util.concurrent.Executors
@@ -76,6 +79,15 @@ fun ScanScreen(
 
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) permissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+
+    LaunchedEffect(uiState.navTarget) {
+        when (val target = uiState.navTarget) {
+            is ScanNavTarget.Detail -> navController.navigate(Screen.FoodDetail(id = target.foodId))
+            is ScanNavTarget.Create -> navController.navigate(Screen.CreateFood(prefillName = target.name))
+            null -> {}
+        }
+        if (uiState.navTarget != null) viewModel.consumeNav()
     }
 
     LaunchedEffect(torchEnabled, camera) {
@@ -238,30 +250,31 @@ fun ScanScreen(
             }
         }
 
-        // Bottom results card
-        AnimatedVisibility(
-            visible = uiState.results.isNotEmpty(),
-            enter = fadeIn(),
-            exit = fadeOut(),
+        // Bottom panel: live probabilities + capture button
+        val isConfident = uiState.results.firstOrNull()?.let { it.confidence >= 0.5f } == true
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
+                .align(Alignment.BottomCenter),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            ResultCard(
-                results = uiState.results,
-                inferenceTimeMs = uiState.inferenceTimeMs
-            )
-        }
+            AnimatedVisibility(
+                visible = uiState.results.isNotEmpty(),
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                ResultCard(
+                    results = uiState.results,
+                    inferenceTimeMs = uiState.inferenceTimeMs
+                )
+            }
 
-        AnimatedVisibility(
-            visible = uiState.results.isEmpty(),
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 34.dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            AnimatedVisibility(
+                visible = uiState.results.isEmpty(),
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Món ăn", "Barcode", "Nhãn").forEachIndexed { index, label ->
                         Surface(
@@ -278,26 +291,61 @@ fun ScanScreen(
                         }
                     }
                 }
-                Spacer(Modifier.height(20.dp))
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.2f))
-                        .padding(6.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(CircleShape)
-                            .background(Color.White)
-                            .border(2.dp, Color.Black.copy(alpha = 0.12f), CircleShape)
-                    )
-                }
             }
+
+            Spacer(Modifier.height(14.dp))
+            CaptureButton(
+                enabled = isConfident && !uiState.isResolving,
+                isResolving = uiState.isResolving,
+                onClick = { viewModel.captureAndResolve() }
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = when {
+                    uiState.isResolving -> "Đang mở món..."
+                    isConfident -> "Chạm để chọn món"
+                    else -> "Đang nhận diện..."
+                },
+                color = Color.White.copy(alpha = 0.85f),
+                fontSize = 12.sp
+            )
+            Spacer(Modifier.height(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun CaptureButton(
+    enabled: Boolean,
+    isResolving: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(72.dp)
+            .alpha(if (enabled || isResolving) 1f else 0.35f)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.2f))
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(6.dp)
+            .clip(CircleShape)
+            .background(Color.White),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isResolving) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(28.dp),
+                color = Mint500,
+                strokeWidth = 3.dp
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .border(2.dp, Color.Black.copy(alpha = 0.12f), CircleShape)
+            )
         }
     }
 }
