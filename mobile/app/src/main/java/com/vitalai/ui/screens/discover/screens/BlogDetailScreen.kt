@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -496,6 +497,10 @@ private fun CommentItem(
     onDelete: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val authorName = comment.authorUser?.displayName
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: "Người dùng"
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -505,14 +510,27 @@ private fun CommentItem(
             modifier = Modifier.size(34.dp).clip(CircleShape).background(Mint50),
             contentAlignment = Alignment.Center
         ) {
-            Text(comment.authorUser?.displayName?.firstOrNull()?.uppercaseChar()?.toString() ?: "U", color = Mint700, fontWeight = FontWeight.Bold)
+            Text(authorName.first().uppercaseChar().toString(), color = Mint700, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(comment.authorUser?.displayName ?: "Người dùng", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Ink900)
+                Text(
+                    authorName,
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = Ink900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 Spacer(Modifier.width(8.dp))
-                Text(formatBlogTime(comment.createdAt), fontSize = 13.sp, color = Ink500)
+                Text(
+                    formatBlogTime(comment.createdAt),
+                    fontSize = 13.sp,
+                    color = Ink500,
+                    maxLines = 1
+                )
             }
             Spacer(Modifier.height(6.dp))
             if (isEditing) {
