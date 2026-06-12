@@ -33,6 +33,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val EXERCISE_CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
+private const val EXERCISE_SYNC_PAGE_SIZE = 100
 
 @Singleton
 class TrainingRepository @Inject constructor(
@@ -171,16 +172,35 @@ class TrainingRepository @Inject constructor(
     fun observeFavoriteExercises(): Flow<List<ExerciseDto>> =
         exerciseDao.observeFavorites().map { list -> list.map { it.toDto() } }
 
-    suspend fun refreshExercises() {
+    fun observeExercise(id: String): Flow<ExerciseDto?> =
+        exerciseDao.observeById(id).map { it?.toDto() }
+
+    suspend fun refreshExercises(force: Boolean = false) {
         val oldestCachedAt = exerciseDao.getOldestCachedAt()
         val isCacheStale = oldestCachedAt == null ||
             System.currentTimeMillis() - oldestCachedAt > EXERCISE_CACHE_TTL_MS
-        if (!isCacheStale) return
-        runCatching { trainingApi.getExercises() }
-            .onSuccess { res ->
-                val exercises = res.body()?.data ?: return@onSuccess
-                exerciseDao.upsertAll(exercises.map { it.toEntity() })
-            }
+        if (!force && !isCacheStale) return
+
+        runCatching {
+            val exercises = mutableListOf<ExerciseDto>()
+            var page = 1
+            do {
+                val response = trainingApi.getExercises(
+                    page = page,
+                    limit = EXERCISE_SYNC_PAGE_SIZE
+                )
+                if (!response.isSuccessful) {
+                    error("Lỗi đồng bộ bài tập (${response.code()})")
+                }
+                val batch = response.body()?.data
+                    ?: error("Phản hồi đồng bộ bài tập không hợp lệ")
+                exercises += batch
+                page += 1
+            } while (batch.size == EXERCISE_SYNC_PAGE_SIZE)
+            exercises.distinctBy { it.id }
+        }.onSuccess { exercises ->
+            exerciseDao.replaceAll(exercises.map { it.toEntity() })
+        }
     }
 
     suspend fun refreshFavoriteExercises() {
@@ -203,7 +223,8 @@ class TrainingRepository @Inject constructor(
                 exerciseType = type,
                 name = name,
                 muscleGroup = muscleGroup,
-                difficultyLevel = difficultyLevel
+                difficultyLevel = difficultyLevel,
+                limit = EXERCISE_SYNC_PAGE_SIZE
             )
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {

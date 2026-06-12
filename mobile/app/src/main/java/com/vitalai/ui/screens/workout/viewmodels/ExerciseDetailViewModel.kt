@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -29,21 +30,48 @@ class ExerciseDetailViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ExerciseDetailUiState())
     val uiState: StateFlow<ExerciseDetailUiState> = _uiState.asStateFlow()
-
-    // Called from ExerciseLibraryViewModel to share exercise data
-    fun setExercise(exercise: ExerciseDto) {
-        _uiState.value = _uiState.value.copy(exercise = exercise)
-    }
+    private var observeExerciseJob: Job? = null
 
     fun loadExercise(id: String) {
+        _uiState.value = ExerciseDetailUiState(isLoading = true)
+        observeExerciseJob?.cancel()
+        observeExerciseJob = viewModelScope.launch {
+            repo.observeExercise(id).collect { cached ->
+                if (cached != null) {
+                    _uiState.value = _uiState.value.copy(
+                        exercise = cached,
+                        isLoading = false,
+                        error = null
+                    )
+                }
+            }
+        }
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             repo.getExerciseById(id).onSuccess { exercise ->
                 _uiState.value = _uiState.value.copy(exercise = exercise, isLoading = false)
             }.onFailure { e ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Không tìm thấy bài tập"
+                    error = if (_uiState.value.exercise == null) {
+                        e.message ?: "Không tìm thấy bài tập"
+                    } else {
+                        null
+                    }
+                )
+            }
+        }
+    }
+
+    fun toggleFavorite() {
+        val exercise = _uiState.value.exercise ?: return
+        val nextFavorite = !exercise.isFavorite
+        _uiState.value = _uiState.value.copy(exercise = exercise.copy(isFavorite = nextFavorite))
+        viewModelScope.launch {
+            val result = if (nextFavorite) repo.addFavorite(exercise.id) else repo.removeFavorite(exercise.id)
+            result.onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    exercise = _uiState.value.exercise?.copy(isFavorite = exercise.isFavorite),
+                    error = error.message ?: "Không thể cập nhật yêu thích"
                 )
             }
         }

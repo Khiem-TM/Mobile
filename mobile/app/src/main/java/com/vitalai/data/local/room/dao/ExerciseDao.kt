@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.vitalai.data.local.room.entity.ExerciseEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -14,6 +15,9 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercise WHERE isFavorite = 1 ORDER BY name")
     fun observeFavorites(): Flow<List<ExerciseEntity>>
+
+    @Query("SELECT * FROM exercise WHERE id = :id LIMIT 1")
+    fun observeById(id: String): Flow<ExerciseEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entities: List<ExerciseEntity>)
@@ -38,4 +42,10 @@ interface ExerciseDao {
 
     @Query("DELETE FROM exercise")
     suspend fun clear()
+
+    @Transaction
+    suspend fun replaceAll(entities: List<ExerciseEntity>) {
+        clear()
+        upsertAll(entities)
+    }
 }

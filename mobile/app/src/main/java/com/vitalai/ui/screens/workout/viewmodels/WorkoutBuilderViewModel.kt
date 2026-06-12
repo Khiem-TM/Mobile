@@ -180,7 +180,7 @@ class WorkoutBuilderViewModel @Inject constructor(
     fun setShowExercisePicker(show: Boolean) {
         _uiState.update { it.copy(showExercisePicker = show) }
         if (show) {
-            viewModelScope.launch { trainingRepository.refreshExercises() }
+            viewModelScope.launch { trainingRepository.refreshExercises(force = true) }
         }
     }
 
