@@ -40,6 +40,10 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -96,6 +100,7 @@ import kotlin.math.roundToInt
 
 import com.vitalai.data.remote.model.HealthProfileDto
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun DiaryScreen(
     navController: NavController,
@@ -117,9 +122,15 @@ fun DiaryScreen(
         }
     }
 
+    val pullRefreshState = rememberPullRefreshState(
+        refreshing = uiState.isRefreshing,
+        onRefresh = { viewModel.refreshPull() }
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .pullRefresh(pullRefreshState)
     ) {
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
@@ -160,6 +171,13 @@ fun DiaryScreen(
             title = "Nhật ký dinh dưỡng",
             textAlphaProvider = scrollProgressProvider,
             modifier = Modifier.align(Alignment.TopCenter)
+        )
+
+        PullRefreshIndicator(
+            refreshing = uiState.isRefreshing,
+            state = pullRefreshState,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 80.dp),
+            contentColor = Mint500
         )
     }
 

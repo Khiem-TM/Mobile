@@ -1,5 +1,7 @@
 package com.vitalai.ui.screens.home.components
 
+import kotlin.math.roundToInt
+
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -88,7 +90,7 @@ fun DailyActivitySummaryCard(
     val waterMl = d?.waterMl ?: 0
     val waterGoalMl = (d?.waterGoalMl ?: 2500).coerceAtLeast(1)
     val waterProgress = (waterMl.toFloat() / waterGoalMl).coerceIn(0f, 1f)
-    val burnedKcal = d?.caloriesBurned?.toInt() ?: 0
+    val burnedKcal = d?.caloriesBurned?.roundToInt() ?: 0
     val steps = d?.steps ?: 0
     val stepGoal = (d?.stepGoal ?: 10000).coerceAtLeast(1)
     val stepsProgress = (steps.toFloat() / stepGoal).coerceIn(0f, 1f)
@@ -113,22 +115,7 @@ fun DailyActivitySummaryCard(
             colors = CardDefaults.cardColors(containerColor = AppSurface),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("Nhật ký hoạt động", color = Ink900, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text("Chạm để cập nhật", color = Ink500, fontSize = 13.sp)
-                    }
-                    Box(modifier = Modifier.size(42.dp).clip(CircleShape).background(Mint100), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.DirectionsRun, contentDescription = null, tint = Mint500, modifier = Modifier.size(24.dp))
-                    }
-                }
-                HorizontalDivider(color = AppSurface2)
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
                 ActivityMiniMetric("Calories", "$burnedKcal", "kcal", MacroCarbs, AmberTint, Modifier.weight(1f))
                 ActivityMiniMetric("Bước chân", "%,d".format(steps), "/%,d".format(stepGoal), Mint500, Mint100, Modifier.weight(1f))

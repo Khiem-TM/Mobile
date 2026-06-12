@@ -78,11 +78,12 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import com.vitalai.ui.screens.home.viewmodels.HomeUiState
 import com.vitalai.ui.screens.home.viewmodels.HomeViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun DailyCaloriesCard(uiState: HomeUiState) {
     val d = uiState.dashboard
-    val consumed = d?.caloriesConsumed?.toInt() ?: 0
+    val consumed = d?.caloriesConsumed?.roundToInt() ?: 0
     val goal = d?.calorieGoal ?: 2000
     val remaining = (goal - consumed).coerceAtLeast(0)
     val progress = if (goal > 0) (consumed.toFloat() / goal).coerceIn(0f, 1f) else 0f
@@ -156,9 +157,9 @@ fun DailyCaloriesCard(uiState: HomeUiState) {
                     val carbsG = d?.carbsG ?: 0f; val carbsGoal = (d?.carbsGoal ?: 1f).coerceAtLeast(1f)
                     val proteinG = d?.proteinG ?: 0f; val proteinGoal = (d?.proteinGoal ?: 1f).coerceAtLeast(1f)
                     val fatG = d?.fatG ?: 0f; val fatGoal = (d?.fatGoal ?: 1f).coerceAtLeast(1f)
-                    MacroBar("Carbs", "${carbsG.toInt()}/${carbsGoal.toInt()}g", carbsG / carbsGoal, MacroCarbs)
-                    MacroBar("Protein", "${proteinG.toInt()}/${proteinGoal.toInt()}g", proteinG / proteinGoal, MacroProtein)
-                    MacroBar("Fat", "${fatG.toInt()}/${fatGoal.toInt()}g", fatG / fatGoal, MacroFat)
+                    MacroBar("Carbs", "${carbsG.roundToInt()}/${carbsGoal.roundToInt()}g", carbsG / carbsGoal, MacroCarbs)
+                    MacroBar("Protein", "${proteinG.roundToInt()}/${proteinGoal.roundToInt()}g", proteinG / proteinGoal, MacroProtein)
+                    MacroBar("Fat", "${fatG.roundToInt()}/${fatGoal.roundToInt()}g", fatG / fatGoal, MacroFat)
                 }
             }
         }

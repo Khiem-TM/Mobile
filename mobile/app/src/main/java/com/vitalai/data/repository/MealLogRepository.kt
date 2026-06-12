@@ -173,7 +173,13 @@ class MealLogRepository @Inject constructor(
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
                 mealLogDao.deleteItemById(temp.id)               // bỏ món tạm
-                mealLogDao.insertItems(listOf(body.toEntity(mealLogId))) // gắn bản thật
+                val finalEntity = body.toEntity(mealLogId).let {
+                    it.copy(
+                        foodName = it.foodName.ifBlank { temp.foodName },
+                        imageUrl = it.imageUrl ?: temp.imageUrl
+                    )
+                }
+                mealLogDao.insertItems(listOf(finalEntity)) // gắn bản thật
                 Result.success(Unit)
             } else Result.failure(Exception("Lỗi thêm món (${response.code()})"))
         } catch (e: IOException) {
@@ -262,7 +268,13 @@ class MealLogRepository @Inject constructor(
             val response = mealLogApi.updateItem(mealLogId, itemId, request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
-                mealLogDao.insertItems(listOf(body.toEntity(mealLogId)))
+                val finalEntity = body.toEntity(mealLogId).let {
+                    it.copy(
+                        foodName = it.foodName.ifBlank { old?.foodName ?: "" },
+                        imageUrl = it.imageUrl ?: old?.imageUrl
+                    )
+                }
+                mealLogDao.insertItems(listOf(finalEntity))
                 Result.success(body)
             } else {
                 Result.failure(Exception("Lỗi cập nhật món (${response.code()})"))
@@ -287,14 +299,25 @@ class MealLogRepository @Inject constructor(
      */
     suspend fun deleteItem(mealLogId: String, itemId: String): Result<Unit> {
         mealLogDao.deleteItemById(itemId)
-        pendingSyncActionDao.insert(
-            PendingSyncActionEntity(
-                actionType = "DELETE_MEAL_ITEM:$mealLogId:$itemId",
-                payload = ""
+        return try {
+            val response = mealLogApi.deleteItem(mealLogId, itemId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Lỗi xóa món (${response.code()})"))
+            }
+        } catch (e: IOException) {
+            pendingSyncActionDao.insert(
+                PendingSyncActionEntity(
+                    actionType = "DELETE_MEAL_ITEM:$mealLogId:$itemId",
+                    payload = ""
+                )
             )
-        )
-        syncScheduler.requestSync()
-        return Result.success(Unit)
+            syncScheduler.requestSync()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun deleteMealLog(mealLogId: String): Result<Unit> {
