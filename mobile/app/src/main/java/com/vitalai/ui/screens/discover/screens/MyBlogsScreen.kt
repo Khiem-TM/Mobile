@@ -1,6 +1,7 @@
 package com.vitalai.ui.screens.discover.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,33 +95,26 @@ fun MyBlogsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text("Bài viết của tôi", fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Ink900)
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = Ink900)
-                    }
-                },
+            com.vitalai.ui.components.VitalScreenHeader(
+                title = "Bài viết của tôi",
+                onBackClick = { navController.popBackStack() },
                 actions = {
                     Surface(
                         modifier = Modifier
                             .padding(end = 16.dp)
-                            .size(52.dp)
+                            .size(36.dp)
                             .clickable { navController.navigate(Screen.BlogComposer()) },
                         shape = RoundedCornerShape(VitalRadius.Pill),
                         color = Color(0xFF19C287)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Default.Add, contentDescription = "Tạo bài viết", tint = Color.White, modifier = Modifier.size(27.dp))
+                            Icon(Icons.Default.Add, contentDescription = "Tạo bài viết", tint = Color.White, modifier = Modifier.size(20.dp))
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppSurface)
+                }
             )
         },
-        containerColor = AppMutedBackground
+        containerColor = Color.White
     ) { padding ->
         Column(
             modifier = Modifier
@@ -224,6 +218,7 @@ private fun MyBlogFilterTabs(
 private fun MyBlogFilterChip(label: String, count: Int, selected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
+            .border(1.dp, if (selected) Color.Transparent else AppLine, RoundedCornerShape(VitalRadius.Pill))
             .clip(RoundedCornerShape(VitalRadius.Pill))
             .background(if (selected) Color(0xFF062E22) else AppSurface)
             .clickable(onClick = onClick)

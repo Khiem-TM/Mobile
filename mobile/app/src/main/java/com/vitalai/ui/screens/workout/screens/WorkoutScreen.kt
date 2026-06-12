@@ -43,6 +43,7 @@ fun WorkoutScreen(
         onSessionClick = { session ->
             navController.navigate(Screen.WorkoutSession(session.id, session.sessionDate))
         },
-        onRetry = viewModel::loadData
+        onRetry = viewModel::loadData,
+        onBackClick = { navController.popBackStack() }
     )
 }

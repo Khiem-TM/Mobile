@@ -89,7 +89,7 @@ internal fun PeriodChartSection(
         }
     }
 
-    VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp), elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionHeader(title = "Biểu đồ cân nặng", color = ForestGreen)
             Spacer(Modifier.height(10.dp))

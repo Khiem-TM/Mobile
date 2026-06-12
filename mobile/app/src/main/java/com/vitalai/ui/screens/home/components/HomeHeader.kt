@@ -69,7 +69,7 @@ fun HomeHeader(navController: NavController, uiState: HomeUiState) {
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Xin chào, $userName 👋", 
+                text = "Xin chào, $userName!", 
                 fontSize = 20.sp, 
                 fontWeight = FontWeight.Bold, 
                 color = MaterialTheme.colorScheme.onBackground,

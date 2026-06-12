@@ -127,7 +127,8 @@ private fun WorkoutDashboardScreenPreview() {
             onPreviousWeek = {},
             onNextWeek = {},
             onSessionClick = {},
-            onRetry = {}
+            onRetry = {},
+            onBackClick = {}
         )
     }
 }

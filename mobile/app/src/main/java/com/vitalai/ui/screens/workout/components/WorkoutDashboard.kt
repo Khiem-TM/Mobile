@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessibilityNew
@@ -29,7 +31,8 @@ fun WorkoutDashboard(
     onPreviousWeek: () -> Unit,
     onNextWeek: () -> Unit,
     onSessionClick: (WorkoutSessionDto) -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    onBackClick: () -> Unit
 ) {
     TrainScreen {
         when {
@@ -40,15 +43,17 @@ fun WorkoutDashboard(
                 modifier = Modifier.fillMaxSize()
             )
             else -> Column(Modifier.fillMaxSize()) {
-                TrainHeader(
+                com.vitalai.ui.components.VitalScreenHeader(
                     title = "Luyện tập",
-                    large = true,
-                    right = {
+                    onBackClick = onBackClick,
+                    actions = {
                         TrainRoundIconButton(
                             icon = Icons.Default.AccessibilityNew,
                             contentDescription = "Chỉ số cơ thể",
-                            onClick = onNavigateMetrics
+                            onClick = onNavigateMetrics,
+                            size = 32.dp
                         )
+                        androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.width(14.dp))
                     }
                 )
 

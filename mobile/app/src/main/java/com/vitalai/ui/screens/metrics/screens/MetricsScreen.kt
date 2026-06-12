@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.vitalai.navigation.Screen
@@ -34,7 +35,6 @@ fun MetricsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     var showUpdateSheet by remember { mutableStateOf(false) }
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     LaunchedEffect(uiState.updateSuccessCount) {
         if (uiState.updateSuccessCount > 0) {
@@ -44,21 +44,12 @@ fun MetricsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Hồ sơ cơ thể", fontWeight = FontWeight.Bold, color = ForestGreen) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại", tint = ForestGreen)
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = AppMutedBackground,
-                    scrolledContainerColor = AppMutedBackground
-                )
+            com.vitalai.ui.components.VitalScreenHeader(
+                title = "Hồ sơ cơ thể",
+                onBackClick = { navController.popBackStack() }
             )
         },
-        containerColor = AppMutedBackground
+        containerColor = Color.White
     ) { padding ->
         when {
             uiState.isLoading -> LoadingState(modifier = Modifier.padding(padding))
@@ -68,9 +59,7 @@ fun MetricsScreen(
                 modifier = Modifier.padding(padding)
             )
             else -> LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .nestedScroll(scrollBehavior.nestedScrollConnection),
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
                     start = 16.dp,
                     end = 16.dp,

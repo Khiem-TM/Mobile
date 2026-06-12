@@ -68,11 +68,9 @@ internal fun CurrentWeightCard(
 
     val shape = RoundedCornerShape(20.dp)
 
-    Card(
+    com.vitalai.ui.components.VitalBorderCard(
         modifier = modifier.fillMaxWidth(),
-        shape = shape,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = VitalElevation.Level1)
+        contentPadding = PaddingValues(0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -156,7 +154,7 @@ internal fun BmiBar(bmi: Float) {
     val clampedBmi = bmi.coerceIn(minBmi, maxBmi)
     val thumbFraction = (clampedBmi - minBmi) / (maxBmi - minBmi)
 
-    VitalCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp), elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(16.dp)) {
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -232,7 +230,7 @@ internal fun BmiBar(bmi: Float) {
 
 @Composable
 internal fun PersonalInfoCard(profile: HealthProfileDto?, onClick: () -> Unit) {
-    VitalCard(modifier = Modifier.fillMaxWidth(), onClick = onClick, elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Thông tin cá nhân", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ForestGreen)
             PersonalInfoRow("Giới tính", formatGender(profile?.gender))
@@ -257,7 +255,7 @@ internal fun PersonalInfoRow(label: String, value: String) {
 
 @Composable
 internal fun EnergyBasicsCard(latest: BodyMetricDto) {
-    VitalCard(modifier = Modifier.fillMaxWidth(), elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Năng lượng cơ bản", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ForestGreen)
             latest.bmr?.let { PersonalInfoRow("BMR", "%.0f kcal/ngày".format(it)) }
@@ -275,7 +273,7 @@ internal fun WeightChangeRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    VitalCard(modifier = modifier.fillMaxWidth(), onClick = onClick, elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Tiến độ cân nặng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = ForestGreen)
             latestDate?.let { date ->
@@ -297,7 +295,7 @@ internal fun WeightChangeRow(
 
 @Composable
 internal fun WeightProgressEmptyCard(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    VitalCard(modifier = modifier.fillMaxWidth(), onClick = onClick, elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = modifier.fillMaxWidth(), onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Tiến độ cân nặng", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = ForestGreen)
             Text("Chưa có dữ liệu", fontSize = 12.sp, color = Ink500)
@@ -317,7 +315,7 @@ internal fun BodyMeasurementsCard(latest: BodyMetricDto?, onClick: () -> Unit) {
         latest?.neckCm?.let { add("Vòng cổ" to "%.0f cm".format(it)) }
     }
 
-    VitalCard(modifier = Modifier.fillMaxWidth(), onClick = onClick, elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = Modifier.fillMaxWidth(), onClick = onClick) {
         SectionHeader(title = "Số đo cơ thể", color = ForestGreen)
         Spacer(Modifier.height(12.dp))
 
@@ -347,7 +345,7 @@ internal fun ProgressPhotosSection(
     onAddPhotoClick: () -> Unit,
     onDeletePhoto: (String) -> Unit
 ) {
-    VitalCard(modifier = Modifier.fillMaxWidth(), elevation = VitalElevation.Level1) {
+    com.vitalai.ui.components.VitalBorderCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
