@@ -51,7 +51,7 @@ class ExerciseLibraryViewModel @Inject constructor(
     private fun refreshInBackground() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            trainingRepository.refreshExercises()
+            trainingRepository.refreshExercises(force = true)
             trainingRepository.refreshFavoriteExercises()
             _uiState.update { it.copy(isLoading = false) }
         }

@@ -206,6 +206,7 @@ fun ExerciseLibraryScreenContent(
                         ExerciseRow(
                             exercise = exercise,
                             isFavorite = exercise.id in uiState.favorites,
+                            showTypeBadge = uiState.selectedType == null,
                             onClick = { onExerciseClick(exercise) },
                             onFavoriteToggle = { onFavoriteToggle(exercise.id) }
                         )
@@ -381,6 +382,7 @@ private fun EmptyState(message: String?) {
 private fun ExerciseRow(
     exercise: ExerciseDto,
     isFavorite: Boolean,
+    showTypeBadge: Boolean,
     onClick: () -> Unit,
     onFavoriteToggle: () -> Unit
 ) {
@@ -399,10 +401,12 @@ private fun ExerciseRow(
                 )
                 Spacer(Modifier.height(5.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    TrainTypeBadge(exercise.exerciseType)
+                    if (showTypeBadge) {
+                        TrainTypeBadge(exercise.exerciseType)
+                    }
                     Text(exercise.category ?: exercise.muscleGroup, color = TrainColors.Charcoal, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("·", color = TrainColors.Charcoal.copy(alpha = 0.45f), fontSize = 12.sp)
-                    Text(difficultyLabel(exercise.difficultyLevel), color = TrainColors.Charcoal, fontSize = 12.sp)
+                    DifficultyBadge(exercise.difficultyLevel)
                 }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onFavoriteToggle).padding(4.dp)) {
@@ -415,6 +419,28 @@ private fun ExerciseRow(
                 Text(displayedCount.toString(), color = TrainColors.Charcoal, fontSize = 11.sp)
             }
         }
+    }
+}
+
+@Composable
+private fun DifficultyBadge(difficulty: String?) {
+    val (background, foreground) = when (difficulty?.uppercase()) {
+        "BEGINNER" -> TrainColors.GymBg to TrainColors.Forest
+        "ADVANCED" -> TrainColors.CardioBg to TrainColors.Cardio
+        else -> TrainColors.SportBg to TrainColors.Sport
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(background)
+            .padding(horizontal = 7.dp, vertical = 2.dp)
+    ) {
+        Text(
+            text = difficultyLabel(difficulty),
+            color = foreground,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold
+        )
     }
 }
 

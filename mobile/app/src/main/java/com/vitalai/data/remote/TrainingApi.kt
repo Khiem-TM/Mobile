@@ -16,22 +16,6 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
-import com.squareup.moshi.JsonClass
-
-@JsonClass(generateAdapter = true)
-data class UpdateStepsRequest(val logDate: String, val steps: Int)
-
-@JsonClass(generateAdapter = true)
-data class UpdateWaterRequest(val logDate: String, val waterMl: Int)
-
-@JsonClass(generateAdapter = true)
-data class UpdateSleepRequest(val logDate: String, val sleepHours: Float)
-
-@JsonClass(generateAdapter = true)
-data class UpdateMoodRequest(val logDate: String, val mood: String)
-
-@JsonClass(generateAdapter = true)
-data class UpdateNoteRequest(val logDate: String, val note: String)
 
 interface TrainingApi {
     @GET("training-sessions")
@@ -49,7 +33,9 @@ interface TrainingApi {
         @Query("exerciseType") exerciseType: String? = null,
         @Query("name") name: String? = null,
         @Query("muscleGroup") muscleGroup: String? = null,
-        @Query("difficultyLevel") difficultyLevel: String? = null
+        @Query("difficultyLevel") difficultyLevel: String? = null,
+        @Query("page") page: Int? = null,
+        @Query("limit") limit: Int? = null
     ): Response<ApiResponse<List<ExerciseDto>>>
 
     @GET("exercises/{id}")

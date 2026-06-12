@@ -38,7 +38,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.webkit.WebView
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 import android.webkit.WebViewClient
+import android.webkit.WebSettings
+import android.webkit.CookieManager
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -49,6 +61,7 @@ import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.theme.BottomSheetGrabber
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -57,17 +70,11 @@ import kotlin.math.roundToInt
 fun ExerciseDetailScreen(
     id: String,
     navController: NavController,
-    libraryViewModel: ExerciseLibraryViewModel = hiltViewModel(),
     detailViewModel: ExerciseDetailViewModel = hiltViewModel()
 ) {
-    val libState by libraryViewModel.uiState.collectAsState()
     val detailState by detailViewModel.uiState.collectAsState()
-    val exercise = libState.exercises.firstOrNull { it.id == id }
-        ?: libState.filteredExercises.firstOrNull { it.id == id }
-        ?: detailState.exercise
-    val isFavorite = exercise?.id in libState.favorites
+    val exercise = detailState.exercise
     val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     var showAddSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(id) {
@@ -95,16 +102,12 @@ fun ExerciseDetailScreen(
         Box(Modifier.padding(padding)) {
             ExerciseDetailScreenContent(
                 exercise = exercise,
-                isLoading = (libState.isLoading || detailState.isLoading) && exercise == null,
-                errorMessage = detailState.error ?: libState.error,
-                isFavorite = isFavorite,
-                onRetry = { libraryViewModel.loadExercises() },
+                isLoading = detailState.isLoading && exercise == null,
+                errorMessage = detailState.error,
+                isFavorite = exercise?.isFavorite == true,
+                onRetry = { detailViewModel.loadExercise(id) },
                 onBackClick = { navController.popBackStack() },
-                onFavoriteToggle = {
-                    exercise?.let {
-                        scope.launch { libraryViewModel.toggleFavorite(it.id) }
-                    }
-                },
+                onFavoriteToggle = detailViewModel::toggleFavorite,
                 onAddToWorkoutClick = { showAddSheet = true }
             )
         }
@@ -132,7 +135,7 @@ fun ExerciseDetailScreenContent(
     onAddToWorkoutClick: () -> Unit
 ) {
     when {
-        isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+        isLoading -> ExerciseDetailSkeleton(onBackClick)
         exercise == null -> ErrorState(message = errorMessage ?: "Không tìm thấy bài tập", onRetry = onRetry)
         else -> DetailShell(
             exercise = exercise,
@@ -153,6 +156,7 @@ private fun DetailShell(
     onAddToWorkoutClick: () -> Unit
 ) {
     var videoUrl by remember { mutableStateOf<String?>(null) }
+    var videoDurationSeconds by remember(exercise.videoUrl) { mutableStateOf<Int?>(null) }
     val mediaItems = remember(exercise) { exerciseMediaItems(exercise) }
     Box(Modifier.fillMaxSize().background(TrainColors.Cream)) {
         LazyColumn(
@@ -166,6 +170,7 @@ private fun DetailShell(
                     isFavorite = isFavorite,
                     onBackClick = onBackClick,
                     onFavoriteToggle = onFavoriteToggle,
+                    videoDurationSeconds = videoDurationSeconds,
                     onOpenVideo = { videoUrl = it }
                 )
             }
@@ -224,7 +229,46 @@ private fun DetailShell(
     }
 
     videoUrl?.let { url ->
-        ExerciseVideoDialog(url = url, onDismiss = { videoUrl = null })
+        ExerciseVideoDialog(
+            url = url,
+            onDurationAvailable = { videoDurationSeconds = it },
+            onDismiss = { videoUrl = null }
+        )
+    }
+}
+
+@Composable
+private fun ExerciseDetailSkeleton(onBackClick: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(TrainColors.Cream)) {
+        Column {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(360.dp)
+                    .background(Color(0xFFC8DCC8))
+            )
+            Column(
+                Modifier.padding(horizontal = 21.dp, vertical = 23.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                repeat(5) { index ->
+                    Box(
+                        Modifier
+                            .fillMaxWidth(if (index == 0) 0.62f else 1f)
+                            .height(if (index == 0) 34.dp else 72.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(TrainColors.KeylimeWash)
+                    )
+                }
+            }
+        }
+        Box(
+            Modifier
+                .statusBarsPadding()
+                .padding(start = 18.dp, top = 18.dp)
+        ) {
+            HeroCircleButton(icon = Icons.AutoMirrored.Filled.ArrowBack, onClick = onBackClick)
+        }
     }
 }
 
@@ -257,6 +301,7 @@ private fun ExerciseHeroMedia(
     isFavorite: Boolean,
     onBackClick: () -> Unit,
     onFavoriteToggle: () -> Unit,
+    videoDurationSeconds: Int?,
     onOpenVideo: (String) -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -315,7 +360,12 @@ private fun ExerciseHeroMedia(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = TrainColors.Cream, modifier = Modifier.size(14.dp))
-                Text("1:24 · HD", color = TrainColors.Cream, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "${videoDurationSeconds?.let(::formatVideoDuration) ?: "Video"} · HD",
+                    color = TrainColors.Cream,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
         Row(
@@ -488,7 +538,26 @@ private fun ExerciseMuscleAndEquipment(exercise: ExerciseDto) {
 }
 
 @Composable
-private fun ExerciseVideoDialog(url: String, onDismiss: () -> Unit) {
+private fun ExerciseVideoDialog(
+    url: String,
+    onDurationAvailable: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val currentOnDurationAvailable by rememberUpdatedState(onDurationAvailable)
+    val videoId = remember(url) { youtubeVideoId(url) }
+    var retryKey by remember { mutableIntStateOf(0) }
+    var isReady by remember(retryKey) { mutableStateOf(false) }
+    var playerError by remember(retryKey) { mutableStateOf<String?>(null) }
+    var playerErrorCode by remember(retryKey) { mutableStateOf<Int?>(null) }
+    val context = LocalContext.current
+
+    LaunchedEffect(retryKey, videoId) {
+        delay(15_000)
+        if (!isReady && playerError == null) {
+            playerError = "Video tải quá lâu. Vui lòng kiểm tra kết nối và thử lại."
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
@@ -496,35 +565,227 @@ private fun ExerciseVideoDialog(url: String, onDismiss: () -> Unit) {
         },
         title = { Text("Video hướng dẫn", color = TrainColors.Ink, fontWeight = FontWeight.Bold) },
         text = {
-            AndroidView(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(220.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-                factory = { context ->
-                    WebView(context).apply {
-                        webViewClient = WebViewClient()
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        loadUrl(youtubeEmbedUrl(url))
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black)
+            ) {
+                key(retryKey) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { context ->
+                            WebView(context).apply webView@{
+                                setBackgroundColor(android.graphics.Color.BLACK)
+                                webViewClient = object : WebViewClient() {
+                                    override fun onReceivedError(
+                                        view: WebView?,
+                                        request: WebResourceRequest?,
+                                        error: WebResourceError?
+                                    ) {
+                                        if (request?.isForMainFrame == true) {
+                                            playerError = "Không thể tải trình phát YouTube"
+                                        }
+                                    }
+                                }
+                                webChromeClient = WebChromeClient()
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                settings.mediaPlaybackRequiresUserGesture = false
+                                settings.cacheMode = WebSettings.LOAD_DEFAULT
+                                settings.loadsImagesAutomatically = true
+                                CookieManager.getInstance().apply {
+                                    setAcceptCookie(true)
+                                    setAcceptThirdPartyCookies(this@webView, true)
+                                }
+                                if (videoId != null) {
+                                    addJavascriptInterface(
+                                        YouTubePlayerBridge(
+                                            onReady = { isReady = true },
+                                            onDurationAvailable = { currentOnDurationAvailable(it) },
+                                            onError = {
+                                                isReady = false
+                                                playerErrorCode = it
+                                                playerError = "Không thể phát video YouTube (mã lỗi $it)"
+                                            }
+                                        ),
+                                        "VitalAI"
+                                    )
+                                    loadDataWithBaseURL(
+                                        YOUTUBE_ORIGIN,
+                                        youtubePlayerHtml(videoId),
+                                        "text/html",
+                                        "UTF-8",
+                                        null
+                                    )
+                                } else {
+                                    playerError = "Link video không hợp lệ"
+                                }
+                            }
+                        },
+                        onRelease = { releasedWebView ->
+                            releasedWebView.stopLoading()
+                            releasedWebView.loadUrl("about:blank")
+                            releasedWebView.removeJavascriptInterface("VitalAI")
+                            releasedWebView.destroy()
+                        }
+                    )
+                }
+
+                if (!isReady && playerError == null) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = TrainColors.Cream
+                    )
+                }
+                playerError?.let { message ->
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(message, color = Color.White, fontSize = 13.sp)
+                        if (playerErrorCode in YOUTUBE_EMBED_RESTRICTED_ERRORS) {
+                            Button(onClick = { openYouTubeVideo(context, url, videoId) }) {
+                                Text("Mở trên YouTube")
+                            }
+                        } else {
+                            Button(onClick = { retryKey += 1 }) {
+                                Text("Thử lại")
+                            }
+                        }
                     }
-                },
-                update = { it.loadUrl(youtubeEmbedUrl(url)) }
-            )
+                }
+            }
         },
         containerColor = TrainColors.Cream
     )
 }
 
-private fun youtubeEmbedUrl(url: String): String {
+private val YOUTUBE_EMBED_RESTRICTED_ERRORS = setOf(101, 150, 152)
+
+private fun openYouTubeVideo(context: android.content.Context, url: String, videoId: String?) {
+    if (videoId != null) {
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:$videoId")).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+            return
+        } catch (_: ActivityNotFoundException) {
+            // Fall through to the browser when the YouTube app is unavailable.
+        }
+    }
+    context.startActivity(
+        Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    )
+}
+
+private fun youtubeVideoId(url: String): String? {
     val trimmed = url.trim()
     val videoId = when {
         "youtu.be/" in trimmed -> trimmed.substringAfter("youtu.be/").substringBefore("?").substringBefore("/")
         "v=" in trimmed -> trimmed.substringAfter("v=").substringBefore("&")
         "/embed/" in trimmed -> trimmed.substringAfter("/embed/").substringBefore("?")
+        "/shorts/" in trimmed -> trimmed.substringAfter("/shorts/").substringBefore("?").substringBefore("/")
         else -> ""
     }
-    return if (videoId.isNotBlank()) "https://www.youtube.com/embed/$videoId" else trimmed
+    return videoId.takeIf { it.matches(Regex("[A-Za-z0-9_-]{11}")) }
+}
+
+private const val YOUTUBE_ORIGIN = "https://www.youtube.com"
+
+private fun youtubePlayerHtml(videoId: String): String = """
+    <!doctype html>
+    <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          html, body, #player { width: 100%; height: 100%; margin: 0; background: #000; }
+        </style>
+      </head>
+      <body>
+        <div id="player"></div>
+        <script src="https://www.youtube.com/iframe_api"></script>
+        <script>
+          function reportDuration(player, retries) {
+            var duration = Math.round(player.getDuration());
+            if (duration > 0) {
+              VitalAI.onDurationAvailable(duration);
+            } else if (retries > 0) {
+              setTimeout(function() { reportDuration(player, retries - 1); }, 500);
+            }
+          }
+
+          function onYouTubeIframeAPIReady() {
+            new YT.Player('player', {
+              videoId: '$videoId',
+              playerVars: {
+                autoplay: 1,
+                playsinline: 1,
+                rel: 0,
+                origin: '$YOUTUBE_ORIGIN'
+              },
+              events: {
+                onReady: function(event) {
+                  VitalAI.onPlayerReady();
+                  reportDuration(event.target, 20);
+                  event.target.playVideo();
+                },
+                onStateChange: function(event) {
+                  reportDuration(event.target, 4);
+                },
+                onError: function(event) {
+                  VitalAI.onPlayerError(event.data);
+                }
+              }
+            });
+          }
+        </script>
+      </body>
+    </html>
+""".trimIndent()
+
+private class YouTubePlayerBridge(
+    private val onReady: () -> Unit,
+    private val onDurationAvailable: (Int) -> Unit,
+    private val onError: (Int) -> Unit
+) {
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    @JavascriptInterface
+    fun onDurationAvailable(durationSeconds: Int) {
+        if (durationSeconds > 0) {
+            mainHandler.post { onDurationAvailable(durationSeconds) }
+        }
+    }
+
+    @JavascriptInterface
+    fun onPlayerReady() {
+        mainHandler.post(onReady)
+    }
+
+    @JavascriptInterface
+    fun onPlayerError(errorCode: Int) {
+        mainHandler.post { onError(errorCode) }
+    }
+}
+
+private fun formatVideoDuration(durationSeconds: Int): String {
+    val hours = durationSeconds / 3600
+    val minutes = (durationSeconds % 3600) / 60
+    val seconds = durationSeconds % 60
+    return if (hours > 0) {
+        "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+    } else {
+        "$minutes:${seconds.toString().padStart(2, '0')}"
+    }
 }
 
 private fun defaultWeightText(exercise: ExerciseDto): String {
