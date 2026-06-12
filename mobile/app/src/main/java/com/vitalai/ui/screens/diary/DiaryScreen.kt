@@ -108,7 +108,6 @@ fun DiaryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var editingItem by remember { mutableStateOf<Triple<String, MealLogItemDto, String>?>(null) }
-    var showCoach by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     
@@ -158,13 +157,8 @@ fun DiaryScreen(
                         navController.navigate(Screen.SearchFood(mealType = mealType, date = uiState.selectedDate))
                     },
                     onOpenItem = { mealLogId, item -> editingItem = Triple(mealLogId, item, item.servingUnit) },
-                    onDeleteItem = viewModel::deleteItem,
-                    onOpenCoach = { showCoach = true }
+                    onDeleteItem = viewModel::deleteItem
                 )
-            }
-
-            if (showCoach) {
-                CoachTipModal(onClose = { showCoach = false })
             }
 
         VitalSmallHeader(
@@ -233,8 +227,7 @@ private fun DiaryContent(
     onNextDate: () -> Unit,
     onAddMeal: (String) -> Unit,
     onOpenItem: (String, MealLogItemDto) -> Unit,
-    onDeleteItem: (String, String) -> Unit,
-    onOpenCoach: () -> Unit
+    onDeleteItem: (String, String) -> Unit
 ) {
     val mealTypes = listOf(
         MealSpec("breakfast", "Bữa sáng"),
@@ -302,12 +295,6 @@ private fun DiaryContent(
                         isLast = meal == mealTypes.last()
                     )
                 }
-            }
-        }
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(modifier = Modifier.padding(horizontal = 19.dp)) {
-                CoachNudgeCard(summary = summary, healthProfile = healthProfile, onClick = onOpenCoach)
             }
         }
     }
@@ -503,42 +490,7 @@ private fun CalorieProgressChart(consumed: Float, goal: Float) {
     }
 }
 
-@Composable
-private fun CoachNudgeCard(summary: MealLogSummaryDto?, healthProfile: HealthProfileDto?, onClick: () -> Unit) {
-    val proteinGoal = healthProfile?.proteinGoalG?.toFloat() ?: 140f
-    val proteinLeft = (proteinGoal - (summary?.totalProtein ?: 0f)).coerceAtLeast(0f).roundToInt()
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(FoodModule.CardRadius))
-            .background(FoodModule.Slate)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(FoodModule.Cream),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("AI", color = FoodModule.Forest, fontSize = 13.sp, fontFamily = VitalFontFamily)
-        }
-        Column(Modifier.weight(1f)) {
-            Text("Vital Coach có gợi ý", color = FoodModule.Forest, fontSize = 14.sp, fontFamily = VitalFontFamily)
-            Text(
-                text = "Bạn còn thiếu khoảng ${proteinLeft}g protein hôm nay ->",
-                color = FoodModule.Charcoal,
-                fontSize = 12.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontFamily = VitalFontFamily
-            )
-        }
-    }
-}
+
 
 @Composable
 private fun TimelineMealSection(
@@ -824,127 +776,4 @@ private fun SwipeToRevealStartRow(
     }
 }
 
-@Composable
-private fun CoachTipModal(onClose: () -> Unit) {
-    val tips = listOf(
-        CoachTip("Sữa chua Hy Lạp", "150g · khoảng 90 kcal · giàu protein", "Phù hợp cho bữa phụ khi cần tăng protein nhẹ."),
-        CoachTip("Ức gà áp chảo", "120g · khoảng 198 kcal · protein nạc", "Giúp cân bằng bữa tối mà không vượt nhiều calorie."),
-        CoachTip("Rau xanh", "60g · ít calorie", "Thêm chất xơ và vi chất cho đĩa ăn hôm nay.")
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(FoodModule.Forest.copy(alpha = 0.34f))
-            .padding(16.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = FoodModule.Cream)
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(FoodModule.Slate),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("AI", color = FoodModule.Forest, fontSize = 13.sp, fontFamily = VitalFontFamily)
-                        }
-                        Column {
-                            Text("Vital Coach", color = FoodModule.Forest, fontSize = 26.sp, lineHeight = 26.sp, fontFamily = VitalDisplayFontFamily)
-                            Text("Gợi ý cho hôm nay", color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
-                        }
-                    }
-                    RoundOutlineIconButton(size = 32.dp, onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Đóng", tint = FoodModule.Forest, modifier = Modifier.size(17.dp))
-                    }
-                }
-                Column(
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(FoodModule.CardRadius))
-                            .background(FoodModule.Slate)
-                            .padding(18.dp)
-                    ) {
-                        Text(
-                            text = "Bạn có thể ưu tiên protein nạc và thêm rau xanh để hoàn thiện bữa ăn trong ngày.",
-                            color = FoodModule.Charcoal,
-                            fontSize = 14.sp,
-                            lineHeight = 21.sp,
-                            fontFamily = VitalFontFamily
-                        )
-                    }
-                    Text("Đề xuất", color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
-                    tips.forEach { tip ->
-                        CoachTipRow(tip)
-                    }
-                    Text(
-                        text = "Gợi ý chỉ mang tính tham khảo, không thay thế tư vấn y tế.",
-                        color = FoodModule.Charcoal.copy(alpha = 0.7f),
-                        fontSize = 12.sp,
-                        lineHeight = 18.sp,
-                        fontFamily = VitalFontFamily,
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CoachTipRow(tip: CoachTip) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(FoodModule.CardRadius))
-            .border(1.dp, FoodModule.Border, RoundedCornerShape(FoodModule.CardRadius))
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FoodThumbFallback(name = tip.title, size = 44.dp, circle = true)
-            Column(Modifier.weight(1f)) {
-                Text(tip.title, color = FoodModule.Ink, fontSize = 15.sp, fontFamily = VitalFontFamily)
-                Text(tip.meta, color = FoodModule.Charcoal, fontSize = 12.sp, fontFamily = VitalFontFamily)
-            }
-            FoodPill(text = "Gợi ý", background = FoodModule.Keylime)
-        }
-        Text(tip.reason, color = FoodModule.Charcoal, fontSize = 13.sp, lineHeight = 19.sp, fontFamily = VitalFontFamily)
-        FoodPill(text = "An toàn hồ sơ", background = FoodModule.Mint, icon = Icons.Default.Check)
-    }
-}
-
-@Composable
-private fun RoundOutlineIconButton(size: androidx.compose.ui.unit.Dp = 34.dp, onClick: () -> Unit, content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(FoodModule.Cream)
-            .border(1.dp, FoodModule.Border, CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        content()
-    }
-}
-
 private data class MealSpec(val key: String, val label: String)
-private data class CoachTip(val title: String, val meta: String, val reason: String)

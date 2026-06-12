@@ -59,6 +59,7 @@ import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.BottomSheetGrabber
 import com.vitalai.ui.theme.VitalDisplayFontFamily
 import com.vitalai.ui.theme.VitalFontFamily
+import com.vitalai.ui.components.VitalButton
 import kotlin.math.roundToInt
 
 @Composable
@@ -425,7 +426,7 @@ private fun CustomFoodsEmpty(onCreateCustom: () -> Unit, modifier: Modifier = Mo
             fontFamily = VitalFontFamily
         )
         Spacer(Modifier.height(20.dp))
-        FoodPrimaryButton(text = "Tạo món mới", modifier = Modifier.width(180.dp), onClick = onCreateCustom)
+        VitalButton(text = "Tạo món mới", mint = true, modifier = Modifier.width(180.dp), onClick = onCreateCustom)
     }
 }
 
