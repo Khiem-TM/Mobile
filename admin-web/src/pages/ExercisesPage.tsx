@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Edit, Eye, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Download, Edit, Eye, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { z } from 'zod';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
@@ -66,6 +66,11 @@ export function ExercisesPage() {
   const [drawer, setDrawer] = useState<{ mode: 'create' | 'edit'; exercise?: Exercise } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Exercise | null>(null);
   const [formError, setFormError] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const [importStatus, setImportStatus] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const params = useMemo(() => compactParams({ page, limit: 20, ...filters }), [filters, page]);
   const exercisesQuery = useQuery({
@@ -107,6 +112,114 @@ export function ExercisesPage() {
     setFormError('');
     queryClient.invalidateQueries({ queryKey: ['exercises'] });
     queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+  }
+
+  async function exportTranslationCsv() {
+    setIsExporting(true);
+    setExportError('');
+    try {
+      const exercises: Exercise[] = [];
+      let exportPage = 1;
+      while (true) {
+        const response = await get<Paginated<Exercise>>('/admin/exercises', {
+          params: { page: exportPage, limit: 100 },
+        });
+        exercises.push(...getItems(response));
+        if (exercises.length >= response.total) break;
+        exportPage += 1;
+      }
+
+      const columns: Array<keyof Exercise> = [
+        'id',
+        'name',
+        'description',
+        'instructions',
+        'formTips',
+        'category',
+        'muscleGroup',
+        'secondaryMuscleGroups',
+        'equipment',
+        'targetMuscleGroup',
+      ];
+      const csv = [
+        columns.join(','),
+        ...exercises.map((exercise) =>
+          columns.map((column) => csvCell(exercise[column])).join(','),
+        ),
+      ].join('\r\n');
+      const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'exercises-translation.csv';
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setExportError((error as ApiErrorShape | null)?.message ?? 'Không thể xuất dữ liệu bài tập');
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function importTranslationCsv(file: File) {
+    setIsImporting(true);
+    setImportStatus('');
+    try {
+      const rows = parseTranslationCsv(await file.text());
+      const currentExercises = await fetchAllAdminExercises();
+      const currentById = new Map(currentExercises.map((exercise) => [exercise.id, exercise]));
+      const missingIds = rows.map((row) => row.id).filter((id) => !currentById.has(id));
+      const missingExercises = await Promise.all(
+        missingIds.map((id) => getAdminExerciseById(id)),
+      );
+      missingExercises.forEach((exercise) => currentById.set(exercise.id, exercise));
+      const changes = rows.flatMap((row) => {
+        const current = currentById.get(row.id);
+        if (!current) return [];
+        const payload: Partial<Exercise> = {};
+        for (const field of TRANSLATION_TEXT_FIELDS) {
+          if (row[field] !== String(current[field] ?? '')) payload[field] = row[field];
+        }
+        if (
+          JSON.stringify(row.secondaryMuscleGroups) !==
+          JSON.stringify(current.secondaryMuscleGroups ?? [])
+        ) {
+          payload.secondaryMuscleGroups = row.secondaryMuscleGroups;
+        }
+        return Object.keys(payload).length ? [{ id: row.id, payload }] : [];
+      });
+
+      if (!changes.length) {
+        setImportStatus('Không có nội dung nào thay đổi.');
+        return;
+      }
+      if (!window.confirm(`Cập nhật nội dung tiếng Việt cho ${changes.length} bài tập?`)) return;
+
+      for (const [index, change] of changes.entries()) {
+        setImportStatus(`Đang cập nhật ${index + 1}/${changes.length}...`);
+        await patch<Exercise>(`/admin/exercises/${change.id}`, change.payload);
+      }
+      setImportStatus(`Đã cập nhật ${changes.length} bài tập.`);
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+    } catch (error) {
+      setImportStatus((error as ApiErrorShape | null)?.message ?? 'Không thể nhập CSV dịch thuật');
+    } finally {
+      setIsImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  }
+
+  async function fetchAllAdminExercises(): Promise<Exercise[]> {
+    const exercises: Exercise[] = [];
+    let exportPage = 1;
+    while (true) {
+      const response = await get<Paginated<Exercise>>('/admin/exercises', {
+        params: { page: exportPage, limit: 100 },
+      });
+      exercises.push(...getItems(response));
+      if (exercises.length >= response.total) return exercises;
+      exportPage += 1;
+    }
   }
 
   function submitExerciseForm(formData: FormData) {
@@ -197,11 +310,42 @@ export function ExercisesPage() {
           <h1 className="page-title">Bài tập</h1>
           <p className="mt-1 text-sm text-muted">Quản lý bài tập SPORT, GYM, CARDIO và trạng thái hiển thị</p>
         </div>
-        <button className="btn-primary" onClick={() => setDrawer({ mode: 'create' })} type="button">
-          <Plus className="h-4 w-4" />
-          Thêm bài tập
-        </button>
+        <div className="flex gap-2">
+          <input
+            ref={importInputRef}
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importTranslationCsv(file);
+            }}
+            type="file"
+          />
+          <button className="btn-secondary" disabled={isImporting} onClick={() => importInputRef.current?.click()} type="button">
+            <Upload className="h-4 w-4" />
+            {isImporting ? 'Đang nhập...' : 'Nhập CSV dịch thuật'}
+          </button>
+          <button className="btn-secondary" disabled={isExporting} onClick={exportTranslationCsv} type="button">
+            <Download className="h-4 w-4" />
+            {isExporting ? 'Đang xuất...' : 'Xuất CSV dịch thuật'}
+          </button>
+          <button className="btn-primary" onClick={() => setDrawer({ mode: 'create' })} type="button">
+            <Plus className="h-4 w-4" />
+            Thêm bài tập
+          </button>
+        </div>
       </div>
+
+      {exportError ? (
+        <div className="rounded-md border border-danger/25 bg-danger-soft/40 px-3 py-2 text-sm font-semibold text-danger">
+          {exportError}
+        </div>
+      ) : null}
+      {importStatus ? (
+        <div className="rounded-md border border-border bg-surface-low px-3 py-2 text-sm font-semibold text-text">
+          {importStatus}
+        </div>
+      ) : null}
 
       <FilterBar
         actions={
@@ -282,6 +426,90 @@ export function ExercisesPage() {
       />
     </div>
   );
+}
+
+const TRANSLATION_TEXT_FIELDS = [
+  'name',
+  'description',
+  'instructions',
+  'formTips',
+  'category',
+  'muscleGroup',
+  'equipment',
+  'targetMuscleGroup',
+] as const;
+
+type TranslationRow = Record<(typeof TRANSLATION_TEXT_FIELDS)[number] | 'id', string> & {
+  secondaryMuscleGroups: string[];
+};
+
+function csvCell(value: unknown): string {
+  const text = Array.isArray(value) ? value.join(' | ') : String(value ?? '');
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
+function parseTranslationCsv(csv: string): TranslationRow[] {
+  const records: string[][] = [];
+  let record: string[] = [];
+  let cell = '';
+  let quoted = false;
+  const input = csv.replace(/^\uFEFF/, '');
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+    if (char === '"' && quoted && input[index + 1] === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === ',' && !quoted) {
+      record.push(cell);
+      cell = '';
+    } else if ((char === '\n' || char === '\r') && !quoted) {
+      if (char === '\r' && input[index + 1] === '\n') index += 1;
+      record.push(cell);
+      if (record.some(Boolean)) records.push(record);
+      record = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+  record.push(cell);
+  if (record.some(Boolean)) records.push(record);
+
+  const [headers, ...rows] = records;
+  const idIndex = headers?.indexOf('id') ?? -1;
+  const fieldIndexes = Object.fromEntries(
+    TRANSLATION_TEXT_FIELDS.map((field) => [field, headers?.indexOf(field) ?? -1]),
+  ) as Record<(typeof TRANSLATION_TEXT_FIELDS)[number], number>;
+  const secondaryMuscleGroupsIndex = headers?.indexOf('secondaryMuscleGroups') ?? -1;
+  if (
+    idIndex < 0 ||
+    secondaryMuscleGroupsIndex < 0 ||
+    Object.values(fieldIndexes).some((index) => index < 0)
+  ) {
+    throw new Error('CSV dịch thuật không đúng định dạng. Hãy xuất lại file mới trước khi nhập.');
+  }
+  const parsed = rows
+    .filter((row) => row[idIndex])
+    .map((row) => {
+      const textFields = Object.fromEntries(
+        TRANSLATION_TEXT_FIELDS.map((field) => [field, row[fieldIndexes[field]] ?? '']),
+      ) as Record<(typeof TRANSLATION_TEXT_FIELDS)[number], string>;
+      return {
+        id: row[idIndex],
+        ...textFields,
+        secondaryMuscleGroups: (row[secondaryMuscleGroupsIndex] ?? '')
+          .split('|')
+          .map((value) => value.trim())
+          .filter(Boolean),
+      };
+    });
+  if (new Set(parsed.map((row) => row.id)).size !== parsed.length) {
+    throw new Error('CSV chứa id bài tập bị trùng. Hãy xuất lại file trước khi nhập.');
+  }
+  return parsed;
 }
 
 function ExerciseFormFields({ exercise }: { exercise?: Exercise }) {
