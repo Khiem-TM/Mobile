@@ -17,6 +17,8 @@ data class BlogDetailUiState(
     val blog: BlogDto? = null,
     val comments: List<CommentDto> = emptyList(),
     val currentUserId: String? = null,
+    val currentUserAvatarUrl: String? = null,
+    val currentUserDisplayName: String? = null,
     val isLiked: Boolean = false,
     val isUpdatingLike: Boolean = false,
     val likeError: String? = null,
@@ -39,7 +41,13 @@ class BlogDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             userRepository.observeCurrentUser().collect { user ->
-                _uiState.update { it.copy(currentUserId = user?.id) }
+                _uiState.update {
+                    it.copy(
+                        currentUserId = user?.id,
+                        currentUserAvatarUrl = user?.avatarUrl,
+                        currentUserDisplayName = user?.displayName
+                    )
+                }
             }
         }
     }
