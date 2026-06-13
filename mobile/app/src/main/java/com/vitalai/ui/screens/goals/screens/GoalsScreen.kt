@@ -13,6 +13,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,9 +56,56 @@ private data class GoalTypeOption(val value: String, val label: String)
 
 private val goalTypeOptions = listOf(
     GoalTypeOption("lose_weight", "Giảm cân"),
-    GoalTypeOption("maintain", "Giữ cân"),
-    GoalTypeOption("gain_weight", "Tăng cân")
+    GoalTypeOption("gain_weight", "Tăng cân"),
+    GoalTypeOption("gain_muscle", "Tăng cơ"),
+    GoalTypeOption("improve_endurance", "Tăng sức bền"),
+    GoalTypeOption("bulking", "Xả cơ"),
+    GoalTypeOption("cutting", "Siết cơ"),
+    GoalTypeOption("maintain", "Giữ cân")
 )
+
+private val activityLevelOptions = listOf(
+    GoalTypeOption("sedentary", "Ít vận động"),
+    GoalTypeOption("lightly_active", "Vận động nhẹ"),
+    GoalTypeOption("moderately_active", "Vận động vừa"),
+    GoalTypeOption("very_active", "Vận động nhiều"),
+    GoalTypeOption("extra_active", "Vận động rất nhiều")
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun WrapSegmentedPills(
+    options: List<Pair<String, String>>,
+    selected: String,
+    onSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    selectedColor: Color = Ink900
+) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { (key, label) ->
+            val isSelected = selected == key
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(VitalRadius.Pill))
+                    .background(if (isSelected) selectedColor else com.vitalai.ui.theme.AppSurface2)
+                    .clickable { onSelected(key) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    label,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isSelected) Color.White else com.vitalai.ui.theme.Ink700
+                )
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +150,7 @@ fun GoalsScreen(
                     title = "Loại mục tiêu",
                     modifier = Modifier.padding(bottom = 12.dp, top = 8.dp)
                 )
-                SegmentedPills(
+                WrapSegmentedPills(
                     options = goalTypeOptions.map { Pair(it.value, it.label) },
                     selected = uiState.goalType,
                     onSelected = { viewModel.onGoalType(it) },
@@ -111,10 +160,30 @@ fun GoalsScreen(
 
                 Spacer(Modifier.height(28.dp))
                 SectionHeader(
+                    title = "Mức độ vận động",
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                WrapSegmentedPills(
+                    options = activityLevelOptions.map { Pair(it.value, it.label) },
+                    selected = uiState.activityLevel,
+                    onSelected = { viewModel.onActivityLevel(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    selectedColor = Mint500
+                )
+
+                Spacer(Modifier.height(28.dp))
+                SectionHeader(
                     title = "Dinh dưỡng hằng ngày",
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
-                GoalField("Calo mục tiêu (kcal)", uiState.dailyCaloriesGoal, viewModel::onDailyCalories)
+                val tdeeVal = uiState.tdee
+                val caloriesDisplay = tdeeVal?.let { "%.0f".format(it) } ?: uiState.dailyCaloriesGoal
+                GoalField(
+                    label = "Calo mục tiêu (kcal)",
+                    value = caloriesDisplay,
+                    onValueChange = {},
+                    readOnly = true
+                )
                 Spacer(Modifier.height(12.dp))
                 MacroSliderField("Protein", uiState.proteinGoalG, viewModel::onProtein, 1000f)
                 MacroSliderField("Carbs", uiState.carbsGoalG, viewModel::onCarbs, 1000f)

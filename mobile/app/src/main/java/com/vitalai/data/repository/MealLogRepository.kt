@@ -30,6 +30,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
@@ -44,6 +49,8 @@ class MealLogRepository @Inject constructor(
     private val moshi: Moshi,
     @ApplicationContext private val context: Context,
 ) {
+    private val repoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     // ── Live source-of-truth: UI observe Room, ghi vào Room là tự cập nhật ─────
 
     /** Dòng dữ liệu sống theo ngày (Room). Ghi optimistic vào Room sẽ tự phát lại. */
@@ -156,6 +163,28 @@ class MealLogRepository @Inject constructor(
             proteinG = food.proteinPer100g * f,
             fatG = food.fatPer100g * f
         )
+    }
+
+    fun addFoodToMealAsync(mealType: String, date: String, food: FoodDto, quantity: Float, servingUnit: String) {
+        repoScope.launch {
+            delay(200) // Wait for exit animation to complete
+            var mealLog = getCachedMealLog(date, mealType)
+            if (mealLog == null) {
+                mealLog = createMealLog(mealType, date).getOrNull() ?: return@launch
+            }
+            addItemOptimistic(mealLog.id, food, quantity, servingUnit)
+        }
+    }
+
+    fun addFoodIdToMealAsync(mealType: String, date: String, foodId: String, quantity: Float, servingUnit: String) {
+        repoScope.launch {
+            delay(200) // Wait for exit animation to complete
+            var mealLog = getCachedMealLog(date, mealType)
+            if (mealLog == null) {
+                mealLog = createMealLog(mealType, date).getOrNull() ?: return@launch
+            }
+            addItem(mealLog.id, AddMealItemRequest(foodId, quantity, servingUnit))
+        }
     }
 
     /**

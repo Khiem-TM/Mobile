@@ -254,12 +254,12 @@ internal fun PersonalInfoRow(label: String, value: String) {
 }
 
 @Composable
-internal fun EnergyBasicsCard(latest: BodyMetricDto) {
+internal fun EnergyBasicsCard(bmr: Float, tdee: Float) {
     com.vitalai.ui.components.VitalBorderCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Năng lượng cơ bản", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = ForestGreen)
-            latest.bmr?.let { PersonalInfoRow("BMR", "%.0f kcal/ngày".format(it)) }
-            latest.tdee?.let { PersonalInfoRow("TDEE", "%.0f kcal/ngày".format(it)) }
+            PersonalInfoRow("BMR", "%.0f kcal/ngày".format(bmr))
+            PersonalInfoRow("TDEE", "%.0f kcal/ngày".format(tdee))
         }
     }
 }

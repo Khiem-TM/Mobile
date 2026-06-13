@@ -130,10 +130,17 @@ fun MetricsScreen(
                 }
 
                 // 5. Energy basics
-                uiState.latest?.let { latest ->
-                    if (latest.bmr != null || latest.tdee != null) {
-                        item { EnergyBasicsCard(latest = latest) }
-                    }
+                val currentWeight = uiState.latest?.weightKg ?: uiState.healthProfile?.initialWeightKg
+                val height = uiState.healthProfile?.heightCm
+                val gender = uiState.healthProfile?.gender
+                val age = com.vitalai.ui.screens.metrics.calculateAge(uiState.healthProfile?.birthDate)
+                val activityLevel = uiState.healthProfile?.activityLevel ?: "moderately_active"
+                
+                val calculatedBmr = com.vitalai.ui.screens.metrics.calculateBmr(gender, currentWeight, height, age)
+                val calculatedTdee = com.vitalai.ui.screens.metrics.calculateTdee(calculatedBmr, activityLevel)
+                
+                if (calculatedBmr != null && calculatedTdee != null) {
+                    item { EnergyBasicsCard(bmr = calculatedBmr, tdee = calculatedTdee) }
                 }
 
                 // 6. Body measurements card

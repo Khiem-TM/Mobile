@@ -109,7 +109,7 @@ fun ExerciseLibraryScreenContent(
 
     TrainScreen {
         Column(Modifier.fillMaxSize()) {
-            TrainHeader(title = "Thư viện bài tập", large = true, onBack = onBackClick)
+            com.vitalai.ui.components.VitalScreenHeader(title = "Thư viện bài tập", onBackClick = onBackClick)
 
             Column(
                 modifier = Modifier

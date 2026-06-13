@@ -41,6 +41,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -80,20 +90,38 @@ fun SearchFoodScreen(
             }
         )
     }
+    var isVisible by remember { mutableStateOf(false) }
+    var isDismissing by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val canQuickAdd = mealType.isNotBlank() && date.isNotBlank()
 
+    val closeSheet = {
+        if (!isDismissing) {
+            isDismissing = true
+            isVisible = false
+        }
+    }
+
     LaunchedEffect(Unit) {
+        isVisible = true
+        kotlinx.coroutines.delay(200) // Chờ animation enter hoàn tất
         viewModel.loadAllFoods()
         viewModel.loadCustomFoods()
         viewModel.loadExploreFoods()
         viewModel.loadFavorites()
     }
 
+    LaunchedEffect(isVisible) {
+        if (!isVisible && isDismissing) {
+            kotlinx.coroutines.delay(200)
+            navController.popBackStack()
+        }
+    }
+
     LaunchedEffect(uiState.addSuccess) {
         if (uiState.addSuccess) {
             viewModel.clearAddSuccess()
-            navController.popBackStack()
+            closeSheet()
         }
     }
 
@@ -104,39 +132,59 @@ fun SearchFoodScreen(
         }
     }
 
+    BackHandler(enabled = isVisible && !isDismissing) {
+        closeSheet()
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = FoodModule.Forest.copy(alpha = 0.28f)
+        containerColor = androidx.compose.ui.graphics.Color.Transparent
     ) { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .background(FoodModule.Forest.copy(alpha = 0.28f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { navController.popBackStack() }
-                ),
+                .padding(padding),
             contentAlignment = Alignment.BottomCenter
         ) {
-            SearchBottomSheet(
-                uiState = uiState,
-                selectedTab = selectedTab,
-                onTabChange = {
-                    selectedTab = it
-                    viewModel.search("")
-                },
-                onQueryChange = viewModel::search,
-                canQuickAdd = canQuickAdd,
-                mealType = mealType,
-                onClose = { navController.popBackStack() },
-                onScan = { navController.navigate(Screen.Scan) },
-                onCreateCustom = { navController.navigate(Screen.CreateFood) },
-                onFoodClick = { food ->
-                    navController.navigate(Screen.FoodDetail(id = food.id, mealType = mealType, date = date))
-                },
-                onQuickAdd = { food ->
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = fadeIn(tween(200)),
+                exit = fadeOut(tween(200))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(FoodModule.Forest.copy(alpha = 0.4f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = closeSheet
+                        )
+                )
+            }
+            
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(200)),
+                exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(200))
+            ) {
+                SearchBottomSheet(
+                    uiState = uiState,
+                    selectedTab = selectedTab,
+                    onTabChange = {
+                        selectedTab = it
+                        viewModel.search("")
+                    },
+                    onQueryChange = viewModel::search,
+                    canQuickAdd = canQuickAdd,
+                    mealType = mealType,
+                    onClose = closeSheet,
+                    onScan = { navController.navigate(Screen.Scan) },
+                    onCreateCustom = { navController.navigate(Screen.CreateFood) },
+                    onFoodClick = { food ->
+                        navController.navigate(Screen.FoodDetail(id = food.id, mealType = mealType, date = date))
+                    },
+                    onQuickAdd = { food ->
                     if (canQuickAdd) viewModel.addToMealLog(mealType, date, food.id, 1f, "phần")
                     else navController.navigate(Screen.FoodDetail(id = food.id))
                 },
@@ -146,6 +194,7 @@ fun SearchFoodScreen(
                     onClick = {}
                 )
             )
+            }
         }
     }
 }

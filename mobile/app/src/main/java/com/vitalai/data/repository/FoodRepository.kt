@@ -21,11 +21,29 @@ class FoodRepository @Inject constructor(
     private val foodApi: FoodApi,
     private val foodCacheDao: FoodCacheDao
 ) {
+    private var cachedAllFoods: List<FoodDto>? = null
+    private var cachedExploreFoods: List<FoodDto>? = null
+    private var cachedAllFoodsTimestamp: Long = 0
+    private var cachedExploreFoodsTimestamp: Long = 0
+    private val cacheDuration = 5 * 60 * 1000 // 5 minutes
+
     suspend fun searchFoods(query: String, page: Int = 1, limit: Int = 20): Result<FoodPageDto> {
+        if (query.isEmpty() && page == 1) {
+            if (cachedAllFoods != null && System.currentTimeMillis() - cachedAllFoodsTimestamp < cacheDuration) {
+                return Result.success(FoodPageDto(items = cachedAllFoods!!, total = cachedAllFoods!!.size, page = page, limit = limit))
+            }
+        }
+
         return try {
             val response = foodApi.getFoods(search = query, page = page, limit = limit)
             val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
+            if (response.isSuccessful && body != null) {
+                if (query.isEmpty() && page == 1) {
+                    cachedAllFoods = body.items
+                    cachedAllFoodsTimestamp = System.currentTimeMillis()
+                }
+                Result.success(body)
+            }
             else Result.failure(Exception("Lỗi tìm kiếm (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)
@@ -33,10 +51,22 @@ class FoodRepository @Inject constructor(
     }
 
     suspend fun exploreFoods(page: Int = 1, limit: Int = 20, category: String? = null): Result<FoodPageDto> {
+        if (page == 1 && category == null) {
+            if (cachedExploreFoods != null && System.currentTimeMillis() - cachedExploreFoodsTimestamp < cacheDuration) {
+                return Result.success(FoodPageDto(items = cachedExploreFoods!!, total = cachedExploreFoods!!.size, page = page, limit = limit))
+            }
+        }
+
         return try {
             val response = foodApi.exploreFoods(page, limit, category)
             val body = response.body()?.data
-            if (response.isSuccessful && body != null) Result.success(body)
+            if (response.isSuccessful && body != null) {
+                if (page == 1 && category == null) {
+                    cachedExploreFoods = body.items
+                    cachedExploreFoodsTimestamp = System.currentTimeMillis()
+                }
+                Result.success(body)
+            }
             else Result.failure(Exception("Lỗi tải món khám phá (${response.code()})"))
         } catch (e: Exception) {
             Result.failure(e)

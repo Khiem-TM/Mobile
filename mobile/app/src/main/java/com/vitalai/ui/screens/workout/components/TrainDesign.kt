@@ -43,20 +43,20 @@ import com.vitalai.ui.theme.VitalDisplayFontFamily
 import kotlin.math.max
 
 object TrainColors {
-    val Forest = Color(0xFF0F3E17)
-    val Cream = Color(0xFFFFFEFC)
-    val MintGlaze = Color(0xFFB1DBB8)
-    val SlateMist = Color(0xFFB6CED5)
-    val KeylimeWash = Color(0xFFE1F4DF)
-    val MintKiss = Color(0xFFCFE7D3)
-    val Border = Color(0xFFE5E7EB)
-    val Ink = Color(0xFF222222)
-    val Charcoal = Color(0xFF333333)
+    val Forest = com.vitalai.ui.theme.ForestGreen
+    val Cream = com.vitalai.ui.theme.AppSurface
+    val MintGlaze = com.vitalai.ui.theme.Mint100
+    val SlateMist = com.vitalai.ui.theme.SlateMist
+    val KeylimeWash = com.vitalai.ui.theme.Mint50
+    val MintKiss = com.vitalai.ui.theme.MintKiss
+    val Border = com.vitalai.ui.theme.AppLine
+    val Ink = com.vitalai.ui.theme.InkText
+    val Charcoal = com.vitalai.ui.theme.DarkCharcoal
     val Sport = Color(0xFFB8651F)
     val SportBg = Color(0xFFF4E3D2)
     val Cardio = Color(0xFFA83228)
     val CardioBg = Color(0xFFF3DDD8)
-    val GymBg = Color(0xFFD7ECD9)
+    val GymBg = com.vitalai.ui.theme.Mint50
 }
 
 val TrainCardRadius = 14.dp

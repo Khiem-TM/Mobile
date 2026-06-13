@@ -5,18 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -77,6 +66,7 @@ import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.Mint600
 import com.vitalai.ui.theme.VitalAITheme
 import com.vitalai.ui.theme.VitalRadius
+import com.vitalai.ui.theme.ForestGreen
 
 @Composable
 fun SignUpScreen(
@@ -196,7 +186,7 @@ private fun SignUpContent(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp)
-                .padding(top = 60.dp, bottom = 28.dp)
+                .padding(top = 60.dp, bottom = 44.dp)
         ) {
             VitalIconButton(onClick = onBackClick) {
                 Icon(
@@ -302,7 +292,7 @@ private fun SignUpContent(
 
             Button(
                 onClick = onSignUpClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Ink900),
+                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
                 shape = RoundedCornerShape(100),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                 modifier = Modifier.fillMaxWidth(),

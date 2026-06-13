@@ -107,14 +107,15 @@ fun WorkoutBuilderScreenContent(
 
     TrainScreen {
         Column(Modifier.fillMaxSize()) {
-            TrainHeader(
+            com.vitalai.ui.components.VitalScreenHeader(
                 title = "Buổi tập $dateFormatted",
-                onBack = onBackClick,
-                right = {
+                onBackClick = onBackClick,
+                actions = {
                     TrainRoundIconButton(
                         icon = Icons.Default.Delete,
                         contentDescription = "Xóa",
-                        onClick = onBackClick
+                        onClick = onBackClick,
+                        modifier = Modifier.padding(end = 14.dp)
                     )
                 }
             )
