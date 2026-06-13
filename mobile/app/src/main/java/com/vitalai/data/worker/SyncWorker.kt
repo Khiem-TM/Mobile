@@ -33,25 +33,27 @@ class SyncWorker @AssistedInject constructor(
     )
 
     override suspend fun doWork(): Result {
-        val actions = pendingSyncActionDao.getAll()
-        if (actions.isEmpty()) return Result.success()
+        while (true) {
+            val actions = pendingSyncActionDao.getAll()
+            if (actions.isEmpty()) return Result.success()
 
-        var anyFailed = false
-        for (action in actions) {
-            val ok = try {
-                dispatchAction(action)
-            } catch (e: Exception) {
-                false
+            var anyFailed = false
+            for (action in actions) {
+                val ok = try {
+                    dispatchAction(action)
+                } catch (e: Exception) {
+                    false
+                }
+                if (ok) {
+                    pendingSyncActionDao.delete(action)
+                } else {
+                    val updated = action.copy(retryCount = action.retryCount + 1)
+                    pendingSyncActionDao.update(updated)
+                    anyFailed = true
+                }
             }
-            if (ok) {
-                pendingSyncActionDao.delete(action)
-            } else {
-                val updated = action.copy(retryCount = action.retryCount + 1)
-                pendingSyncActionDao.update(updated)
-                anyFailed = true
-            }
+            if (anyFailed) return Result.retry()
         }
-        return if (anyFailed) Result.retry() else Result.success()
     }
 
     private suspend fun dispatchAction(action: PendingSyncActionEntity): Boolean {

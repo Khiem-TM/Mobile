@@ -188,7 +188,7 @@ fun ExerciseLibraryScreenContent(
             }
 
             when {
-                uiState.isLoading -> LoadingState(modifier = Modifier.weight(1f))
+                uiState.isInitialLoading -> LoadingState(modifier = Modifier.weight(1f))
                 uiState.error != null -> EmptyState(message = uiState.error)
                 list.isEmpty() -> EmptyState(message = "Không tìm thấy bài tập phù hợp")
                 else -> LazyColumn(

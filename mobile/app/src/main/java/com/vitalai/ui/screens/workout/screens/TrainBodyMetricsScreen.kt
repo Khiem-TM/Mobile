@@ -115,7 +115,7 @@ private fun TrainBodyMetricsContent(
             )
 
             when {
-                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                uiState.isInitialLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = TrainColors.Forest)
                 }
                 uiState.latest == null -> EmptyBodyMetricsState(

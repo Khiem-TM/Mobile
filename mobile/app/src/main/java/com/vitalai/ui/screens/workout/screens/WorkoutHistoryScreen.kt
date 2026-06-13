@@ -53,8 +53,8 @@ fun WorkoutHistoryScreen(
                 onBack = { navController.popBackStack() }
             )
             when {
-                uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
-                uiState.error != null -> ErrorState(
+                uiState.isInitialLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+                uiState.error != null && uiState.sessions.isEmpty() -> ErrorState(
                     message = uiState.error.orEmpty(),
                     onRetry = viewModel::loadData,
                     modifier = Modifier.fillMaxSize()

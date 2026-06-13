@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 data class WorkoutSessionUiState(
     val session: WorkoutSessionDto? = null,
     val isLoading: Boolean = true,
+    val isInitialLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 )
 
@@ -29,6 +31,7 @@ class WorkoutSessionViewModel @Inject constructor(
     private var sessionId: String = ""
     private var sessionDate: String = ""
     private var observeJob: Job? = null
+    private var refreshJob: Job? = null
 
     fun load(id: String, date: String) {
         sessionId = id
@@ -39,14 +42,41 @@ class WorkoutSessionViewModel @Inject constructor(
 
     fun reload() {
         if (sessionId.isBlank() || sessionDate.isBlank()) {
-            _uiState.update { it.copy(isLoading = false, error = "Không tìm thấy buổi tập") }
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    isInitialLoading = false,
+                    isRefreshing = false,
+                    error = "Không tìm thấy buổi tập"
+                )
+            }
             return
         }
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            _uiState.update {
+                val initial = it.session == null
+                it.copy(
+                    isRefreshing = true,
+                    isInitialLoading = initial,
+                    isLoading = initial,
+                    error = null
+                )
+            }
             runCatching { trainingRepository.refreshSessions(sessionDate, sessionDate) }
-                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
-            _uiState.update { it.copy(isLoading = false) }
+                .onFailure { e ->
+                    _uiState.update { state ->
+                        state.copy(error = e.message.takeIf { state.session == null })
+                    }
+                }
+            _uiState.update {
+                it.copy(
+                    isRefreshing = false,
+                    isInitialLoading = false,
+                    isLoading = false,
+                    error = it.error ?: if (it.session == null) "Không tìm thấy buổi tập" else null
+                )
+            }
         }
     }
 
@@ -56,10 +86,12 @@ class WorkoutSessionViewModel @Inject constructor(
             trainingRepository.observeSessionsByDate(sessionDate).collect { sessions ->
                 val match = sessions.firstOrNull { it.id == sessionId }
                 _uiState.update {
+                    val initial = match == null && it.isRefreshing
                     it.copy(
                         session = match,
-                        isLoading = false,
-                        error = if (match == null) "Không tìm thấy buổi tập" else null
+                        isInitialLoading = initial,
+                        isLoading = initial,
+                        error = if (match == null && !it.isRefreshing) "Không tìm thấy buổi tập" else null
                     )
                 }
             }

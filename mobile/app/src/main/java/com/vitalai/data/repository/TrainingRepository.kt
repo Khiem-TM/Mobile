@@ -13,9 +13,6 @@ import com.vitalai.data.mapper.toEntity
 import com.vitalai.data.remote.TrainingApi
 import com.vitalai.data.remote.UpdateStepsRequest
 import com.vitalai.data.remote.UpdateWaterRequest
-import com.vitalai.data.remote.UpdateSleepRequest
-import com.vitalai.data.remote.UpdateMoodRequest
-import com.vitalai.data.remote.UpdateNoteRequest
 import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.remote.model.AddExerciseRequest
 import com.vitalai.data.remote.model.CreateWorkoutSessionDto
@@ -68,6 +65,33 @@ class TrainingRepository @Inject constructor(
         syncScheduler.requestSync()
     }
 
+    suspend fun enqueueSleep(sleepHours: Float, logDate: String = LocalDate.now().toString()) {
+        val type = "UPDATE_SLEEP:$logDate"
+        pendingSyncActionDao.deleteByActionType(type)
+        pendingSyncActionDao.insert(PendingSyncActionEntity(actionType = type, payload = sleepHours.toString()))
+        val current = activityLogDao.getByDate(logDate)?.toDto() ?: ActivityLogDto(logDate = logDate)
+        activityLogDao.upsert(current.copy(sleepHours = sleepHours).toEntity())
+        syncScheduler.requestSync()
+    }
+
+    suspend fun enqueueMood(mood: String, logDate: String = LocalDate.now().toString()) {
+        val type = "UPDATE_MOOD:$logDate"
+        pendingSyncActionDao.deleteByActionType(type)
+        pendingSyncActionDao.insert(PendingSyncActionEntity(actionType = type, payload = mood))
+        val current = activityLogDao.getByDate(logDate)?.toDto() ?: ActivityLogDto(logDate = logDate)
+        activityLogDao.upsert(current.copy(mood = mood).toEntity())
+        syncScheduler.requestSync()
+    }
+
+    suspend fun enqueueNote(note: String, logDate: String = LocalDate.now().toString()) {
+        val type = "UPDATE_NOTE:$logDate"
+        pendingSyncActionDao.deleteByActionType(type)
+        pendingSyncActionDao.insert(PendingSyncActionEntity(actionType = type, payload = note))
+        val current = activityLogDao.getByDate(logDate)?.toDto() ?: ActivityLogDto(logDate = logDate)
+        activityLogDao.upsert(current.copy(note = note).toEntity())
+        syncScheduler.requestSync()
+    }
+
     /** Giá trị nước/bước người dùng vừa đổi nhưng CHƯA đồng bộ (giữ qua restart). */
     suspend fun pendingWater(date: String): Int? =
         pendingSyncActionDao.getByActionType("UPDATE_WATER:$date")?.payload?.toIntOrNull()
@@ -75,12 +99,39 @@ class TrainingRepository @Inject constructor(
     suspend fun pendingSteps(date: String): Int? =
         pendingSyncActionDao.getByActionType("UPDATE_STEPS:$date")?.payload?.toIntOrNull()
 
+    private suspend fun pendingSleep(date: String): Float? =
+        pendingSyncActionDao.getByActionType("UPDATE_SLEEP:$date")?.payload?.toFloatOrNull()
+
+    private suspend fun pendingMood(date: String): String? =
+        pendingSyncActionDao.getByActionType("UPDATE_MOOD:$date")?.payload
+
+    private suspend fun pendingNote(date: String): String? =
+        pendingSyncActionDao.getByActionType("UPDATE_NOTE:$date")?.payload
+
     /** Ghi đè field nóng bằng giá trị optimistic còn chờ đồng bộ (chống "snap back"). */
     private suspend fun applyPendingOverride(dto: ActivityLogDto, date: String): ActivityLogDto =
         dto.copy(
             waterMl = pendingWater(date) ?: dto.waterMl,
-            steps = pendingSteps(date) ?: dto.steps
+            steps = pendingSteps(date) ?: dto.steps,
+            sleepHours = pendingSleep(date) ?: dto.sleepHours,
+            mood = pendingMood(date) ?: dto.mood,
+            note = pendingNote(date) ?: dto.note
         )
+
+    private suspend fun enrichActivityLog(dto: ActivityLogDto, date: String): ActivityLogDto {
+        val sessions = workoutSessionDao.getByDate(date).map { it.toDto(moshi) }
+        val workoutCalories = sessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
+        val workoutMinutes = sessions.sumOf { it.totalDurationMinutes }
+        val manualCalories = sharedPrefs.getFloat("manual_calories_$date", 0f)
+        val manualMinutes = sharedPrefs.getInt("manual_minutes_$date", 0)
+        return applyPendingOverride(
+            dto.copy(
+                caloriesBurned = workoutCalories + manualCalories,
+                activeMinutes = workoutMinutes + manualMinutes
+            ),
+            date
+        )
+    }
 
     fun observeSessionsBetween(from: String, to: String): Flow<List<WorkoutSessionDto>> =
         workoutSessionDao.observeBetween(from, to).map { list -> list.map { it.toDto(moshi) } }
@@ -344,17 +395,7 @@ class TrainingRepository @Inject constructor(
         pendingSyncActionDao.insert(PendingSyncActionEntity(actionType = actionType, payload = payload))
         syncScheduler.requestSync()
 
-        return try {
-            if (pushPendingSession(request)) {
-                pendingSyncActionDao.deleteByActionType(actionType)
-                val saved = workoutSessionDao.getByDate(date).firstOrNull()?.toDto(moshi)
-                Result.success(saved ?: optimistic)
-            } else {
-                Result.success(optimistic)
-            }
-        } catch (e: Exception) {
-            Result.success(optimistic)
-        }
+        return Result.success(optimistic)
     }
 
     /** Đẩy buổi tập lên server (create hoặc merge-409) rồi reconcile cache theo NGÀY:
@@ -370,6 +411,7 @@ class TrainingRepository @Inject constructor(
      *  resolve tên bài + ước lượng calo từ ExerciseDto đã cache. */
     private suspend fun buildOptimisticDetails(details: List<WorkoutDetailDto>): List<SessionExerciseDto> {
         val ids = details.map { it.exerciseId }.distinct()
+        if (ids.isEmpty()) return emptyList()
         val exMap = exerciseDao.getByIds(ids).associate { it.id to it.toDto() }
         return details.mapIndexed { i, d ->
             val ex = exMap[d.exerciseId]
@@ -479,20 +521,7 @@ class TrainingRepository @Inject constructor(
             val response = trainingApi.getActivityLog(date)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
-                // Fetch daily workout sessions to sum workout calories and duration
-                val sessionsResponse = trainingApi.getSessionsByDate(date)
-                val sessions = sessionsResponse.body()?.data ?: emptyList()
-                val workoutCalories = sessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
-                val workoutMinutes = sessions.sumOf { it.totalDurationMinutes }
-
-                // Fetch local manual calories and minutes
-                val manualCalories = sharedPrefs.getFloat("manual_calories_$date", 0f)
-                val manualMinutes = sharedPrefs.getInt("manual_minutes_$date", 0)
-
-                val augmented = applyPendingOverride(body.copy(
-                    caloriesBurned = workoutCalories + manualCalories,
-                    activeMinutes = workoutMinutes + manualMinutes
-                ), date)
+                val augmented = enrichActivityLog(body, date)
                 activityLogDao.upsert(augmented.toEntity())
                 Result.success(augmented)
             } else {
@@ -571,14 +600,27 @@ class TrainingRepository @Inject constructor(
                 val existing = logsByDate[date] ?: ActivityLogDto(logDate = date)
                 val pendingW = pendingWater(date)
                 val pendingS = pendingSteps(date)
-                if (pendingW != null || pendingS != null || logsByDate.containsKey(date)) {
+                val pendingSleep = pendingSleep(date)
+                val pendingMood = pendingMood(date)
+                val pendingNote = pendingNote(date)
+                if (
+                    pendingW != null ||
+                    pendingS != null ||
+                    pendingSleep != null ||
+                    pendingMood != null ||
+                    pendingNote != null ||
+                    logsByDate.containsKey(date)
+                ) {
                     logsByDate[date] = existing.copy(
                         waterMl = pendingW ?: existing.waterMl,
-                        steps = pendingS ?: existing.steps
+                        steps = pendingS ?: existing.steps,
+                        sleepHours = pendingSleep ?: existing.sleepHours,
+                        mood = pendingMood ?: existing.mood,
+                        note = pendingNote ?: existing.note
                     )
                 }
             }
-            val logs = logsByDate.values.toList()
+            val logs = logsByDate.values.map { enrichActivityLog(it, it.logDate) }
             activityLogDao.upsertAll(logs.map { it.toEntity() })
             Result.success(logs)
         } catch (e: Exception) {
@@ -588,13 +630,8 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateSleep(sleepHours: Float, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateSleep(UpdateSleepRequest(logDate, sleepHours))
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) {
-                activityLogDao.upsert(body.toEntity())
-                Result.success(body)
-            }
-            else Result.failure(Exception("Lỗi cập nhật giấc ngủ (${response.code()})"))
+            enqueueSleep(sleepHours, logDate)
+            Result.success(activityLogDao.getByDate(logDate)?.toDto() ?: ActivityLogDto(logDate = logDate, sleepHours = sleepHours))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -602,13 +639,8 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateMood(mood: String, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateMood(UpdateMoodRequest(logDate, mood))
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) {
-                activityLogDao.upsert(body.toEntity())
-                Result.success(body)
-            }
-            else Result.failure(Exception("Lỗi cập nhật tâm trạng (${response.code()})"))
+            enqueueMood(mood, logDate)
+            Result.success(activityLogDao.getByDate(logDate)?.toDto() ?: ActivityLogDto(logDate = logDate, mood = mood))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -616,23 +648,19 @@ class TrainingRepository @Inject constructor(
 
     suspend fun updateNote(note: String, logDate: String = LocalDate.now().toString()): Result<ActivityLogDto> {
         return try {
-            val response = trainingApi.updateNote(UpdateNoteRequest(logDate, note))
-            val body = response.body()?.data
-            if (response.isSuccessful && body != null) {
-                activityLogDao.upsert(body.toEntity())
-                Result.success(body)
-            }
-            else Result.failure(Exception("Lỗi cập nhật ghi chú (${response.code()})"))
+            enqueueNote(note, logDate)
+            Result.success(activityLogDao.getByDate(logDate)?.toDto() ?: ActivityLogDto(logDate = logDate, note = note))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    @Suppress("UNUSED_PARAMETER")
     suspend fun updateCaloriesBurned(
         caloriesBurned: Float,
         activeMinutes: Int,
         logDate: String = LocalDate.now().toString(),
-        exerciseNotes: String? = null
+        _exerciseNotes: String? = null
     ): Result<ActivityLogDto> {
         return try {
             // Save manual inputs to local SharedPreferences
@@ -641,20 +669,8 @@ class TrainingRepository @Inject constructor(
                 .putInt("manual_minutes_$logDate", activeMinutes)
                 .apply()
 
-            // Fetch daily activity log from backend to get steps and water
-            val logResponse = trainingApi.getActivityLog(logDate)
-            val log = logResponse.body()?.data ?: ActivityLogDto(logDate = logDate)
-
-            // Fetch training sessions to sum workout calories and duration
-            val sessionsResponse = trainingApi.getSessionsByDate(logDate)
-            val sessions = sessionsResponse.body()?.data ?: emptyList()
-            val workoutCalories = sessions.sumOf { it.totalCaloriesBurned.toDouble() }.toFloat()
-            val workoutMinutes = sessions.sumOf { it.totalDurationMinutes }
-
-            val updated = log.copy(
-                caloriesBurned = workoutCalories + caloriesBurned,
-                activeMinutes = workoutMinutes + activeMinutes
-            )
+            val current = activityLogDao.getByDate(logDate)?.toDto() ?: ActivityLogDto(logDate = logDate)
+            val updated = enrichActivityLog(current, logDate)
             activityLogDao.upsert(updated.toEntity())
             Result.success(updated)
         } catch (e: Exception) {

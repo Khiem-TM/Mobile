@@ -125,7 +125,7 @@ fun ActivityScreenContent(
         },
         containerColor = AppSurface
     ) { padding ->
-        if (uiState.isLoading) {
+        if (uiState.isInitialLoading) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Mint500)
             }

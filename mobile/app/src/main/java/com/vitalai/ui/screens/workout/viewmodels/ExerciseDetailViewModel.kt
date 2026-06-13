@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.vitalai.data.remote.model.AddExerciseRequest
 import com.vitalai.data.remote.model.CreateWorkoutSessionDto
 import com.vitalai.data.remote.model.ExerciseDto
-import com.vitalai.data.remote.model.WorkoutSessionDto
+import com.vitalai.data.remote.model.WorkoutDetailDto
 import com.vitalai.data.repository.TrainingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,31 +85,38 @@ class ExerciseDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isSaving = true, error = null, saveSuccess = false)
             val today = LocalDate.now().toString()
-            // Check if session exists today
-            val sessionsResult = repo.getSessions(date = today)
-            val sessions = sessionsResult.getOrDefault(emptyList())
-            val sessionId = if (sessions.isNotEmpty()) {
-                sessions.first().id
-            } else {
-                // Create new session for today
-                val createResult = repo.createSession(
-                    CreateWorkoutSessionDto(sessionDate = today, sessionName = null, details = emptyList())
+            val addResult = repo.enqueueSession(
+                CreateWorkoutSessionDto(
+                    sessionDate = today,
+                    sessionName = null,
+                    details = listOf(
+                        WorkoutDetailDto(
+                            exerciseId = request.exerciseId,
+                            durationMinutes = request.durationMinutes,
+                            sets = request.sets,
+                            repsPerSet = request.repsPerSet,
+                            weightKg = request.weightKg,
+                            orderIndex = request.orderIndex,
+                            exerciseType = request.exerciseType,
+                            intensityLevel = request.intensityLevel,
+                            distanceKm = request.distanceKm,
+                            avgSpeedKmh = request.avgSpeedKmh,
+                            restTimeSeconds = request.restTimeSeconds
+                        )
+                    )
                 )
-                createResult.getOrNull()?.id
-            }
-            if (sessionId == null) {
-                _uiState.value = _uiState.value.copy(isSaving = false, error = "Không thể tạo buổi tập")
-                return@launch
-            }
-            val addResult = repo.addExercise(sessionId, request)
-            if (addResult.isSuccess) {
-                _uiState.value = _uiState.value.copy(isSaving = false, saveSuccess = true)
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isSaving = false,
-                    error = addResult.exceptionOrNull()?.message ?: "Lỗi thêm bài tập"
-                )
-            }
+            )
+            addResult.fold(
+                onSuccess = {
+                    _uiState.value = _uiState.value.copy(isSaving = false, saveSuccess = true)
+                },
+                onFailure = { e ->
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        error = e.message ?: "Lỗi thêm bài tập"
+                    )
+                }
+            )
         }
     }
 

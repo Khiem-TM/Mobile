@@ -53,7 +53,7 @@ fun WorkoutSessionScreen(
             )
 
             when {
-                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                uiState.isInitialLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = TrainColors.Forest)
                 }
                 uiState.session == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

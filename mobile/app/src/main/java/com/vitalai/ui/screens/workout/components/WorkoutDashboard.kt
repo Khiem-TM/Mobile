@@ -36,8 +36,8 @@ fun WorkoutDashboard(
 ) {
     TrainScreen {
         when {
-            uiState.isLoading -> LoadingState(modifier = Modifier.fillMaxSize())
-            uiState.error != null -> ErrorState(
+            uiState.isInitialLoading -> LoadingState(modifier = Modifier.fillMaxSize())
+            uiState.error != null && !uiState.hasVisibleContent -> ErrorState(
                 message = uiState.error,
                 onRetry = onRetry,
                 modifier = Modifier.fillMaxSize()

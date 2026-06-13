@@ -6,14 +6,15 @@ import com.vitalai.data.remote.model.ActivityLogDto
 import com.vitalai.data.repository.TrainingRepository
 import com.vitalai.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 data class ActivityUiState(
@@ -23,10 +24,13 @@ data class ActivityUiState(
     val waterGoalMl: Int = 2500,
     val stepGoal: Int = 10000,
     val isLoading: Boolean = false,
+    val isInitialLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 )
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class ActivityViewModel @Inject constructor(
     private val trainingRepository: TrainingRepository,
     private val userRepository: UserRepository
@@ -35,53 +39,91 @@ class ActivityViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     private var noteSaveJob: Job? = null
+    private var refreshJob: Job? = null
+    private val selectedDateFlow = MutableStateFlow(LocalDate.now().toString())
 
-    init { loadAll() }
-
-    private fun loadAll() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val today = _uiState.value.selectedDate
-            val logDeferred = async { trainingRepository.getActivityLog(today) }
-            val profileDeferred = async { userRepository.getHealthProfile() }
-            val logResult = logDeferred.await()
-            val profile = profileDeferred.await().getOrNull()
-
-            logResult.onSuccess { log ->
-                _uiState.update {
-                    it.copy(
-                        log = log,
-                        waterGoalMl = profile?.waterGoalMl ?: it.waterGoalMl,
-                        stepGoal = profile?.stepGoal ?: it.stepGoal,
-                        isLoading = false
-                    )
-                }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message, isLoading = false) }
-            }
-            launch { loadWeeklyLogs() }
-        }
+    init {
+        observeRoomFlows()
+        refreshSelectedDate()
     }
 
-    private suspend fun loadWeeklyLogs() {
-        val anchor = runCatching { LocalDate.parse(_uiState.value.selectedDate) }.getOrDefault(LocalDate.now())
-        val toDate = anchor.toString()
-        val fromDate = anchor.minusDays(6).toString()
-        trainingRepository.getActivityLogRange(fromDate, toDate).onSuccess { logs ->
-            _uiState.update { it.copy(weeklyLogs = logs) }
+    private fun observeRoomFlows() {
+        viewModelScope.launch {
+            selectedDateFlow.flatMapLatest { date ->
+                trainingRepository.observeActivityLog(date)
+            }.collect { log ->
+                _uiState.update {
+                    val initial = log == null && it.isRefreshing
+                    it.copy(
+                        selectedDate = selectedDateFlow.value,
+                        log = log,
+                        isInitialLoading = initial,
+                        isLoading = initial,
+                        error = if (log != null) null else it.error
+                    )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            selectedDateFlow.flatMapLatest { date ->
+                val anchor = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())
+                trainingRepository.observeActivityLogsBetween(anchor.minusDays(6).toString(), anchor.toString())
+            }.collect { logs ->
+                _uiState.update { it.copy(weeklyLogs = logs) }
+            }
+        }
+
+        viewModelScope.launch {
+            userRepository.observeHealthProfile().collect { profile ->
+                if (profile != null) {
+                    _uiState.update {
+                        it.copy(
+                            waterGoalMl = profile.waterGoalMl ?: it.waterGoalMl,
+                            stepGoal = profile.stepGoal ?: it.stepGoal
+                        )
+                    }
+                }
+            }
         }
     }
 
     fun selectDate(date: String) {
-        _uiState.update { it.copy(selectedDate = date, log = null, isLoading = true) }
-        viewModelScope.launch {
-            val result = trainingRepository.getActivityLog(date)
-            result.onSuccess { log ->
-                _uiState.update { it.copy(log = log, isLoading = false) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message, isLoading = false) }
+        selectedDateFlow.value = date
+        _uiState.update {
+            it.copy(
+                selectedDate = date,
+                log = null,
+                isInitialLoading = true,
+                isLoading = true,
+                error = null
+            )
+        }
+        refreshSelectedDate()
+    }
+
+    private fun refreshSelectedDate() {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            val date = selectedDateFlow.value
+            val anchor = runCatching { LocalDate.parse(date) }.getOrDefault(LocalDate.now())
+            val fromDate = anchor.minusDays(6).toString()
+            val toDate = anchor.toString()
+            _uiState.update {
+                val initial = it.log == null
+                it.copy(
+                    isRefreshing = true,
+                    isInitialLoading = initial,
+                    isLoading = initial,
+                    error = null
+                )
             }
-            if (result.isSuccess) loadWeeklyLogs()
+            supervisorScope {
+                launch { runCatching { trainingRepository.refreshActivityLog(date) } }
+                launch { runCatching { trainingRepository.refreshActivityLogRange(fromDate, toDate) } }
+                launch { runCatching { userRepository.refreshHealthProfile() } }
+            }
+            _uiState.update { it.copy(isRefreshing = false, isInitialLoading = false, isLoading = false) }
         }
     }
 
@@ -110,23 +152,19 @@ class ActivityViewModel @Inject constructor(
 
     fun updateSleep(sleepHours: Float) {
         val date = _uiState.value.selectedDate
+        _uiState.update { it.copy(log = (it.log ?: ActivityLogDto(logDate = date)).copy(sleepHours = sleepHours)) }
         viewModelScope.launch {
-            trainingRepository.updateSleep(sleepHours, date).onSuccess { log ->
-                _uiState.update { it.copy(log = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
+            runCatching { trainingRepository.enqueueSleep(sleepHours, date) }
+                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
         }
     }
 
     fun updateMood(mood: String) {
         val date = _uiState.value.selectedDate
+        _uiState.update { it.copy(log = (it.log ?: ActivityLogDto(logDate = date)).copy(mood = mood)) }
         viewModelScope.launch {
-            trainingRepository.updateMood(mood, date).onSuccess { log ->
-                _uiState.update { it.copy(log = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
+            runCatching { trainingRepository.enqueueMood(mood, date) }
+                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
         }
     }
 
@@ -134,17 +172,17 @@ class ActivityViewModel @Inject constructor(
         noteSaveJob?.cancel()
         noteSaveJob = viewModelScope.launch {
             val date = _uiState.value.selectedDate
-            trainingRepository.updateNote(note.trim(), date).onSuccess { log ->
-                _uiState.update { it.copy(log = log) }
-            }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
-            }
+            val trimmed = note.trim()
+            _uiState.update { it.copy(log = (it.log ?: ActivityLogDto(logDate = date)).copy(note = trimmed)) }
+            runCatching { trainingRepository.enqueueNote(trimmed, date) }
+                .onFailure { e -> _uiState.update { it.copy(error = e.message) } }
         }
     }
 
     fun updateCaloriesBurned(calories: Float, activeMinutes: Int, notes: String? = null) {
         viewModelScope.launch {
-            trainingRepository.updateCaloriesBurned(calories, activeMinutes, exerciseNotes = notes).onSuccess { log ->
+            val date = _uiState.value.selectedDate
+            trainingRepository.updateCaloriesBurned(calories, activeMinutes, date, notes).onSuccess { log ->
                 _uiState.update { it.copy(log = log) }
             }.onFailure { e ->
                 _uiState.update { it.copy(error = e.message) }

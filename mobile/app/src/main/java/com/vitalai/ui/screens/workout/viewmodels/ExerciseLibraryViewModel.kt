@@ -19,6 +19,8 @@ data class ExerciseLibraryUiState(
     val selectedType: String? = null,
     val searchQuery: String = "",
     val isLoading: Boolean = false,
+    val isInitialLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null,
     val favorites: Set<String> = emptySet()
 )
@@ -42,7 +44,12 @@ class ExerciseLibraryViewModel @Inject constructor(
                 val combined = listOf(LOTTIE_TEST_EXERCISE) + allExercises
                 _uiState.update { state ->
                     val favorites = combined.filter { it.isFavorite }.map { it.id }.toSet()
-                    val newState = state.copy(exercises = combined, favorites = favorites)
+                    val newState = state.copy(
+                        exercises = combined,
+                        favorites = favorites,
+                        isInitialLoading = false,
+                        isLoading = false
+                    )
                     newState.copy(filteredExercises = applyLocalFilters(newState))
                 }
             }
@@ -51,10 +58,17 @@ class ExerciseLibraryViewModel @Inject constructor(
 
     private fun refreshInBackground() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            trainingRepository.refreshExercises(force = true)
+            _uiState.update {
+                val initial = it.exercises.isEmpty()
+                it.copy(
+                    isRefreshing = true,
+                    isInitialLoading = initial,
+                    isLoading = initial
+                )
+            }
+            trainingRepository.refreshExercises(force = false)
             trainingRepository.refreshFavoriteExercises()
-            _uiState.update { it.copy(isLoading = false) }
+            _uiState.update { it.copy(isRefreshing = false, isInitialLoading = false, isLoading = false) }
         }
     }
 

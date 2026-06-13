@@ -10,11 +10,14 @@ import com.vitalai.data.remote.model.ProgressPhotoDto
 import com.vitalai.data.repository.BodyMetricsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 data class TrainBodyMetricsUiState(
     val latest: BodyMetricDto? = null,
@@ -23,10 +26,13 @@ data class TrainBodyMetricsUiState(
     val photos: List<ProgressPhotoDto> = emptyList(),
     val selectedPeriod: String = "month",
     val isLoading: Boolean = false,
+    val isInitialLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 )
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class TrainBodyMetricsViewModel @Inject constructor(
     private val bodyMetricsRepository: BodyMetricsRepository
 ) : ViewModel() {
@@ -46,7 +52,9 @@ class TrainBodyMetricsViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         latest = entity?.toDto(),
-                        error = if (entity == null && !it.isLoading) "Chưa có dữ liệu chỉ số cơ thể" else null
+                        isInitialLoading = entity == null && it.isRefreshing,
+                        isLoading = entity == null && it.isRefreshing,
+                        error = if (entity == null && !it.isRefreshing) "Chưa có dữ liệu chỉ số cơ thể" else null
                     )
                 }
             }
@@ -67,10 +75,28 @@ class TrainBodyMetricsViewModel @Inject constructor(
 
     fun loadData() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            val photos = bodyMetricsRepository.getPhotos(10).getOrElse { emptyList() }
-            bodyMetricsRepository.refreshFromNetwork()
-            _uiState.update { it.copy(photos = photos, isLoading = false) }
+            _uiState.update {
+                val initial = it.latest == null
+                it.copy(
+                    isRefreshing = true,
+                    isInitialLoading = initial,
+                    isLoading = initial,
+                    error = null
+                )
+            }
+            val photos = supervisorScope {
+                val photosDeferred = async { bodyMetricsRepository.getPhotos(10).getOrElse { emptyList() } }
+                launch { bodyMetricsRepository.refreshFromNetwork() }
+                photosDeferred.await()
+            }
+            _uiState.update {
+                it.copy(
+                    photos = photos,
+                    isRefreshing = false,
+                    isInitialLoading = false,
+                    isLoading = false
+                )
+            }
         }
     }
 

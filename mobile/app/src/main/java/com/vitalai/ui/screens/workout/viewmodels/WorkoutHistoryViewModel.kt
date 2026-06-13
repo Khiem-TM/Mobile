@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 data class WorkoutHistoryUiState(
     val sessions: List<WorkoutSessionDto> = emptyList(),
     val isLoading: Boolean = false,
+    val isInitialLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null
 )
 
@@ -24,6 +26,8 @@ class WorkoutHistoryViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(WorkoutHistoryUiState())
     val uiState = _uiState.asStateFlow()
+
+    private var refreshJob: kotlinx.coroutines.Job? = null
 
     init {
         observe()
@@ -36,6 +40,7 @@ class WorkoutHistoryViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         sessions = sessions.sortedByDescending { session -> session.sessionDate },
+                        isInitialLoading = false,
                         isLoading = false,
                         error = null
                     )
@@ -49,15 +54,26 @@ class WorkoutHistoryViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+        if (refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            _uiState.update {
+                val initial = it.sessions.isEmpty()
+                it.copy(
+                    isRefreshing = true,
+                    isInitialLoading = initial,
+                    isLoading = initial,
+                    error = null
+                )
+            }
             val today = LocalDate.now()
             runCatching {
                 trainingRepository.refreshSessions(today.minusDays(60).toString(), today.toString())
             }.onFailure { e ->
-                _uiState.update { it.copy(error = e.message) }
+                _uiState.update { state ->
+                    state.copy(error = e.message.takeIf { state.sessions.isEmpty() })
+                }
             }
-            _uiState.update { it.copy(isLoading = false) }
+            _uiState.update { it.copy(isRefreshing = false, isInitialLoading = false, isLoading = false) }
         }
     }
 }

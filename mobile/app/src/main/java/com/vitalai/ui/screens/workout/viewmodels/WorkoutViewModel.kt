@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 data class DayCalorieData(
     val dayLabel: String,
@@ -35,8 +36,19 @@ data class WorkoutUiState(
     val todayActivityLog: ActivityLogDto? = null,
     val weeklyActivityLogs: List<ActivityLogDto> = emptyList(),
     val isLoading: Boolean = false,
+    val isInitialLoading: Boolean = true,
+    val isRefreshing: Boolean = false,
     val error: String? = null
-)
+) {
+    val hasVisibleContent: Boolean
+        get() = recentSessions.isNotEmpty() ||
+            weeklyChartData.any { it.hasSession || it.calories > 0f } ||
+            todayActivityLog != null ||
+            weeklyActivityLogs.isNotEmpty() ||
+            hasSessionToday ||
+            todayCaloriesBurned > 0f ||
+            todayDurationMinutes > 0
+}
 
 @HiltViewModel
 class WorkoutViewModel @Inject constructor(
@@ -48,8 +60,11 @@ class WorkoutViewModel @Inject constructor(
 
     private var weekSessionsJob: Job? = null
     private var weekActivityJob: Job? = null
+    private var refreshJob: Job? = null
+    private var lastRefreshAtMs: Long = 0L
 
     companion object {
+        private const val REFRESH_TTL_MS = 5 * 60 * 1000L
         private val ISO_FMT = DateTimeFormatter.ISO_LOCAL_DATE
         private val VN_DAY_LABELS = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
     }
@@ -57,7 +72,7 @@ class WorkoutViewModel @Inject constructor(
     init {
         observeData()
         observeWeek(_uiState.value.selectedWeekStart)
-        refresh()
+        refresh(force = true)
     }
 
     private fun observeData() {
@@ -80,13 +95,17 @@ class WorkoutViewModel @Inject constructor(
                 )
 
                 _uiState.update {
-                    it.copy(
+                    val next = it.copy(
                         workoutStreak = streak,
                         longestStreak = longestStreak,
                         recentSessions = recentSessions,
                         recentExerciseItems = recentExerciseItems,
-                        isLoading = false,
                         error = null
+                    )
+                    val initial = if (next.hasVisibleContent || !next.isRefreshing) false else next.isInitialLoading
+                    next.copy(
+                        isInitialLoading = initial,
+                        isLoading = initial
                     )
                 }
             }
@@ -112,19 +131,38 @@ class WorkoutViewModel @Inject constructor(
     }
 
     fun loadData() {
-        refresh()
+        refresh(force = true)
     }
 
-    fun refresh() {
+    fun refreshIfStale() {
+        refresh(force = false)
+    }
+
+    fun refresh(force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!force && lastRefreshAtMs != 0L && now - lastRefreshAtMs < REFRESH_TTL_MS) return
+        if (refreshJob?.isActive == true) return
+
         val todayStr = LocalDate.now().format(ISO_FMT)
         val range = weekRange(_uiState.value.selectedWeekStart)
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
-            runCatching { trainingRepository.refreshRecentSessions(60) }
-            runCatching { trainingRepository.refreshSessions(range.first, range.second) }
-            runCatching { trainingRepository.refreshActivityLog(todayStr) }
-            runCatching { trainingRepository.refreshActivityLogRange(range.first, range.second) }
-            _uiState.update { it.copy(isLoading = false) }
+        refreshJob = viewModelScope.launch {
+            _uiState.update {
+                val initial = !it.hasVisibleContent
+                it.copy(
+                    isRefreshing = true,
+                    isInitialLoading = initial,
+                    isLoading = initial,
+                    error = null
+                )
+            }
+            supervisorScope {
+                launch { runCatching { trainingRepository.refreshRecentSessions(60) } }
+                launch { runCatching { trainingRepository.refreshSessions(range.first, range.second) } }
+                launch { runCatching { trainingRepository.refreshActivityLog(todayStr) } }
+                launch { runCatching { trainingRepository.refreshActivityLogRange(range.first, range.second) } }
+            }
+            lastRefreshAtMs = System.currentTimeMillis()
+            _uiState.update { it.copy(isRefreshing = false, isInitialLoading = false, isLoading = false) }
         }
     }
 
@@ -161,8 +199,12 @@ class WorkoutViewModel @Inject constructor(
         _uiState.update { it.copy(selectedWeekStart = weekStart, error = null) }
         observeWeek(weekStart)
         viewModelScope.launch {
-            runCatching { trainingRepository.refreshSessions(range.first, range.second) }
-            runCatching { trainingRepository.refreshActivityLogRange(range.first, range.second) }
+            _uiState.update { it.copy(isRefreshing = true) }
+            supervisorScope {
+                launch { runCatching { trainingRepository.refreshSessions(range.first, range.second) } }
+                launch { runCatching { trainingRepository.refreshActivityLogRange(range.first, range.second) } }
+            }
+            _uiState.update { it.copy(isRefreshing = false) }
         }
     }
 
