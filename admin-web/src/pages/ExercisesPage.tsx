@@ -38,6 +38,7 @@ const exerciseSchema = z.object({
   defaultIntensityLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
   movementType: z.string().optional(),
   estimatedCaloriesPerMinute: z.number().min(0).optional(),
+  lottieAsset: z.string().url().or(z.literal('')).optional(),
 });
 
 type ExerciseFilters = {
@@ -252,6 +253,7 @@ export function ExercisesPage() {
       defaultIntensityLevel: intensity ? (intensity as 'LOW' | 'MEDIUM' | 'HIGH') : undefined,
       movementType: String(formData.get('movementType') ?? '').trim(),
       estimatedCaloriesPerMinute: toNumberOrUndefined(formData.get('estimatedCaloriesPerMinute')),
+      lottieAsset: String(formData.get('lottieAsset') ?? '').trim(),
     };
     const parsed = exerciseSchema.safeParse(raw);
     if (!parsed.success) {
@@ -550,6 +552,7 @@ function ExerciseFormFields({ exercise }: { exercise?: Exercise }) {
         <FormField label="Video URL"><input className="input" defaultValue={exercise?.videoUrl ?? ''} name="videoUrl" /></FormField>
         <FormField label="Image URL"><input className="input" defaultValue={exercise?.imageAvtUrl ?? ''} name="imageAvtUrl" /></FormField>
       </div>
+      <FormField label="Lottie URL (Cloudinary, .lottie)"><input className="input" defaultValue={exercise?.lottieAsset ?? ''} name="lottieAsset" /></FormField>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Thiết bị"><input className="input" defaultValue={exercise?.equipment ?? ''} name="equipment" /></FormField>
         <FormField label="Nhóm cơ phụ"><input className="input" defaultValue={exercise?.secondaryMuscleGroups?.join(', ') ?? ''} name="secondaryMuscleGroups" /></FormField>

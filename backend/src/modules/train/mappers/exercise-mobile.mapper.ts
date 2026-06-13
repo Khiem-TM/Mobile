@@ -30,6 +30,7 @@ export interface ExerciseMobileDto {
   movementType: string | null;
   estimatedCaloriesPerMinute: number | null;
   caloriesPerMin: number;
+  lottieAsset: string | null;
 }
 
 export function toExerciseMobileDto(
@@ -73,5 +74,6 @@ export function toExerciseMobileDto(
     movementType: exercise.movementType ?? null,
     estimatedCaloriesPerMinute,
     caloriesPerMin: estimatedCaloriesPerMinute ?? 0,
+    lottieAsset: exercise.lottieAsset ?? null,
   };
 }

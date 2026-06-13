@@ -118,6 +118,10 @@ export class Exercise {
   @Column({ name: 'estimated_calories_per_minute', type: 'decimal', precision: 5, scale: 2, nullable: true })
   estimatedCaloriesPerMinute!: number | null;
 
+  // Cloudinary URL for a .lottie animation shown instead of static images
+  @Column({ name: 'lottie_asset', type: 'varchar', length: 500, nullable: true })
+  lottieAsset!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 

@@ -147,6 +147,7 @@ export interface Exercise {
   defaultIntensityLevel?: string | null;
   movementType?: string | null;
   estimatedCaloriesPerMinute?: number | null;
+  lottieAsset?: string | null;
   favoritesCount?: number;
   createdAt?: string;
   updatedAt?: string;
