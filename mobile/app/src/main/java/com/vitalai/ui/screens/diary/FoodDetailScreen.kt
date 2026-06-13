@@ -194,12 +194,13 @@ private fun FoodDetailContent(
     val fatPct = if (energyTotal > 0f) (fat * 9f / energyTotal * 100f).roundToInt() else 0
     var showFullScreenImage by remember(food.displayImageUrl) { mutableStateOf(false) }
 
-    Box(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 300.dp)
+                .padding(bottom = 24.dp)
         ) {
             FoodImageHeader(
                 food = food,
@@ -271,7 +272,7 @@ private fun FoodDetailContent(
                 val requestQuantity = if (unit == "g") grams else amount
                 onAdd(requestQuantity, unit)
             },
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier.fillMaxWidth()
         )
     }
 
@@ -657,12 +658,12 @@ private fun PortionPanel(
             )
             Spacer(Modifier.height(8.dp))
 
-            Box(modifier = Modifier.fillMaxWidth().height(44.dp * 3)) {
+            Box(modifier = Modifier.fillMaxWidth().height(36.dp * 3)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.Center)
-                        .height(44.dp)
+                        .height(36.dp)
                         .background(FoodModule.Keylime, RoundedCornerShape(12.dp))
                 )
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -670,13 +671,15 @@ private fun PortionPanel(
                         items = amountItems,
                         selectedIndex = amountIndex,
                         onSelectionChanged = { idx -> onAmountChange((idx + 1) * amountStep) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        itemHeight = 36.dp
                     )
                     ScrollPicker(
                         items = units,
                         selectedIndex = units.indexOf(unit).coerceAtLeast(0),
                         onSelectionChanged = { idx -> onUnitChange(units[idx]) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        itemHeight = 36.dp
                     )
                 }
             }

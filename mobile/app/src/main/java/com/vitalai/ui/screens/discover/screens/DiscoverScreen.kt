@@ -358,6 +358,7 @@ fun DiscoverScreen(
                         items(visibleLatestBlogs, key = { it.id }) { blog ->
                             BlogListItem(
                                 blog = blog,
+                                showTag = uiState.selectedTag == null,
                                 onClick = { navController.navigate(Screen.BlogDetail(blog.id)) }
                             )
                         }
@@ -574,7 +575,7 @@ private fun FeaturedBlogCard(blog: BlogDto, modifier: Modifier = Modifier, onCli
 }
 
 @Composable
-private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
+private fun BlogListItem(blog: BlogDto, showTag: Boolean = true, onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -603,22 +604,24 @@ private fun BlogListItem(blog: BlogDto, onClick: () -> Unit) {
                     .heightIn(min = 112.dp)
                     .weight(1f)
             ) {
-                blog.primaryTagLabel()?.let { tag ->
-                    Surface(
-                        shape = RoundedCornerShape(VitalRadius.Pill),
-                        color = Mint100
-                    ) {
-                        Text(
-                            tag,
-                            color = Mint700,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                if (showTag) {
+                    blog.primaryTagLabel()?.let { tag ->
+                        Surface(
+                            shape = RoundedCornerShape(VitalRadius.Pill),
+                            color = Mint100
+                        ) {
+                            Text(
+                                tag,
+                                color = Mint700,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(Modifier.height(12.dp))
                     }
-                    Spacer(Modifier.height(12.dp))
                 }
                 Text(
                     blog.title,
