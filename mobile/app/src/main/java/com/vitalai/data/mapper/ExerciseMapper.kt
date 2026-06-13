@@ -33,7 +33,8 @@ fun ExerciseEntity.toDto() = ExerciseDto(
     defaultDurationMinutes = defaultDurationMinutes,
     defaultIntensityLevel = defaultIntensityLevel,
     movementType = movementType,
-    exerciseType = exerciseType
+    exerciseType = exerciseType,
+    lottieAsset = lottieAsset
 )
 
 fun ExerciseDto.toEntity(isFavorite: Boolean = this.isFavorite) = ExerciseEntity(
@@ -66,5 +67,6 @@ fun ExerciseDto.toEntity(isFavorite: Boolean = this.isFavorite) = ExerciseEntity
     defaultDurationMinutes = defaultDurationMinutes,
     defaultIntensityLevel = defaultIntensityLevel,
     movementType = movementType,
-    exerciseType = exerciseType
+    exerciseType = exerciseType,
+    lottieAsset = lottieAsset
 )

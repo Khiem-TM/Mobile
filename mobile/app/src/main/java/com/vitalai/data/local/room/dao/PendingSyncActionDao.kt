@@ -27,4 +27,7 @@ interface PendingSyncActionDao {
     /** Lấy hành động ghi mới nhất còn chờ đồng bộ theo loại (để read pending-aware). */
     @Query("SELECT * FROM pending_sync_actions WHERE actionType = :actionType ORDER BY createdAt DESC LIMIT 1")
     suspend fun getByActionType(actionType: String): PendingSyncActionEntity?
+
+    @Query("DELETE FROM pending_sync_actions")
+    suspend fun clearAll()
 }

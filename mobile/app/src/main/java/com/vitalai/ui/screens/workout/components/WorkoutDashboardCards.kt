@@ -30,7 +30,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.ui.screens.workout.viewmodels.DayCalorieData
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -223,79 +222,5 @@ internal fun QuickLinkCard(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
-    }
-}
-
-@Composable
-internal fun RecentHistory(sessions: List<WorkoutSessionDto>, onSessionClick: (WorkoutSessionDto) -> Unit) {
-    Column {
-        TrainSectionTitle("Lịch sử gần đây", modifier = Modifier.padding(bottom = 11.dp))
-        if (sessions.isEmpty()) {
-            TrainCard(tone = TrainTone.Keylime, padding = PaddingValues(22.dp)) {
-                Text(
-                    "Chưa có buổi tập gần đây",
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                    color = TrainColors.Forest,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                sessions.forEach { session ->
-                    RecentSessionRow(session = session, onClick = { onSessionClick(session) })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RecentSessionRow(session: WorkoutSessionDto, onClick: () -> Unit) {
-    val date = runCatching { LocalDate.parse(session.sessionDate) }.getOrNull()
-    val day = date?.dayOfMonth?.toString()?.padStart(2, '0') ?: "--"
-    val month = date?.monthValue?.toString()?.padStart(2, '0') ?: "--"
-    TrainCard(tone = TrainTone.Cream, padding = PaddingValues(15.dp), onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(TrainColors.KeylimeWash),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(day, color = TrainColors.Forest, fontSize = 15.sp, fontWeight = FontWeight.Bold, lineHeight = 15.sp)
-                    Text(month, color = TrainColors.Forest.copy(alpha = 0.7f), fontSize = 9.sp)
-                }
-            }
-            Column(Modifier.weight(1f)) {
-                Text(
-                    session.name ?: "Buổi tập",
-                    color = TrainColors.Ink,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${session.details.size} bài tập · ${session.totalDurationMinutes} phút",
-                    color = TrainColors.Charcoal,
-                    fontSize = 12.5.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    session.totalCaloriesBurned.toInt().toString(),
-                    color = TrainColors.Forest,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text("kcal", color = TrainColors.Charcoal, fontSize = 10.5.sp)
-            }
-        }
     }
 }

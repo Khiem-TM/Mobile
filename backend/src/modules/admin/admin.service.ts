@@ -782,6 +782,7 @@ export class AdminService {
           defaultIntensityLevel: dto.defaultIntensityLevel,
           movementType: dto.movementType,
           estimatedCaloriesPerMinute: dto.estimatedCaloriesPerMinute,
+          lottieAsset: dto.lottieAsset,
           isActive: dto.isActive ?? true,
         });
         const savedExercise = await this.exerciseRepo.save(exercise);

@@ -109,7 +109,6 @@ private fun WorkoutDashboardCardsPreview() {
                     modifier = Modifier.weight(1f)
                 )
             }
-            RecentHistory(sessions = previewSessions(), onSessionClick = {})
         }
     }
 }
@@ -126,7 +125,6 @@ private fun WorkoutDashboardScreenPreview() {
             onNavigateWorkoutHistory = {},
             onPreviousWeek = {},
             onNextWeek = {},
-            onSessionClick = {},
             onRetry = {},
             onBackClick = {}
         )

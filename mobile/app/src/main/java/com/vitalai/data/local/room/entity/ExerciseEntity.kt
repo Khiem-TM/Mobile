@@ -35,5 +35,6 @@ data class ExerciseEntity(
     val defaultIntensityLevel: String?,
     val movementType: String?,
     val exerciseType: String,
+    val lottieAsset: String? = null,
     val cachedAt: Long = System.currentTimeMillis()
 )

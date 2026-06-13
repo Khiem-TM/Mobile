@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
+import com.vitalai.core.auth.SessionExpiryBus
 import com.vitalai.core.notification.DeepLinkBus
 import com.vitalai.core.notification.DeviceTokenRegistrar
 import com.vitalai.core.notification.NotificationDeepLink
@@ -33,6 +34,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var deviceTokenRegistrar: DeviceTokenRegistrar
     @Inject lateinit var syncScheduler: SyncScheduler
     @Inject lateinit var tokenManager: TokenManager
+    @Inject lateinit var sessionExpiryBus: SessionExpiryBus
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* kết quả không bắt buộc xử lý */ }
@@ -56,7 +58,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VitalAITheme {
-                VitalApp(deepLinkBus = deepLinkBus, startLoggedIn = startLoggedIn)
+                VitalApp(deepLinkBus = deepLinkBus, sessionExpiryBus = sessionExpiryBus, startLoggedIn = startLoggedIn)
             }
         }
     }

@@ -31,9 +31,6 @@ interface ExerciseDao {
     @Query("UPDATE exercise SET isFavorite = 0")
     suspend fun clearAllFavoriteFlags()
 
-    @Query("SELECT MIN(cachedAt) FROM exercise")
-    suspend fun getOldestCachedAt(): Long?
-
     @Query("SELECT * FROM exercise WHERE id IN (:ids)")
     suspend fun getByIds(ids: List<String>): List<ExerciseEntity>
 

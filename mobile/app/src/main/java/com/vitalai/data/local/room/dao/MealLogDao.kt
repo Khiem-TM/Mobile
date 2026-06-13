@@ -40,4 +40,7 @@ interface MealLogDao {
 
     @Query("SELECT * FROM meal_log_items WHERE id = :itemId")
     suspend fun getItemById(itemId: String): MealLogItemEntity?
+
+    @Query("DELETE FROM meal_logs")
+    suspend fun clearAll()
 }

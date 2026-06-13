@@ -40,9 +40,6 @@ fun WorkoutScreen(
         onNavigateWorkoutHistory = { navController.navigate(Screen.WorkoutHistory) },
         onPreviousWeek = viewModel::showPreviousWeek,
         onNextWeek = viewModel::showNextWeek,
-        onSessionClick = { session ->
-            navController.navigate(Screen.WorkoutSession(session.id, session.sessionDate))
-        },
         onRetry = viewModel::loadData,
         onBackClick = { navController.popBackStack() }
     )

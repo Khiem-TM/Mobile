@@ -15,8 +15,8 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.vitalai.data.remote.model.WorkoutSessionDto
 import com.vitalai.ui.components.ErrorState
 import com.vitalai.ui.components.LoadingState
 import com.vitalai.ui.screens.workout.viewmodels.WorkoutUiState
@@ -30,7 +30,6 @@ fun WorkoutDashboard(
     onNavigateWorkoutHistory: () -> Unit,
     onPreviousWeek: () -> Unit,
     onNextWeek: () -> Unit,
-    onSessionClick: (WorkoutSessionDto) -> Unit,
     onRetry: () -> Unit,
     onBackClick: () -> Unit
 ) {
@@ -51,7 +50,10 @@ fun WorkoutDashboard(
                             icon = Icons.Default.AccessibilityNew,
                             contentDescription = "Chỉ số cơ thể",
                             onClick = onNavigateMetrics,
-                            size = 32.dp
+                            size = 32.dp,
+                            background = TrainColors.Forest,
+                            tint = Color.White,
+                            border = null
                         )
                         androidx.compose.foundation.layout.Spacer(modifier = androidx.compose.ui.Modifier.width(14.dp))
                     }
@@ -106,12 +108,6 @@ fun WorkoutDashboard(
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                    }
-                    item {
-                        RecentHistory(
-                            sessions = uiState.recentSessions,
-                            onSessionClick = onSessionClick
-                        )
                     }
                 }
             }

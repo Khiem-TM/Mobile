@@ -58,4 +58,7 @@ interface BodyMetricDao {
         upsertAll(toUpsert)
         deleteSyncedExcluding(serverDates)
     }
+
+    @Query("DELETE FROM body_metrics")
+    suspend fun clearAll()
 }

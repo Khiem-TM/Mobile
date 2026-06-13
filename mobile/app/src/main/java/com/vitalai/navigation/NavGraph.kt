@@ -31,6 +31,7 @@ import androidx.navigation.compose.dialog
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.vitalai.core.auth.SessionExpiryBus
 import com.vitalai.core.notification.DeepLinkBus
 import com.vitalai.core.notification.NotificationDeepLink
 import com.vitalai.ui.components.VitalBottomNavBar
@@ -90,7 +91,11 @@ private fun WithStatusBarInset(content: @Composable () -> Unit) {
  * thay vì để từng màn hình tab tự dựng lại.
  */
 @Composable
-fun VitalApp(deepLinkBus: DeepLinkBus? = null, startLoggedIn: Boolean = false) {
+fun VitalApp(
+    deepLinkBus: DeepLinkBus? = null,
+    sessionExpiryBus: SessionExpiryBus? = null,
+    startLoggedIn: Boolean = false
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
@@ -121,6 +126,19 @@ fun VitalApp(deepLinkBus: DeepLinkBus? = null, startLoggedIn: Boolean = false) {
             else -> navController.navigate(Screen.Notifications)
         }
         deepLinkBus?.consume()
+    }
+
+    // Đẩy về Welcome khi BE từ chối hẳn session (refresh token cũng hết hạn) lúc đang dùng app.
+    val sessionExpired by (sessionExpiryBus?.expired
+        ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) })
+        .collectAsState()
+    LaunchedEffect(sessionExpired) {
+        if (sessionExpired) {
+            navController.navigate(Screen.Welcome) {
+                popUpTo(0) { inclusive = true }
+            }
+            sessionExpiryBus?.consume()
+        }
     }
 
     ModalNavigationDrawer(

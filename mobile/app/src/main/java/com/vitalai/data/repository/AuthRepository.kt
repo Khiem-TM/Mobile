@@ -5,6 +5,7 @@ import com.squareup.moshi.Types
 import com.vitalai.core.error.AppErrorMapper
 import com.vitalai.core.notification.DeviceTokenRegistrar
 import com.vitalai.data.local.BlogSearchHistoryStore
+import com.vitalai.data.local.UserCacheManager
 import com.vitalai.data.local.datastore.TokenManager
 import com.vitalai.data.remote.AuthApi
 import com.vitalai.data.remote.model.ApiResponse
@@ -23,6 +24,7 @@ class AuthRepository @Inject constructor(
     private val tokenManager: TokenManager,
     private val blogSearchHistoryStore: BlogSearchHistoryStore,
     private val deviceTokenRegistrar: DeviceTokenRegistrar,
+    private val userCacheManager: UserCacheManager,
     private val moshi: Moshi
 ) {
     /** Đẩy FCM token lên backend sau khi đã có access token (best-effort). */
@@ -69,6 +71,7 @@ class AuthRepository @Inject constructor(
             val response = authApi.login(request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
+                userCacheManager.clearIfDifferentAccount(body.user.id)
                 blogSearchHistoryStore.switchToAccount(body.user.id)
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
                 syncDeviceToken()
@@ -86,6 +89,7 @@ class AuthRepository @Inject constructor(
             val response = authApi.register(request)
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
+                userCacheManager.clearIfDifferentAccount(body.user.id)
                 blogSearchHistoryStore.switchToAccount(body.user.id)
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
                 syncDeviceToken()
@@ -104,6 +108,7 @@ class AuthRepository @Inject constructor(
             val response = authApi.googleMobileLogin(mapOf("id_token" to idToken))
             val body = response.body()?.data
             if (response.isSuccessful && body != null) {
+                userCacheManager.clearIfDifferentAccount(body.user.id)
                 blogSearchHistoryStore.switchToAccount(body.user.id)
                 tokenManager.saveTokens(body.accessToken, body.refreshToken)
                 syncDeviceToken()
@@ -132,6 +137,7 @@ class AuthRepository @Inject constructor(
         }
         blogSearchHistoryStore.clearForLogout()
         tokenManager.clearTokens()
+        userCacheManager.clearAccountScopedData()
     }
 
     suspend fun forgotPassword(email: String): Result<String> {

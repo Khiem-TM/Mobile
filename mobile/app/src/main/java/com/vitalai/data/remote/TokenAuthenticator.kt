@@ -1,5 +1,6 @@
 package com.vitalai.data.remote
 
+import com.vitalai.core.auth.SessionExpiryBus
 import com.vitalai.data.local.datastore.TokenManager
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -14,6 +15,7 @@ import javax.inject.Singleton
 @Singleton
 class TokenAuthenticator @Inject constructor(
     private val tokenManager: TokenManager,
+    private val sessionExpiryBus: SessionExpiryBus,
     @Named("refreshAuthApi") private val refreshAuthApi: AuthApi
 ) : Authenticator {
 
@@ -36,6 +38,7 @@ class TokenAuthenticator @Inject constructor(
                 val refreshToken = tokenManager.refreshToken.first()
                 if (refreshToken.isNullOrBlank()) {
                     tokenManager.clearTokens()
+                    if (!requestAccessToken.isNullOrBlank()) sessionExpiryBus.notifyExpired()
                     return@runBlocking null
                 }
 
@@ -50,6 +53,7 @@ class TokenAuthenticator @Inject constructor(
                         response.request.withAccessToken(newAccessToken)
                     } else {
                         tokenManager.clearTokens()
+                        if (!requestAccessToken.isNullOrBlank()) sessionExpiryBus.notifyExpired()
                         null
                     }
                 } catch (_: Exception) {

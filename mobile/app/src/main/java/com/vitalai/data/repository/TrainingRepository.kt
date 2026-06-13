@@ -31,6 +31,7 @@ import javax.inject.Singleton
 
 private const val EXERCISE_CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
 private const val EXERCISE_SYNC_PAGE_SIZE = 100
+private const val KEY_EXERCISE_SYNCED_AT = "exercise_synced_at"
 
 @Singleton
 class TrainingRepository @Inject constructor(
@@ -227,9 +228,8 @@ class TrainingRepository @Inject constructor(
         exerciseDao.observeById(id).map { it?.toDto() }
 
     suspend fun refreshExercises(force: Boolean = false) {
-        val oldestCachedAt = exerciseDao.getOldestCachedAt()
-        val isCacheStale = oldestCachedAt == null ||
-            System.currentTimeMillis() - oldestCachedAt > EXERCISE_CACHE_TTL_MS
+        val syncedAt = sharedPrefs.getLong(KEY_EXERCISE_SYNCED_AT, 0L)
+        val isCacheStale = syncedAt == 0L || System.currentTimeMillis() - syncedAt > EXERCISE_CACHE_TTL_MS
         if (!force && !isCacheStale) return
 
         runCatching {
@@ -251,6 +251,7 @@ class TrainingRepository @Inject constructor(
             exercises.distinctBy { it.id }
         }.onSuccess { exercises ->
             exerciseDao.replaceAll(exercises.map { it.toEntity() })
+            sharedPrefs.edit().putLong(KEY_EXERCISE_SYNCED_AT, System.currentTimeMillis()).apply()
         }
     }
 

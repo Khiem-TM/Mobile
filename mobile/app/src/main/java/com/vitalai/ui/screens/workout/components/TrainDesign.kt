@@ -214,6 +214,7 @@ fun TrainRoundIconButton(
     background: Color = TrainColors.Cream,
     tint: Color = if (active) TrainColors.Cream else TrainColors.Ink,
     activeBackground: Color = TrainColors.Forest,
+    border: BorderStroke? = BorderStroke(1.dp, TrainColors.Border),
     size: Dp = 40.dp,
     enabled: Boolean = true
 ) {
@@ -224,7 +225,7 @@ fun TrainRoundIconButton(
             .size(size)
             .clip(CircleShape)
             .background(if (active) activeBackground else background)
-            .border(1.dp, TrainColors.Border, CircleShape)
+            .then(if (border != null) Modifier.border(border, CircleShape) else Modifier)
     ) {
         Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(20.dp))
     }
