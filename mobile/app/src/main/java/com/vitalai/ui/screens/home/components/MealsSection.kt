@@ -44,7 +44,13 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Mint500,
-                modifier = Modifier.clickable { navController.navigate(Screen.Diary) }
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.Diary) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
             )
         }
         
@@ -53,16 +59,32 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             val breakfast = mealLogs.find { it.mealType.equals("breakfast", ignoreCase = true) }
             val lunch = mealLogs.find { it.mealType.equals("lunch", ignoreCase = true) }
+            val dinner = mealLogs.find { it.mealType.equals("dinner", ignoreCase = true) }
             val snack = mealLogs.find { it.mealType.equals("snack", ignoreCase = true) }
 
-            MealOverviewCard(
-                mealType = "Sáng",
-                imageUrl = breakfast?.items?.firstOrNull()?.imageUrl,
-                description = breakfast?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
-                time = "Bữa sáng",
-                calories = breakfast?.totalCalories?.roundToInt() ?: 0,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                MealOverviewCard(
+                    mealType = "Sáng",
+                    imageUrl = breakfast?.items?.firstOrNull()?.imageUrl,
+                    description = breakfast?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
+                    time = "",
+                    calories = breakfast?.totalCalories?.roundToInt() ?: 0,
+                    modifier = Modifier.weight(1f),
+                    isSmall = true
+                )
+                MealOverviewCard(
+                    mealType = "Trưa",
+                    imageUrl = lunch?.items?.firstOrNull()?.imageUrl,
+                    description = lunch?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
+                    time = "",
+                    calories = lunch?.totalCalories?.roundToInt() ?: 0,
+                    modifier = Modifier.weight(1f),
+                    isSmall = true
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -71,11 +93,11 @@ fun MealsSection(mealLogs: List<com.vitalai.data.remote.model.MealLogDto>, navCo
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 MealOverviewCard(
-                    mealType = "Trưa",
-                    imageUrl = lunch?.items?.firstOrNull()?.imageUrl,
-                    description = lunch?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
+                    mealType = "Tối",
+                    imageUrl = dinner?.items?.firstOrNull()?.imageUrl,
+                    description = dinner?.items?.takeIf { it.isNotEmpty() }?.joinToString(" · ") { it.foodName } ?: "Chưa có món ăn",
                     time = "",
-                    calories = lunch?.totalCalories?.roundToInt() ?: 0,
+                    calories = dinner?.totalCalories?.roundToInt() ?: 0,
                     modifier = Modifier.weight(1f),
                     isSmall = true
                 )
