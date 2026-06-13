@@ -99,6 +99,8 @@ fun BlogDetailScreen(
                     value = commentText,
                     onValueChange = { commentText = it },
                     isPosting = uiState.isPostingComment,
+                    currentUserAvatarUrl = uiState.currentUserAvatarUrl,
+                    currentUserDisplayName = uiState.currentUserDisplayName,
                     onSend = {
                         viewModel.postComment(commentText)
                         commentText = ""
@@ -428,6 +430,8 @@ private fun BlogCommentInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     isPosting: Boolean,
+    currentUserAvatarUrl: String?,
+    currentUserDisplayName: String?,
     onSend: () -> Unit
 ) {
     Surface(
@@ -442,15 +446,11 @@ private fun BlogCommentInputBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(AppSurface2),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("T", color = Ink700, fontWeight = FontWeight.Bold)
-            }
+            BlogAuthorAvatar(
+                name = currentUserDisplayName ?: "User",
+                avatarUrl = currentUserAvatarUrl,
+                size = 42.dp
+            )
             TextField(
                 value = value,
                 onValueChange = onValueChange,
@@ -506,12 +506,11 @@ private fun CommentItem(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top
     ) {
-        Box(
-            modifier = Modifier.size(34.dp).clip(CircleShape).background(Mint50),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(authorName.first().uppercaseChar().toString(), color = Mint700, fontWeight = FontWeight.Bold)
-        }
+        BlogAuthorAvatar(
+            name = authorName,
+            avatarUrl = comment.authorUser?.displayAvatarUrl,
+            size = 34.dp
+        )
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
