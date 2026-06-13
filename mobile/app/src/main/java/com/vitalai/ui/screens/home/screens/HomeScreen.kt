@@ -159,8 +159,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Bỏ qua Spacer an toàn phụ này vì đã sử dụng statusBarsPadding
-
                 com.vitalai.ui.components.VitalSmallHeader(
                     title = "Trang chủ",
                     textAlphaProvider = fadeInProgressProvider,

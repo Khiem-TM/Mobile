@@ -93,13 +93,12 @@ fun WeekStrip(selectedDate: String, onDateSelected: (String) -> Unit) {
     val selected = remember(selectedDate) {
         runCatching { java.time.LocalDate.parse(selectedDate) }.getOrDefault(today)
     }
-    // Generate a list of days (60 days in the past up to today) so user can swipe
+
     val days = remember(today) {
         (-60..0).map { offset -> today.plusDays(offset.toLong()) }
     }
     val dayNames = listOf("T2", "T3", "T4", "T5", "T6", "T7", "CN")
 
-    // Find initial index to center the selected date on first load
     val initialIndex = remember(days, selected) {
         val idx = days.indexOf(selected)
         if (idx >= 0) (idx - 3).coerceAtLeast(0) else 0
@@ -107,9 +106,7 @@ fun WeekStrip(selectedDate: String, onDateSelected: (String) -> Unit) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
 
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
-    // Padding 2 bên là 24.dp x 2 = 48.dp
-    // 7 ô x 46.dp = 322.dp
-    // Còn lại 6 khoảng trống ở giữa => chia 6 để được khoảng cách chuẩn như cũ
+
     val exactSpacing = (screenWidth - 48.dp - 322.dp) / 6
 
     LazyRow(
