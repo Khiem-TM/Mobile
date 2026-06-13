@@ -32,6 +32,8 @@ import javax.inject.Singleton
 private const val EXERCISE_CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
 private const val EXERCISE_SYNC_PAGE_SIZE = 100
 private const val KEY_EXERCISE_SYNCED_AT = "exercise_synced_at"
+private const val KEY_EXERCISE_SYNC_VERSION = "exercise_sync_version"
+private const val EXERCISE_SYNC_VERSION = 2
 
 @Singleton
 class TrainingRepository @Inject constructor(
@@ -229,11 +231,14 @@ class TrainingRepository @Inject constructor(
 
     suspend fun refreshExercises(force: Boolean = false) {
         val syncedAt = sharedPrefs.getLong(KEY_EXERCISE_SYNCED_AT, 0L)
+        val syncVersion = sharedPrefs.getInt(KEY_EXERCISE_SYNC_VERSION, 0)
         val isCacheStale = syncedAt == 0L || System.currentTimeMillis() - syncedAt > EXERCISE_CACHE_TTL_MS
-        if (!force && !isCacheStale) return
+        val needsPaginationFixRefresh = syncVersion < EXERCISE_SYNC_VERSION
+        if (!force && !isCacheStale && !needsPaginationFixRefresh) return
 
         runCatching {
             val exercises = mutableListOf<ExerciseDto>()
+            val seenIds = mutableSetOf<String>()
             var page = 1
             do {
                 val response = trainingApi.getExercises(
@@ -245,13 +250,17 @@ class TrainingRepository @Inject constructor(
                 }
                 val batch = response.body()?.data
                     ?: error("Phản hồi đồng bộ bài tập không hợp lệ")
-                exercises += batch
+                val newBatch = batch.filter { seenIds.add(it.id) }
+                exercises += newBatch
                 page += 1
-            } while (batch.size == EXERCISE_SYNC_PAGE_SIZE)
-            exercises.distinctBy { it.id }
+            } while (batch.isNotEmpty() && newBatch.isNotEmpty())
+            exercises
         }.onSuccess { exercises ->
             exerciseDao.replaceAll(exercises.map { it.toEntity() })
-            sharedPrefs.edit().putLong(KEY_EXERCISE_SYNCED_AT, System.currentTimeMillis()).apply()
+            sharedPrefs.edit()
+                .putLong(KEY_EXERCISE_SYNCED_AT, System.currentTimeMillis())
+                .putInt(KEY_EXERCISE_SYNC_VERSION, EXERCISE_SYNC_VERSION)
+                .apply()
         }
     }
 
