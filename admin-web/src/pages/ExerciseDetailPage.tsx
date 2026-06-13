@@ -172,9 +172,16 @@ export function ExerciseDetailPage() {
             <DetailRow label="ID" mono value={exercise.id} />
             <DetailRow label="Ngày tạo" value={formatDate(exercise.createdAt)} />
             <DetailRow label="Cập nhật" value={formatDate(exercise.updatedAt)} />
+            <DetailRow label="Lottie version" value={exercise.lottieVersion} />
+            <DetailRow label="Lottie size" value={formatFileSize(exercise.lottieFileSize)} />
             <DetailRow label="Image public IDs" value={(exercise.image_public_ids ?? exercise.imagePublicIds ?? []).join(', ') || '-'} />
           </div>
           <div className="mt-4 space-y-3">
+            {exercise.lottieUrl ? (
+              <a className="block truncate rounded-md border border-border bg-surface-low px-3 py-2 font-mono text-xs text-primary hover:underline" href={exercise.lottieUrl} rel="noreferrer" target="_blank">
+                {exercise.lottieUrl}
+              </a>
+            ) : null}
             {imageUrls.map((url) => (
               <a className="block truncate rounded-md border border-border bg-surface-low px-3 py-2 font-mono text-xs text-primary hover:underline" href={url} key={url} rel="noreferrer" target="_blank">
                 {url}
@@ -238,4 +245,11 @@ function DetailRow({ label, value, mono }: { label: string; value?: string | num
       <p className={`break-words text-sm font-bold text-text ${mono ? 'font-mono text-xs' : ''}`}>{value ?? '-'}</p>
     </div>
   );
+}
+
+function formatFileSize(value?: number | null): string {
+  if (!value) return '-';
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
 }
