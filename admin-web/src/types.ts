@@ -133,6 +133,10 @@ export interface Exercise {
   imageUrl?: string[] | null;
   image_public_ids?: string[] | null;
   imagePublicIds?: string[] | null;
+  lottieUrl?: string | null;
+  lottiePath?: string | null;
+  lottieFileSize?: number | null;
+  lottieVersion?: string | null;
   videoUrl?: string | null;
   isActive?: boolean;
   equipment?: string | null;
@@ -147,6 +151,7 @@ export interface Exercise {
   defaultIntensityLevel?: string | null;
   movementType?: string | null;
   estimatedCaloriesPerMinute?: number | null;
+  lottieAsset?: string | null;
   favoritesCount?: number;
   createdAt?: string;
   updatedAt?: string;

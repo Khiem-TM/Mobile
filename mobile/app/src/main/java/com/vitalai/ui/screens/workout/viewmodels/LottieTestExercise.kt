@@ -13,5 +13,5 @@ val LOTTIE_TEST_EXERCISE = ExerciseDto(
     description = "Bài tập tạm để kiểm tra hoạt ảnh Lottie (Plank_chu_T.lottie).",
     exerciseType = "GYM",
     favoritesCount = 999_999,
-    lottieAsset = "Plank_chu_T.lottie"
+    lottieAsset = "https://res.cloudinary.com/dl3lapqhm/raw/upload/v1781320310/exercises/lottie/Plank_chu_T.lottie"
 )

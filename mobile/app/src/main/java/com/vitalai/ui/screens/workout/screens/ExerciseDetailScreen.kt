@@ -414,7 +414,7 @@ private fun ExerciseHeroPage(
         contentAlignment = Alignment.Center
     ) {
         if (item.type == ExerciseMediaType.Lottie && item.lottieAsset != null) {
-            val composition by rememberLottieComposition(LottieCompositionSpec.Asset(item.lottieAsset))
+            val composition by rememberLottieComposition(LottieCompositionSpec.Url(item.lottieAsset))
             val dynamicProperties = rememberLottieDynamicProperties(
                 rememberLottieDynamicProperty(
                     property = LottieProperty.COLOR,
