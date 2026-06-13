@@ -36,7 +36,7 @@ fun WorkoutScreen(
         uiState = uiState,
         onNavigateWorkoutBuilder = { navController.navigate(Screen.WorkoutBuilder) },
         onNavigateLibrary = { navController.navigate(Screen.ExerciseLibrary) },
-        onNavigateMetrics = { navController.navigate(Screen.TrainBodyMetrics) },
+        onNavigateMetrics = { navController.navigate(Screen.Metrics) },
         onNavigateWorkoutHistory = { navController.navigate(Screen.WorkoutHistory) },
         onPreviousWeek = viewModel::showPreviousWeek,
         onNextWeek = viewModel::showNextWeek,

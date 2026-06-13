@@ -139,4 +139,9 @@ export class CreateExerciseAdminDto {
   @IsNumber()
   @Min(0)
   estimatedCaloriesPerMinute?: number;
+
+  @ApiPropertyOptional({ description: 'Cloudinary URL of a .lottie animation' })
+  @IsOptional()
+  @IsUrl()
+  lottieAsset?: string;
 }

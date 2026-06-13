@@ -340,7 +340,7 @@ fun TrainExerciseThumb(
         contentAlignment = Alignment.Center
     ) {
         if (exercise.lottieAsset != null) {
-            val composition by rememberLottieComposition(LottieCompositionSpec.Asset(exercise.lottieAsset))
+            val composition by rememberLottieComposition(LottieCompositionSpec.Url(exercise.lottieAsset))
             val dynamicProperties = rememberLottieDynamicProperties(
                 rememberLottieDynamicProperty(
                     property = LottieProperty.COLOR,

@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Download, Edit, Eye, Plus, RotateCcw, Trash2, Upload } from 'lucide-react';
+import { Download, Edit, Eye, FileJson, Plus, RotateCcw, Trash2, Upload, X } from 'lucide-react';
 import { z } from 'zod';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { DrawerForm } from '../components/DrawerForm';
 import { FilterBar } from '../components/FilterBar';
 import { FormField } from '../components/FormField';
 import { StatusBadge, statusVariant } from '../components/StatusBadge';
-import { compactParams, del, get, patch, post } from '../lib/api';
+import { apiClient, compactParams, del, get, patch, post } from '../lib/api';
 import { getAdminExerciseById } from '../lib/adminResources';
 import { boolFromSelect, formatDate, formatNumber, getItems, toNumberOrUndefined } from '../lib/format';
 import type { ApiErrorShape, Exercise, Paginated } from '../types';
@@ -38,6 +39,7 @@ const exerciseSchema = z.object({
   defaultIntensityLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
   movementType: z.string().optional(),
   estimatedCaloriesPerMinute: z.number().min(0).optional(),
+  lottieAsset: z.string().url().or(z.literal('')).optional(),
 });
 
 type ExerciseFilters = {
@@ -104,6 +106,30 @@ export function ExercisesPage() {
       setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ['exercises'] });
       queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+    },
+  });
+  const uploadLottie = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return apiClient.post<unknown, Exercise>(`/admin/exercises/${id}/lottie`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    },
+    onSuccess: (exercise) => {
+      setDrawer((current) =>
+        current?.mode === 'edit' ? { ...current, exercise } : current,
+      );
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
+    },
+  });
+  const deleteLottie = useMutation({
+    mutationFn: (id: string) => del<Exercise>(`/admin/exercises/${id}/lottie`),
+    onSuccess: (exercise) => {
+      setDrawer((current) =>
+        current?.mode === 'edit' ? { ...current, exercise } : current,
+      );
+      queryClient.invalidateQueries({ queryKey: ['exercises'] });
     },
   });
 
@@ -252,6 +278,7 @@ export function ExercisesPage() {
       defaultIntensityLevel: intensity ? (intensity as 'LOW' | 'MEDIUM' | 'HIGH') : undefined,
       movementType: String(formData.get('movementType') ?? '').trim(),
       estimatedCaloriesPerMinute: toNumberOrUndefined(formData.get('estimatedCaloriesPerMinute')),
+      lottieAsset: String(formData.get('lottieAsset') ?? '').trim(),
     };
     const parsed = exerciseSchema.safeParse(raw);
     if (!parsed.success) {
@@ -406,7 +433,20 @@ export function ExercisesPage() {
             submitExerciseForm(new FormData(event.currentTarget));
           }}
         >
-          <ExerciseFormFields exercise={drawer?.exercise} />
+          <ExerciseFormFields
+            exercise={drawer?.exercise}
+            isDeletingLottie={deleteLottie.isPending}
+            isUploadingLottie={uploadLottie.isPending}
+            lottieError={
+              (uploadLottie.error as ApiErrorShape | null)?.message ||
+              (deleteLottie.error as ApiErrorShape | null)?.message ||
+              ''
+            }
+            onDeleteLottie={(exercise) => deleteLottie.mutate(exercise.id)}
+            onUploadLottie={(exercise, file) =>
+              uploadLottie.mutate({ id: exercise.id, file })
+            }
+          />
           {formError || createExercise.error || updateExercise.error ? (
             <div className="rounded-md border border-danger/25 bg-danger-soft/40 px-3 py-2 text-sm font-semibold text-danger">
               {formError || (createExercise.error as ApiErrorShape | null)?.message || (updateExercise.error as ApiErrorShape | null)?.message}
@@ -512,7 +552,21 @@ function parseTranslationCsv(csv: string): TranslationRow[] {
   return parsed;
 }
 
-function ExerciseFormFields({ exercise }: { exercise?: Exercise }) {
+function ExerciseFormFields({
+  exercise,
+  onUploadLottie,
+  onDeleteLottie,
+  isUploadingLottie,
+  isDeletingLottie,
+  lottieError,
+}: {
+  exercise?: Exercise;
+  onUploadLottie: (exercise: Exercise, file: File) => void;
+  onDeleteLottie: (exercise: Exercise) => void;
+  isUploadingLottie: boolean;
+  isDeletingLottie: boolean;
+  lottieError: string;
+}) {
   const [exerciseType, setExerciseType] = useState(String(exercise?.exerciseType ?? exercise?.exercise_type ?? 'SPORT'));
   return (
     <>
@@ -550,6 +604,7 @@ function ExerciseFormFields({ exercise }: { exercise?: Exercise }) {
         <FormField label="Video URL"><input className="input" defaultValue={exercise?.videoUrl ?? ''} name="videoUrl" /></FormField>
         <FormField label="Image URL"><input className="input" defaultValue={exercise?.imageAvtUrl ?? ''} name="imageAvtUrl" /></FormField>
       </div>
+      <FormField label="Lottie URL (Cloudinary, .lottie)"><input className="input" defaultValue={exercise?.lottieAsset ?? ''} name="lottieAsset" /></FormField>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Thiết bị"><input className="input" defaultValue={exercise?.equipment ?? ''} name="equipment" /></FormField>
         <FormField label="Nhóm cơ phụ"><input className="input" defaultValue={exercise?.secondaryMuscleGroups?.join(', ') ?? ''} name="secondaryMuscleGroups" /></FormField>
@@ -566,6 +621,14 @@ function ExerciseFormFields({ exercise }: { exercise?: Exercise }) {
             <FormField label="Target muscle"><input className="input" defaultValue={exercise?.targetMuscleGroup ?? ''} name="targetMuscleGroup" /></FormField>
             <FormField label="Rest seconds"><input className="input" defaultValue={exercise?.restTimeSeconds ?? ''} min="0" name="restTimeSeconds" type="number" /></FormField>
           </div>
+          <LottieManager
+            exercise={exercise}
+            isDeleting={isDeletingLottie}
+            isUploading={isUploadingLottie}
+            lottieError={lottieError}
+            onDelete={onDeleteLottie}
+            onUpload={onUploadLottie}
+          />
         </section>
       ) : (
         <section className="rounded-lg border border-border bg-surface-low p-4">
@@ -587,4 +650,206 @@ function ExerciseFormFields({ exercise }: { exercise?: Exercise }) {
       )}
     </>
   );
+}
+
+function LottieManager({
+  exercise,
+  onUpload,
+  onDelete,
+  isUploading,
+  isDeleting,
+  lottieError,
+}: {
+  exercise?: Exercise;
+  onUpload: (exercise: Exercise, file: File) => void;
+  onDelete: (exercise: Exercise) => void;
+  isUploading: boolean;
+  isDeleting: boolean;
+  lottieError: string;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewData, setPreviewData] = useState<unknown | null>(null);
+  const [previewError, setPreviewError] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const currentLottieUrl = exercise?.lottieUrl ?? null;
+
+  useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      setObjectUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setObjectUrl(null);
+    }
+  }, [selectedFile]);
+
+  async function handleFile(file: File | undefined) {
+    setPreviewError('');
+    setPreviewData(null);
+    setSelectedFile(null);
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (!name.endsWith('.json') && !name.endsWith('.lottie')) {
+      setPreviewError('Chỉ nhận file Lottie .json hoặc .lottie');
+      return;
+    }
+    if (name.endsWith('.lottie')) {
+      try {
+        const buffer = await file.slice(0, 4).arrayBuffer();
+        const header = new Uint8Array(buffer);
+        const isZip = header[0] === 0x50 && header[1] === 0x4B && header[2] === 0x03 && header[3] === 0x04;
+        if (!isZip) {
+          setPreviewError('File .lottie không hợp lệ (không phải định dạng ZIP).');
+          return;
+        }
+        setSelectedFile(file);
+        setPreviewData({ isLottieFile: true });
+      } catch {
+        setPreviewError('Không đọc được file .lottie.');
+      }
+      return;
+    }
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!isLottieJson(parsed)) {
+        setPreviewError('File không có cấu trúc Lottie hợp lệ.');
+        return;
+      }
+      setSelectedFile(file);
+      setPreviewData(parsed);
+    } catch {
+      setPreviewError('Không đọc được JSON trong file này.');
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-border bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-extrabold text-text">
+            <FileJson className="h-4 w-4 text-primary" />
+            Lottie JSON
+          </div>
+          <p className="mt-1 text-xs text-muted">Tạo bài tập trước, sau đó upload animation cho bài GYM.</p>
+        </div>
+        {currentLottieUrl ? (
+          <a className="btn-secondary" href={currentLottieUrl} rel="noreferrer" target="_blank">
+            Mở JSON
+          </a>
+        ) : null}
+      </div>
+
+      {exercise ? (
+        <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
+          <LottiePreview src={objectUrl || currentLottieUrl} />
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <LottieMeta label="Version" value={exercise.lottieVersion || '-'} />
+              <LottieMeta label="Dung lượng" value={formatFileSize(exercise.lottieFileSize)} />
+              <LottieMeta label="Trạng thái" value={currentLottieUrl ? 'Đã có Lottie' : 'Chưa có'} />
+            </div>
+            {exercise.lottiePath ? (
+              <p className="break-all rounded-md border border-border bg-surface-low px-3 py-2 font-mono text-xs text-muted">
+                {exercise.lottiePath}
+              </p>
+            ) : null}
+            <input
+              ref={fileInputRef}
+              accept=".json,application/json,.lottie"
+              className="hidden"
+              onChange={(event) => void handleFile(event.target.files?.[0])}
+              type="file"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button className="btn-secondary" onClick={() => fileInputRef.current?.click()} type="button">
+                <Upload className="h-4 w-4" />
+                Chọn JSON
+              </button>
+              <button
+                className="btn-primary"
+                disabled={!selectedFile || isUploading}
+                onClick={() => selectedFile && onUpload(exercise, selectedFile)}
+                type="button"
+              >
+                {isUploading ? 'Đang upload...' : currentLottieUrl ? 'Thay Lottie' : 'Upload Lottie'}
+              </button>
+              {currentLottieUrl ? (
+                <button
+                  className="btn-secondary text-danger hover:text-danger"
+                  disabled={isDeleting}
+                  onClick={() => onDelete(exercise)}
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                  {isDeleting ? 'Đang xóa...' : 'Xóa Lottie'}
+                </button>
+              ) : null}
+            </div>
+            {selectedFile ? <p className="text-xs font-semibold text-muted">Đã chọn: {selectedFile.name}</p> : null}
+            {previewError || lottieError ? (
+              <p className="rounded-md border border-danger/25 bg-danger-soft/40 px-3 py-2 text-sm font-semibold text-danger">
+                {previewError || lottieError}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <p className="rounded-md border border-border bg-surface-low px-3 py-2 text-sm text-muted">
+          Lưu bài tập trước, sau đó mở lại để upload Lottie JSON.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LottiePreview({ src }: { src: string | null }) {
+  if (!src) {
+    return (
+      <div className="grid h-44 place-items-center rounded-lg border border-border bg-white p-3 text-center">
+        <div>
+          <FileJson className="mx-auto mb-3 h-10 w-10 text-muted" />
+          <p className="text-sm font-extrabold text-text">Chưa có preview</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid h-44 place-items-center rounded-lg border border-border bg-white p-2">
+      <div className="h-40 w-40 overflow-hidden">
+        <DotLottieReact
+          src={src}
+          autoplay
+          loop
+        />
+      </div>
+    </div>
+  );
+}
+
+function LottieMeta({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-surface-low px-3 py-2">
+      <p className="label mb-1">{label}</p>
+      <p className="text-sm font-bold text-text">{value}</p>
+    </div>
+  );
+}
+
+function isLottieJson(value: unknown): boolean {
+  if (!value || typeof value !== 'object') return false;
+  const lottie = value as Record<string, unknown>;
+  return (
+    typeof lottie.v === 'string' &&
+    ['fr', 'ip', 'op', 'w', 'h'].every((key) => typeof lottie[key] === 'number') &&
+    Array.isArray(lottie.layers)
+  );
+}
+
+function formatFileSize(value?: number | null): string {
+  if (!value) return '-';
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
 }
