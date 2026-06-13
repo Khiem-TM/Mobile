@@ -133,6 +133,10 @@ export interface Exercise {
   imageUrl?: string[] | null;
   image_public_ids?: string[] | null;
   imagePublicIds?: string[] | null;
+  lottieUrl?: string | null;
+  lottiePath?: string | null;
+  lottieFileSize?: number | null;
+  lottieVersion?: string | null;
   videoUrl?: string | null;
   isActive?: boolean;
   equipment?: string | null;
