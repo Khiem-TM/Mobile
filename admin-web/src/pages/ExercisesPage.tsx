@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Download, Edit, Eye, FileJson, Plus, RotateCcw, Trash2, Upload, X } from 'lucide-react';
 import { z } from 'zod';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DataTable, type DataColumn } from '../components/DataTable';
 import { DrawerForm } from '../components/DrawerForm';
@@ -667,7 +668,18 @@ function LottieManager({
   const [previewData, setPreviewData] = useState<unknown | null>(null);
   const [previewError, setPreviewError] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const currentLottieUrl = exercise?.lottieUrl ?? null;
+
+  useEffect(() => {
+    if (selectedFile) {
+      const url = URL.createObjectURL(selectedFile);
+      setObjectUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setObjectUrl(null);
+    }
+  }, [selectedFile]);
 
   async function handleFile(file: File | undefined) {
     setPreviewError('');
@@ -727,7 +739,7 @@ function LottieManager({
 
       {exercise ? (
         <div className="grid gap-4 lg:grid-cols-[180px_minmax(0,1fr)]">
-          <LottiePreview data={previewData} url={previewData ? null : currentLottieUrl} />
+          <LottiePreview src={objectUrl || currentLottieUrl} />
           <div className="space-y-3">
             <div className="grid gap-2 sm:grid-cols-3">
               <LottieMeta label="Version" value={exercise.lottieVersion || '-'} />
@@ -788,16 +800,26 @@ function LottieManager({
   );
 }
 
-function LottiePreview({ data, url }: { data: unknown | null; url: string | null }) {
-  const status = data ? 'File local hợp lệ' : url ? 'Đã có Lottie trên Storage' : 'Chưa có preview';
+function LottiePreview({ src }: { src: string | null }) {
+  if (!src) {
+    return (
+      <div className="grid h-44 place-items-center rounded-lg border border-border bg-white p-3 text-center">
+        <div>
+          <FileJson className="mx-auto mb-3 h-10 w-10 text-muted" />
+          <p className="text-sm font-extrabold text-text">Chưa có preview</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid h-44 place-items-center rounded-lg border border-border bg-white p-3 text-center">
-      <div>
-        <FileJson className="mx-auto mb-3 h-10 w-10 text-primary" />
-        <p className="text-sm font-extrabold text-text">{status}</p>
-        <p className="mt-1 text-xs text-muted">
-          Preview animation cần cài thêm lottie-web sau khi máy còn đủ dung lượng.
-        </p>
+    <div className="grid h-44 place-items-center rounded-lg border border-border bg-white p-2">
+      <div className="h-40 w-40 overflow-hidden">
+        <DotLottieReact
+          src={src}
+          autoplay
+          loop
+        />
       </div>
     </div>
   );
