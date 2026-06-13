@@ -131,28 +131,14 @@ class FoodViewModel @Inject constructor(
     }
 
     fun addToMealLog(mealType: String, date: String, foodId: String, quantity: Float, servingUnit: String) {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isAdding = true, error = null) }
-            // Tìm bữa ăn từ Room (nhanh); chỉ tạo mới qua network nếu chưa có.
-            var mealLog = mealLogRepository.getCachedMealLog(date, mealType)
-            if (mealLog == null) {
-                mealLog = mealLogRepository.createMealLog(mealType, date).getOrElse {
-                    _uiState.update { it.copy(isAdding = false, error = "Không thể tạo bữa ăn") }
-                    return@launch
-                }
-            }
-            val food = findFood(foodId)
-            if (food != null) {
-                // Optimistic: hiện món ngay, đồng bộ nền.
-                mealLogRepository.addItemOptimistic(mealLog.id, food, quantity, servingUnit)
-                _uiState.update { it.copy(isAdding = false, addSuccess = true) }
-            } else {
-                // Fallback (không tìm thấy FoodDto trong state): hành vi cũ.
-                mealLogRepository.addItem(mealLog.id, AddMealItemRequest(foodId, quantity, servingUnit))
-                    .onSuccess { _uiState.update { it.copy(isAdding = false, addSuccess = true) } }
-                    .onFailure { e -> _uiState.update { it.copy(isAdding = false, error = e.message ?: "Lỗi thêm món ăn") } }
-            }
+        _uiState.update { it.copy(isAdding = true, error = null) }
+        val food = findFood(foodId)
+        if (food != null) {
+            mealLogRepository.addFoodToMealAsync(mealType, date, food, quantity, servingUnit)
+        } else {
+            mealLogRepository.addFoodIdToMealAsync(mealType, date, foodId, quantity, servingUnit)
         }
+        _uiState.update { it.copy(isAdding = false, addSuccess = true) }
     }
 
     private fun findFood(foodId: String): com.vitalai.data.remote.model.FoodDto? {

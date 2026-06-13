@@ -50,6 +50,7 @@ import com.vitalai.ui.theme.Mint500
 import com.vitalai.ui.theme.Mint600
 import com.vitalai.ui.theme.VitalAITheme
 import com.vitalai.ui.theme.VitalRadius
+import com.vitalai.ui.theme.ForestGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -161,7 +162,7 @@ private fun SignInContent(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp)
-                .padding(top = 60.dp, bottom = 28.dp)
+                .padding(top = 60.dp, bottom = 44.dp)
         ) {
             VitalIconButton(onClick = onBackClick) {
                 Icon(
@@ -241,7 +242,7 @@ private fun SignInContent(
 
             Button(
                 onClick = onSignInClick,
-                colors = ButtonDefaults.buttonColors(containerColor = Ink900),
+                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
                 shape = RoundedCornerShape(100),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                 modifier = Modifier.fillMaxWidth(),

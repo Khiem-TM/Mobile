@@ -29,7 +29,9 @@ data class GoalsUiState(
     val stepGoal: String = "",
     val targetWeightKg: String = "",
     val weeklyRateKg: String = "",
-    val goalType: String = ""
+    val goalType: String = "",
+    val activityLevel: String = "",
+    val tdee: Float? = null
 )
 
 @HiltViewModel
@@ -76,9 +78,25 @@ class GoalsViewModel @Inject constructor(
                 stepGoal = p.stepGoal?.toString() ?: "10000",
                 targetWeightKg = p.targetWeightKg?.toFloatString() ?: "",
                 weeklyRateKg = p.weeklyRateKg?.toFloatString() ?: "",
-                goalType = p.goalType ?: "maintain"
+                goalType = p.goalType ?: "maintain",
+                activityLevel = p.activityLevel ?: "moderately_active",
+                tdee = computeTdee(p, p.activityLevel ?: "moderately_active", p.goalType ?: "maintain")
             )
         }
+    }
+
+    private fun computeTdee(p: HealthProfileDto, activityLvl: String, goalType: String): Float? {
+        val age = com.vitalai.ui.screens.metrics.calculateAge(p.birthDate)
+        val bmr = com.vitalai.ui.screens.metrics.calculateBmr(p.gender, p.initialWeightKg, p.heightCm, age)
+        val baseTdee = com.vitalai.ui.screens.metrics.calculateTdee(bmr, activityLvl) ?: return null
+        
+        val offset = when (goalType) {
+            "lose_weight", "cutting" -> -500f
+            "gain_weight", "bulking" -> 500f
+            "gain_muscle" -> 300f
+            else -> 0f
+        }
+        return baseTdee + offset
     }
 
     fun onDailyCalories(v: String) = _uiState.update { it.copy(dailyCaloriesGoal = v) }
@@ -89,7 +107,54 @@ class GoalsViewModel @Inject constructor(
     fun onStepGoal(v: String) = _uiState.update { it.copy(stepGoal = v) }
     fun onTargetWeight(v: String) = _uiState.update { it.copy(targetWeightKg = v) }
     fun onWeeklyRate(v: String) = _uiState.update { it.copy(weeklyRateKg = v) }
-    fun onGoalType(v: String) = _uiState.update { it.copy(goalType = v) }
+
+    fun onGoalType(v: String) = _uiState.update { state -> 
+        applyTemplates(state.copy(goalType = v))
+    }
+    fun onActivityLevel(v: String) = _uiState.update { state -> 
+        applyTemplates(state.copy(activityLevel = v))
+    }
+
+    private data class GoalTemplate(
+        val pPct: Float, val cPct: Float, val fPct: Float, 
+        val steps: Int, val water: Int, val weeklyRate: Float
+    )
+
+    private fun applyTemplates(state: GoalsUiState): GoalsUiState {
+        val p = state.profile ?: defaultDraftProfile()
+        val targetCals = computeTdee(p, state.activityLevel, state.goalType) ?: 2000f
+
+        val tmpl = when (state.goalType) {
+            "lose_weight" -> GoalTemplate(0.30f, 0.40f, 0.30f, 10000, 2500, 0.5f)
+            "gain_weight" -> GoalTemplate(0.25f, 0.50f, 0.25f, 8000, 2500, 0.5f)
+            "gain_muscle" -> GoalTemplate(0.35f, 0.45f, 0.20f, 8000, 3000, 0.2f)
+            "improve_endurance" -> GoalTemplate(0.25f, 0.55f, 0.20f, 12000, 3500, 0f)
+            "bulking" -> GoalTemplate(0.30f, 0.50f, 0.20f, 8000, 3000, 0.5f)
+            "cutting" -> GoalTemplate(0.40f, 0.30f, 0.30f, 10000, 3000, 0.5f)
+            else -> GoalTemplate(0.30f, 0.40f, 0.30f, 10000, 2500, 0f) // maintain
+        }
+
+        val pGrams = (targetCals * tmpl.pPct) / 4f
+        val cGrams = (targetCals * tmpl.cPct) / 4f
+        val fGrams = (targetCals * tmpl.fPct) / 9f
+
+        val targetWeight = when {
+            state.goalType in listOf("lose_weight", "cutting") -> (p.initialWeightKg ?: 65f) - 5f
+            state.goalType in listOf("gain_weight", "gain_muscle", "bulking") -> (p.initialWeightKg ?: 65f) + 5f
+            else -> p.initialWeightKg ?: 65f
+        }
+
+        return state.copy(
+            tdee = targetCals,
+            proteinGoalG = pGrams.toInt().toString(),
+            carbsGoalG = cGrams.toInt().toString(),
+            fatGoalG = fGrams.toInt().toString(),
+            waterGoalMl = tmpl.water.toString(),
+            stepGoal = tmpl.steps.toString(),
+            targetWeightKg = targetWeight.toFloatString(),
+            weeklyRateKg = tmpl.weeklyRate.toFloatString()
+        )
+    }
 
     fun save() {
         val s = _uiState.value
@@ -107,8 +172,8 @@ class GoalsViewModel @Inject constructor(
             // Preserve existing profile fields, override only the goal-related ones.
             val base = s.profile ?: HealthProfileDto()
             val updated = base.copy(
-                dailyCaloriesGoal = s.dailyCaloriesGoal.toFloatOrNull(),
-                caloriesGoal = s.dailyCaloriesGoal.toFloatOrNull() ?: base.caloriesGoal,
+                dailyCaloriesGoal = s.tdee ?: base.dailyCaloriesGoal,
+                caloriesGoal = s.tdee ?: base.caloriesGoal,
                 proteinGoalG = s.proteinGoalG.toFloatOrNull(),
                 carbsGoalG = s.carbsGoalG.toFloatOrNull(),
                 fatGoalG = s.fatGoalG.toFloatOrNull(),
@@ -116,7 +181,8 @@ class GoalsViewModel @Inject constructor(
                 stepGoal = s.stepGoal.toIntOrNull() ?: base.stepGoal ?: 10000,
                 targetWeightKg = s.targetWeightKg.toFloatOrNull(),
                 weeklyRateKg = s.weeklyRateKg.toFloatOrNull(),
-                goalType = s.goalType.ifBlank { null }
+                goalType = s.goalType.ifBlank { null },
+                activityLevel = s.activityLevel.ifBlank { null }
             )
             userRepository.updateHealthProfile(updated).onSuccess { p ->
                 _uiState.update { it.copy(isSaving = false, saveSuccess = true, profile = p) }

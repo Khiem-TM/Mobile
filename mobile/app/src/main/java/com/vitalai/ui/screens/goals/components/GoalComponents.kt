@@ -27,12 +27,13 @@ fun SectionLabel(text: String) {
 }
 
 @Composable
-fun GoalField(label: String, value: String, onValueChange: (String) -> Unit) {
+fun GoalField(label: String, value: String, onValueChange: (String) -> Unit, readOnly: Boolean = false) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
         singleLine = true,
+        readOnly = readOnly,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = Modifier
             .fillMaxWidth()

@@ -48,9 +48,9 @@ fun WorkoutHistoryScreen(
 
     TrainScreen {
         Column(Modifier.fillMaxSize()) {
-            TrainHeader(
+            com.vitalai.ui.components.VitalScreenHeader(
                 title = "Lịch sử tập luyện",
-                onBack = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() }
             )
             when {
                 uiState.isInitialLoading -> LoadingState(modifier = Modifier.fillMaxSize())

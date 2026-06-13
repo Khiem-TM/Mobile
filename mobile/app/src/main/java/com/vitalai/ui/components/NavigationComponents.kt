@@ -45,6 +45,7 @@ import com.vitalai.navigation.BottomNavReselectBus
 import com.vitalai.navigation.Screen
 import com.vitalai.ui.theme.AppLine
 import com.vitalai.ui.theme.AppSurface
+import com.vitalai.ui.theme.ForestGreen
 import com.vitalai.ui.theme.Ink400
 import com.vitalai.ui.theme.Mint100
 import com.vitalai.ui.theme.Mint400
@@ -142,10 +143,9 @@ private suspend fun settleLikeSnowglobe(
 fun VitalBottomNavBar(navController: NavController) {
     val navBackStackEntry = navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry.value?.destination?.route
-    val density = LocalDensity.current
-    val navigationBarHeight = with(density) {
-        WindowInsets.navigationBars.getBottom(this).toDp()
-    }
+
+    // Just a small static padding to avoid touching system gestures, instead of full navigationBarHeight
+    val safeBottomPadding = 16.dp
 
     // --- TRẠNG THÁI ANIMATION (state thường, đọc trong lambda -> không recompose) ---
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -172,23 +172,23 @@ fun VitalBottomNavBar(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(90.dp)
+            .height(90.dp + safeBottomPadding)
             .background(Color.Transparent)
     ) {
         // --- NỀN THANH ĐIỀU HƯỚNG ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(90.dp)
+                .height(90.dp + safeBottomPadding)
                 .align(Alignment.BottomCenter)
                 .shadow(elevation = VitalElevation.Level3)
-                .background(AppSurface.copy(alpha = 0.96f))
+                .background(Color.White)
         ) {
             HorizontalDivider(color = AppLine, thickness = 1.dp, modifier = Modifier.align(Alignment.TopCenter))
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 14.dp + safeBottomPadding),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -290,7 +290,7 @@ fun VitalBottomNavBar(navController: NavController) {
                 // Hình dáng và thiết kế tĩnh ( shadow TRƯỚC background )
                 .shadow(VitalElevation.Fab, CircleShape, clip = false)
                 .clip(CircleShape)
-                .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Mint400, Mint600)))
+                .background(ForestGreen)
                 // Xử lý nhấp chuột thường
                 .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -329,13 +329,13 @@ private fun AiQuickActionButton(
             modifier = Modifier
                 .size(30.dp)
                 .clip(CircleShape)
-                .background(Mint600),
+                .background(ForestGreen),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
         }
         Spacer(modifier = Modifier.width(7.dp))
-        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Mint600, maxLines = 1)
+        Text(label, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = ForestGreen, maxLines = 1)
     }
 }
 
@@ -370,13 +370,13 @@ fun NavBarItem(
                 .width(44.dp)
                 .height(28.dp)
                 .clip(RoundedCornerShape(VitalRadius.Pill))
-                .background(if (isSelected) Mint100 else Color.Transparent),
+                .background(if (isSelected) ForestGreen.copy(alpha = 0.15f) else Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = item.icon,
                 contentDescription = item.label,
-                tint = if (isSelected) Mint600 else Ink400,
+                tint = if (isSelected) ForestGreen else Ink400,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -385,7 +385,7 @@ fun NavBarItem(
             text = item.label,
             fontSize = 10.sp,
             fontWeight = FontWeight.Medium,
-            color = if (isSelected) Mint600 else Ink400,
+            color = if (isSelected) ForestGreen else Ink400,
             maxLines = 1
         )
     }

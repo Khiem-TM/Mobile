@@ -72,7 +72,7 @@ fun OnboardingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 28.dp)
-                .padding(top = 60.dp, bottom = 28.dp)
+                .padding(top = 60.dp, bottom = 44.dp)
         ) {
             // Header: Back button + Progress bar + Step count
             Row(
@@ -238,7 +238,7 @@ fun OnboardingScreen(
                         }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Ink900),
+                colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
                 shape = RoundedCornerShape(VitalRadius.Pill),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
                 modifier = Modifier

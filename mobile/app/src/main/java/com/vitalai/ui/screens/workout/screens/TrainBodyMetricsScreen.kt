@@ -66,7 +66,7 @@ import com.vitalai.navigation.Screen
 import com.vitalai.ui.screens.workout.components.TrainCard
 import com.vitalai.ui.screens.workout.components.TrainChip
 import com.vitalai.ui.screens.workout.components.TrainColors
-import com.vitalai.ui.screens.workout.components.TrainHeader
+
 import com.vitalai.ui.screens.workout.components.TrainPrimaryButton
 import com.vitalai.ui.screens.workout.components.TrainScreen
 import com.vitalai.ui.screens.workout.components.TrainSectionTitle

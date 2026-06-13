@@ -106,3 +106,23 @@ fun formatDateDisplay(dateStr: String): String {
         dateStr
     }
 }
+
+fun calculateBmr(gender: String?, weightKg: Float?, heightCm: Float?, age: Int?): Float? {
+    if (weightKg == null || heightCm == null || age == null || gender == null) return null
+    val base = 10f * weightKg + 6.25f * heightCm - 5f * age
+    return if (normalizeGender(gender) == "female") base - 161f else base + 5f
+}
+
+fun calculateTdee(bmr: Float?, activityLevel: String?): Float? {
+    if (bmr == null) return null
+    val multiplier = when (activityLevel) {
+        "sedentary" -> 1.2f
+        "lightly_active" -> 1.375f
+        "moderately_active" -> 1.55f
+        "very_active" -> 1.725f
+        "extra_active" -> 1.9f
+        else -> 1.2f
+    }
+    return bmr * multiplier
+}
+

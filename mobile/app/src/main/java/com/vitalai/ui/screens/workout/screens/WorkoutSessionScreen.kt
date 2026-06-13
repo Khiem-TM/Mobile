@@ -46,10 +46,10 @@ fun WorkoutSessionScreen(
 
     TrainScreen {
         Column(Modifier.fillMaxSize()) {
-            TrainHeader(
+            com.vitalai.ui.components.VitalScreenHeader(
                 title = uiState.session?.name ?: "Buổi tập",
                 subtitle = formatSessionDate(uiState.session?.sessionDate ?: date),
-                onBack = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() }
             )
 
             when {

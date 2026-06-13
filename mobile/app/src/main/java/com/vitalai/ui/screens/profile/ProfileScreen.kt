@@ -172,22 +172,38 @@ fun ProfileScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-    ) {
+    val scrollState = rememberScrollState()
+    val fadeOutOffsetPx = with(LocalDensity.current) { 100.dp.toPx() }
+    val fadeInOffsetPx = with(LocalDensity.current) { 200.dp.toPx() }
+    
+    val fadeOutProgressProvider = remember {
+        { (scrollState.value / fadeOutOffsetPx).coerceIn(0f, 1f) }
+    }
+    
+    val fadeInProgressProvider = remember {
+        { (scrollState.value / fadeInOffsetPx).coerceIn(0f, 1f) }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(AppSurface)
-                .padding(bottom = 24.dp)
+                .fillMaxSize()
+                .verticalScroll(scrollState)
         ) {
-            val streak = uiState.streaks?.loginStreak ?: 0
-            VitalMainHeader(
-                title = "Hồ sơ",
-                actions = {
-                    AnimatedVisibility(
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppSurface)
+                    .padding(bottom = 24.dp)
+            ) {
+                val streak = uiState.streaks?.loginStreak ?: 0
+                Box(
+                    modifier = Modifier.graphicsLayer { alpha = 1f - fadeOutProgressProvider() }
+                ) {
+                    com.vitalai.ui.components.VitalMainHeader(
+                        title = "Hồ sơ",
+                        actions = {
+                            AnimatedVisibility(
                 visible = streak > 0,
                 enter = fadeIn(animationSpec = tween(300)),
                 exit = fadeOut(animationSpec = tween(150))
@@ -215,7 +231,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .offset(y = 8.dp),
-                        contentAlignment = Alignment.Center
+                            contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "$streak",
@@ -246,8 +262,9 @@ fun ProfileScreen(
                     }
                 }
             }
+                        }
+                    )
                 }
-            )
 
             // User Info Card
             Column(
@@ -409,9 +426,6 @@ fun ProfileScreen(
                     ProfileMenuItem(icon = Icons.Default.TrackChanges, label = "Mục tiêu & kế hoạch") {
                         navController.navigate(Screen.Goals)
                     }
-                    ProfileMenuItem(icon = Icons.Default.EmojiEvents, label = "Huy hiệu của tôi") {
-                        // navigate to badges
-                    }
                     ProfileMenuItem(icon = Icons.Default.RoomService, label = "Món ăn của tôi") {
                         navController.navigate(Screen.SearchFood(initialTab = 2))
                     }
@@ -464,7 +478,14 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
         }
+
+        com.vitalai.ui.components.VitalSmallHeader(
+            title = "Hồ sơ",
+            textAlphaProvider = fadeInProgressProvider,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
+}
 
 /** Chip "PRO" cạnh tên người dùng — cùng bộ hiệu ứng glow/shimmer/press như TidePlusBadgeCard,
  *  thu nhỏ tỉ lệ cho phù hợp kích thước chip. */
